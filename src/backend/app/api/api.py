@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Dict, Any
 from app.database import get_db
-from app.models import Lead, Draft, Setting, RedditSubredditMonitored, RedditPost
-from app.schemas import LeadWithDrafts, LeadUpdate, DraftUpdate, DraftRead, SettingRead, SettingUpdate
+from app.models import Lead, Draft, Setting, RedditSubredditMonitored
+from app.schemas import LeadWithDrafts, LeadUpdate, DraftUpdate, DraftRead, SettingRead
 
 router = APIRouter(prefix="/api")
 

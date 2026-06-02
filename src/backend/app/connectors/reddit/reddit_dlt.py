@@ -133,7 +133,7 @@ def reddit_source(subreddits, subreddit_map, user_token=None, subreddit_xmls=Non
                             try:
                                 created_dt = datetime.fromisoformat(updated_str)
                             except Exception:
-                                pass
+                                logger.debug("Failed to parse reddit updated timestamp '%s'", updated_str, exc_info=True)
                                 
                         yield {
                             "id": post_id,
@@ -231,8 +231,11 @@ def reddit_source(subreddits, subreddit_map, user_token=None, subreddit_xmls=Non
                         if updated_str:
                             try:
                                 created_dt = datetime.fromisoformat(updated_str)
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.debug(
+                                    f"Failed to parse comment updated timestamp '{updated_str}' "
+                                    f"for post {post_id}; leaving created_at as None. Error: {e}"
+                                )
                                 
                         yield {
                             "id": comment_id,
@@ -292,8 +295,11 @@ def run_reddit_ingestion(db: Session = None):
                         if feed_updated_str:
                             try:
                                 src.updated_at = datetime.fromisoformat(feed_updated_str)
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.warning(
+                                    f"Failed to parse feed updated timestamp for subreddit {src.name}: "
+                                    f"{feed_updated_str} ({e})"
+                                )
                 except Exception as e:
                     logger.error(f"Error fetching RSS metadata for subreddit {src.name}: {e}")
             db.commit()

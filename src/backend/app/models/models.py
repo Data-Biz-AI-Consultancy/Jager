@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, Text, DateTime, func
-from sqlalchemy.orm import relationship, foreign
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 class RedditSubredditMonitored(Base):
