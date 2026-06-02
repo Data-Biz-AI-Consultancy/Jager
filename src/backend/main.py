@@ -4,8 +4,6 @@ from app.database import engine, Base, SessionLocal
 from app.api.api import router as api_router
 from app.models import Setting
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="Jager API",
@@ -47,6 +45,8 @@ def seed_default_settings():
 
 @app.on_event("startup")
 def startup_event():
+    # Create database tables
+    Base.metadata.create_all(bind=engine)
     seed_default_settings()
 
 @app.get("/")
