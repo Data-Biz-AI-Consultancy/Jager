@@ -33,13 +33,16 @@ def get_dlt_pipeline_and_destination():
 def reddit_source(subreddits, user_token=None):
     @dlt.resource(name="raw_messages", write_disposition="merge", primary_key="id")
     def fetch_submissions():
-        headers = {
-            "User-Agent": "Jager/1.0 (by /u/jager_developer)"
-        }
         if user_token:
-            headers["Authorization"] = f"Bearer {user_token}"
+            headers = {
+                "User-Agent": "Jager/1.0 (by /u/jager_developer)",
+                "Authorization": f"Bearer {user_token}"
+            }
             base_url = "https://oauth.reddit.com"
         else:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            }
             base_url = "https://www.reddit.com"
             
         for subreddit in subreddits:
