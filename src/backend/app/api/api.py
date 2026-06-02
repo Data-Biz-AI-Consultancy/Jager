@@ -88,8 +88,11 @@ def create_source(source: SourceCreate, db: Session = Depends(get_db)):
     db.refresh(db_source)
     return db_source
 
+from app.connectors.reddit.reddit_dlt import run_reddit_ingestion
+
 # --- TRIGGER SCAN ---
 @router.post("/trigger-scan")
-def trigger_scan():
-    # Stub response. In the future, this triggers the ingestion worker/pipeline
-    return {"status": "success", "message": "Pipeline scan triggered successfully (stub)"}
+def trigger_scan(db: Session = Depends(get_db)):
+    result = run_reddit_ingestion(db)
+    return result
+
