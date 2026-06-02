@@ -34,4 +34,4 @@ jobs:
 
       - name: Run Pytest
         run: |
-          pytest src/backend
+          pytest

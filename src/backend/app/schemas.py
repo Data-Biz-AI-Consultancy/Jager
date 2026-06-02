@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -15,8 +15,7 @@ class SourceCreate(SourceBase):
 class SourceRead(SourceBase):
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # RawMessage schemas
 class RawMessageRead(BaseModel):
@@ -31,8 +30,7 @@ class RawMessageRead(BaseModel):
     created_at: Optional[datetime] = None
     processed: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Draft schemas
 class DraftBase(BaseModel):
@@ -51,8 +49,7 @@ class DraftRead(DraftBase):
     lead_id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Lead schemas
 class LeadBase(BaseModel):
@@ -72,14 +69,12 @@ class LeadRead(LeadBase):
     created_at: datetime
     raw_message: Optional[RawMessageRead] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class LeadWithDrafts(LeadRead):
     drafts: List[DraftRead] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Setting schemas
 class SettingBase(BaseModel):
@@ -87,8 +82,7 @@ class SettingBase(BaseModel):
     value: str
 
 class SettingRead(SettingBase):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class SettingUpdate(BaseModel):
     value: str

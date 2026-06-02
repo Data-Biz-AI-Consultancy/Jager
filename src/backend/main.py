@@ -1,27 +1,9 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base, SessionLocal
 from app.api.api import router as api_router
 from app.models import Setting
-
-
-app = FastAPI(
-    title="Jager API",
-    description="Backend API for Jager Lead Generator & Opportunity Finder",
-    version="1.0.0"
-)
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Adjust in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include Router
-app.include_router(api_router)
 
 # Seed default settings
 def seed_default_settings():
@@ -43,11 +25,31 @@ def seed_default_settings():
     finally:
         db.close()
 
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     # Create database tables
     Base.metadata.create_all(bind=engine)
     seed_default_settings()
+    yield
+
+app = FastAPI(
+    title="Jager API",
+    description="Backend API for Jager Lead Generator & Opportunity Finder",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include Router
+app.include_router(api_router)
 
 @app.get("/")
 def read_root():
