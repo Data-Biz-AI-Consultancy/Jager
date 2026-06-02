@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch, MagicMock
 from app.models import RedditSubredditMonitored
 from app.connectors.reddit.reddit_dlt import reddit_source, run_reddit_ingestion
