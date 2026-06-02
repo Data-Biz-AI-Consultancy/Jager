@@ -39,53 +39,104 @@ def reddit_source(subreddits, user_token=None):
                 "Authorization": f"Bearer {user_token}"
             }
             base_url = "https://oauth.reddit.com"
-        else:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0"
-            }
-            base_url = "https://old.reddit.com"
-            
-        for subreddit in subreddits:
-            url = f"{base_url}/r/{subreddit}/new.json"
-            try:
-                response = requests.get(url, headers=headers, params={"limit": 25}, timeout=10)
-                if response.status_code == 401 and user_token:
-                    logger.warning("Reddit API unauthorized with token. Falling back to public.")
-                    url = f"https://www.reddit.com/r/{subreddit}/new.json"
-                    headers.pop("Authorization", None)
+            for subreddit in subreddits:
+                url = f"{base_url}/r/{subreddit}/new.json"
+                try:
                     response = requests.get(url, headers=headers, params={"limit": 25}, timeout=10)
-                
-                if response.status_code != 200:
-                    logger.error(f"Failed to fetch from subreddit {subreddit}: status code {response.status_code}")
-                    continue
-                
-                data = response.json()
-                children = data.get("data", {}).get("children", [])
-                for child in children:
-                    post = child.get("data", {})
-                    post_id = post.get("name")
-                    if not post_id:
+                    if response.status_code != 200:
+                        logger.error(f"Failed to fetch from subreddit {subreddit} via API: status code {response.status_code}")
                         continue
-                        
-                    created_utc = post.get("created_utc")
-                    created_dt = None
-                    if created_utc:
-                        created_dt = datetime.fromtimestamp(created_utc, tz=timezone.utc)
                     
-                    yield {
-                        "id": f"reddit:{post_id}",
-                        "platform": "reddit",
-                        "source_id": f"reddit:{subreddit}",
-                        "author": post.get("author"),
-                        "title": post.get("title"),
-                        "content": post.get("selftext") or post.get("title") or "",
-                        "url": f"https://reddit.com{post.get('permalink')}" if post.get('permalink') else None,
-                        "score": int(post.get("score", 0)),
-                        "created_at": created_dt,
-                        "processed": 0
-                    }
-            except Exception as e:
-                logger.error(f"Error fetching from subreddit {subreddit}: {e}")
+                    data = response.json()
+                    children = data.get("data", {}).get("children", [])
+                    for child in children:
+                        post = child.get("data", {})
+                        post_id = post.get("name")
+                        if not post_id:
+                            continue
+                            
+                        created_utc = post.get("created_utc")
+                        created_dt = None
+                        if created_utc:
+                            created_dt = datetime.fromtimestamp(created_utc, tz=timezone.utc)
+                        
+                        yield {
+                            "id": f"reddit:{post_id}",
+                            "platform": "reddit",
+                            "source_id": f"reddit:{subreddit}",
+                            "author": post.get("author"),
+                            "title": post.get("title"),
+                            "content": post.get("selftext") or post.get("title") or "",
+                            "url": f"https://reddit.com{post.get('permalink')}" if post.get('permalink') else None,
+                            "score": int(post.get("score", 0)),
+                            "created_at": created_dt,
+                            "processed": 0
+                        }
+                except Exception as e:
+                    logger.error(f"Error fetching from subreddit {subreddit} via JSON API: {e}")
+        else:
+            # Public RSS Fallback
+            import xml.etree.ElementTree as ET
+            import re
+            
+            headers = {
+                "User-Agent": "Jager/1.0 (by /u/jager_developer)"
+            }
+            ns = {"atom": "http://www.w3.org/2005/Atom"}
+            
+            for subreddit in subreddits:
+                url = f"https://www.reddit.com/r/{subreddit}/new.rss"
+                try:
+                    response = requests.get(url, headers=headers, timeout=10)
+                    if response.status_code != 200:
+                        logger.error(f"Failed to fetch RSS from subreddit {subreddit}: status code {response.status_code}")
+                        continue
+                    
+                    root = ET.fromstring(response.text)
+                    for entry in root.findall("atom:entry", ns):
+                        post_id = entry.findtext("atom:id", default="", namespaces=ns)
+                        if not post_id:
+                            continue
+                            
+                        author_el = entry.find("atom:author", ns)
+                        author = "unknown"
+                        if author_el is not None:
+                            author = author_el.findtext("atom:name", default="unknown", namespaces=ns)
+                            if author.startswith("/u/"):
+                                author = author[3:]
+                                
+                        title = entry.findtext("atom:title", default="", namespaces=ns)
+                        content_html = entry.findtext("atom:content", default="", namespaces=ns)
+                        # Strip HTML tags
+                        content = re.sub(r'<.*?>|&[a-zA-Z0-9#]+;', '', content_html).strip()
+                        if not content:
+                            content = title
+                            
+                        link_el = entry.find("atom:link", ns)
+                        url_str = link_el.attrib.get("href") if link_el is not None else None
+                        
+                        updated_str = entry.findtext("atom:updated", default="", namespaces=ns)
+                        created_dt = None
+                        if updated_str:
+                            try:
+                                created_dt = datetime.fromisoformat(updated_str)
+                            except Exception:
+                                pass
+                                
+                        yield {
+                            "id": f"reddit:{post_id}",
+                            "platform": "reddit",
+                            "source_id": f"reddit:{subreddit}",
+                            "author": author,
+                            "title": title,
+                            "content": content,
+                            "url": url_str,
+                            "score": 0,
+                            "created_at": created_dt,
+                            "processed": 0
+                        }
+                except Exception as e:
+                    logger.error(f"Error fetching from subreddit {subreddit} via RSS: {e}")
                 
     return fetch_submissions
 

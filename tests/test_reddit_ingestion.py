@@ -51,25 +51,38 @@ def test_reddit_source_yields_standardized_data():
         assert "oauth.reddit.com" in args[0]
 
 def test_reddit_source_no_token_fallback():
-    mock_reddit_response = {
-        "data": {
-            "children": []
-        }
-    }
+    mock_rss_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <feed xmlns="http://www.w3.org/2005/Atom">
+        <entry>
+            <id>t3_mockrss123</id>
+            <title>Mock RSS Title</title>
+            <content type="html">Mock Content</content>
+            <author><name>/u/rss_author</name></author>
+            <link href="https://www.reddit.com/r/saas/comments/mockrss123/mock/"/>
+            <updated>2026-06-02T13:08:55+00:00</updated>
+        </entry>
+    </feed>
+    """
 
     with patch("requests.get") as mock_get:
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = mock_reddit_response
+        mock_response.text = mock_rss_xml
         mock_get.return_value = mock_response
 
         source_func = reddit_source(["saas"], user_token=None)
-        list(source_func.resources["raw_messages"])
+        items = list(source_func.resources["raw_messages"])
+
+        assert len(items) == 1
+        assert items[0]["id"] == "reddit:t3_mockrss123"
+        assert items[0]["author"] == "rss_author"
+        assert items[0]["title"] == "Mock RSS Title"
+        assert items[0]["content"] == "Mock Content"
 
         mock_get.assert_called_once()
         args, kwargs = mock_get.call_args
         assert "Authorization" not in kwargs["headers"]
-        assert "old.reddit.com" in args[0]
+        assert "new.rss" in args[0]
 
 def test_run_reddit_ingestion_no_sources(db):
     res = run_reddit_ingestion(db)
