@@ -69,7 +69,7 @@ def test_reddit_source_no_token_fallback():
         mock_get.assert_called_once()
         args, kwargs = mock_get.call_args
         assert "Authorization" not in kwargs["headers"]
-        assert "www.reddit.com" in args[0]
+        assert "old.reddit.com" in args[0]
 
 def test_run_reddit_ingestion_no_sources(db):
     res = run_reddit_ingestion(db)

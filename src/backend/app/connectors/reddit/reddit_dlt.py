@@ -41,9 +41,9 @@ def reddit_source(subreddits, user_token=None):
             base_url = "https://oauth.reddit.com"
         else:
             headers = {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0"
             }
-            base_url = "https://www.reddit.com"
+            base_url = "https://old.reddit.com"
             
         for subreddit in subreddits:
             url = f"{base_url}/r/{subreddit}/new.json"
