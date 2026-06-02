@@ -2,26 +2,39 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
-# Source schemas
-class SourceBase(BaseModel):
-    id: str
-    platform: str
-    target: str
+# Subreddit Monitored schemas
+class RedditSubredditMonitoredBase(BaseModel):
+    name: str
     active: Optional[bool] = True
+    rules: Optional[str] = None
+    title: Optional[str] = None
+    updated_at: Optional[datetime] = None
+    icon: Optional[str] = None
 
-class SourceCreate(SourceBase):
+class RedditSubredditMonitoredCreate(RedditSubredditMonitoredBase):
     pass
 
-class SourceRead(SourceBase):
+class RedditSubredditMonitoredRead(RedditSubredditMonitoredBase):
+    id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
-# RawMessage schemas
-class RawMessageRead(BaseModel):
+# Comment schemas
+class RedditCommentRead(BaseModel):
     id: str
-    platform: str
-    source_id: str
+    post_id: str
+    author: Optional[str] = None
+    content: str
+    score: int
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Post schemas
+class RedditPostRead(BaseModel):
+    id: str
+    subreddit_id: int
     author: Optional[str] = None
     title: Optional[str] = None
     content: str
@@ -53,7 +66,7 @@ class DraftRead(DraftBase):
 
 # Lead schemas
 class LeadBase(BaseModel):
-    raw_message_id: str
+    post_id: str
     intent_score: Optional[float] = None
     pain_point: Optional[str] = None
     budget: Optional[str] = None
@@ -67,7 +80,7 @@ class LeadUpdate(BaseModel):
 class LeadRead(LeadBase):
     id: int
     created_at: datetime
-    raw_message: Optional[RawMessageRead] = None
+    post: Optional[RedditPostRead] = None
 
     model_config = ConfigDict(from_attributes=True)
 

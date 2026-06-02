@@ -43,7 +43,8 @@ def fixture_db(db_engine):
     defaults = {
         "ollama_model": "llama3",
         "ollama_url": "http://host.docker.internal:11434",
-        "user_profile": "We offer high-quality AI & Data Engineering consultancy services. We specialize in building automated LLM pipelines, dashboard application development, and integrating data systems."
+        "user_profile": "We offer high-quality AI & Data Engineering consultancy services. We specialize in building automated LLM pipelines, dashboard application development, and integrating data systems.",
+        "reddit_user_token": ""
     }
     for key, value in defaults.items():
         setting = Setting(key=key, value=value)

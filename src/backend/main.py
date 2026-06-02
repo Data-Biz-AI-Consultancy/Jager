@@ -12,7 +12,8 @@ def seed_default_settings():
         defaults = {
             "ollama_model": "llama3",
             "ollama_url": "http://host.docker.internal:11434",
-            "user_profile": "We offer high-quality AI & Data Engineering consultancy services. We specialize in building automated LLM pipelines, dashboard application development, and integrating data systems."
+            "user_profile": "We offer high-quality AI & Data Engineering consultancy services. We specialize in building automated LLM pipelines, dashboard application development, and integrating data systems.",
+            "reddit_user_token": ""
         }
         for key, value in defaults.items():
             exists = db.query(Setting).filter(Setting.key == key).first()
@@ -51,6 +52,14 @@ app.add_middleware(
 # Include Router
 app.include_router(api_router)
 
-@app.get("/")
+import os
+from fastapi.responses import HTMLResponse
+
+@app.get("/", response_class=HTMLResponse)
 def read_root():
-    return {"message": "Welcome to the Jager API. Visit /docs for API documentation."}
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    template_path = os.path.join(current_dir, "..", "frontend", "index.html")
+    if os.path.exists(template_path):
+        with open(template_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Dashboard index.html not found</h1>", status_code=404)

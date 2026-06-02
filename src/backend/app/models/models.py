@@ -2,50 +2,66 @@ from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from app.database import Base
 
-class Source(Base):
-    __tablename__ = "sources"
+class RedditSubredditMonitored(Base):
+    __tablename__ = "reddit_subreddits_monitored"
 
-    id = Column(String, primary_key=True)
-    platform = Column(String, nullable=False)       # 'reddit' | 'slack'
-    target = Column(String, nullable=False)         # Subreddit name or Slack channel ID
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False, unique=True)       # Subreddit name (e.g. 'smallbusiness')
     active = Column(Boolean, default=True)
+    rules = Column(Text, nullable=True)                      # Custom rules for checking/AI
+    title = Column(String, nullable=True)                    # RSS feed title
+    updated_at = Column(DateTime(timezone=True), nullable=True) # RSS feed updated timestamp
+    icon = Column(String, nullable=True)                     # Subreddit RSS icon link
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    raw_messages = relationship("RawMessage", back_populates="source", cascade="all, delete-orphan")
+    posts = relationship("RedditPost", back_populates="subreddit", cascade="all, delete-orphan")
 
 
-class RawMessage(Base):
-    __tablename__ = "raw_messages"
+class RedditPost(Base):
+    __tablename__ = "reddit_posts"
 
-    id = Column(String, primary_key=True)          # Format: platform:id (e.g. 'reddit:t3_abc123')
-    platform = Column(String, nullable=False)
-    source_id = Column(String, ForeignKey("sources.id", ondelete="CASCADE"), nullable=False)
+    id = Column(String, primary_key=True)                    # Format: t3_abc123
+    subreddit_id = Column(Integer, ForeignKey("reddit_subreddits_monitored.id", ondelete="CASCADE"), nullable=False)
     author = Column(String, nullable=True)
-    title = Column(String, nullable=True)           # Nullable for Slack messages
+    title = Column(String, nullable=True)
     content = Column(Text, nullable=False)
     url = Column(String, nullable=True)
     score = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), nullable=True) # Native post creation time
-    processed = Column(Integer, default=0)          # 0 = unprocessed, 1 = processed, -1 = error
+    created_at = Column(DateTime(timezone=True), nullable=True)
+    processed = Column(Integer, default=0)                   # 0 = unprocessed, 1 = processed, -1 = error
 
-    source = relationship("Source", back_populates="raw_messages")
-    leads = relationship("Lead", back_populates="raw_message", cascade="all, delete-orphan")
+    subreddit = relationship("RedditSubredditMonitored", back_populates="posts")
+    comments = relationship("RedditComment", primaryjoin="RedditPost.id == foreign(RedditComment.post_id)", back_populates="post", cascade="all, delete-orphan")
+    leads = relationship("Lead", back_populates="post", cascade="all, delete-orphan")
+
+
+class RedditComment(Base):
+    __tablename__ = "reddit_comments"
+
+    id = Column(String, primary_key=True)                    # Format: t1_xyz789
+    post_id = Column(String, nullable=False)                 # Loaded by dlt, no DB-level foreign key to avoid race conditions
+    author = Column(String, nullable=True)
+    content = Column(Text, nullable=False)
+    score = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), nullable=True)
+
+    post = relationship("RedditPost", primaryjoin="foreign(RedditComment.post_id) == RedditPost.id", back_populates="comments")
 
 
 class Lead(Base):
     __tablename__ = "leads"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    raw_message_id = Column(String, ForeignKey("raw_messages.id", ondelete="CASCADE"), nullable=False)
-    intent_score = Column(Float, nullable=True)     # Confidence score of relevance (0.0 to 1.0)
-    pain_point = Column(Text, nullable=True)        # Extracted core challenge
-    budget = Column(String, nullable=True)           # Budget details if mentioned
-    urgency = Column(String, nullable=True)          # Low, Medium, High, Immediate
-    technologies = Column(String, nullable=True)     # CSV list of tech mentioned
-    status = Column(String, default="inbox")         # 'inbox' | 'contacted' | 'ignored' | 'converted'
+    post_id = Column(String, ForeignKey("reddit_posts.id", ondelete="CASCADE"), nullable=False)
+    intent_score = Column(Float, nullable=True)              # Confidence score of relevance (0.0 to 1.0)
+    pain_point = Column(Text, nullable=True)                 # Extracted core challenge
+    budget = Column(String, nullable=True)                   # Budget details if mentioned
+    urgency = Column(String, nullable=True)                  # Low, Medium, High, Immediate
+    technologies = Column(String, nullable=True)             # CSV list of tech mentioned
+    status = Column(String, default="inbox")                 # 'inbox' | 'contacted' | 'ignored' | 'converted'
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    raw_message = relationship("RawMessage", back_populates="leads")
+    post = relationship("RedditPost", back_populates="leads")
     drafts = relationship("Draft", back_populates="lead", cascade="all, delete-orphan")
 
 
@@ -55,7 +71,7 @@ class Draft(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     lead_id = Column(Integer, ForeignKey("leads.id", ondelete="CASCADE"), nullable=False)
     draft_content = Column(Text, nullable=False)
-    edited_content = Column(Text, nullable=True)     # User's modified version of the draft
+    edited_content = Column(Text, nullable=True)             # User's modified version of the draft
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     lead = relationship("Lead", back_populates="drafts")

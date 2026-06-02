@@ -1,21 +1,22 @@
 import pytest
-from app.models import Source, RawMessage, Lead, Draft, Setting
+from app.models import RedditSubredditMonitored, RedditPost, Lead, Draft, Setting
 
 def test_read_root(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "Welcome to the Jager API" in response.json()["message"]
+    assert "Jager | Lead Generator" in response.text
 
 # --- SETTINGS TESTS ---
 def test_get_settings(client):
     response = client.get("/api/settings")
     assert response.status_code == 200
     settings = response.json()
-    assert len(settings) == 3
+    assert len(settings) == 4
     keys = [s["key"] for s in settings]
     assert "ollama_model" in keys
     assert "ollama_url" in keys
     assert "user_profile" in keys
+    assert "reddit_user_token" in keys
 
 def test_post_setting_new(client):
     response = client.post("/api/settings", json={"key": "test_key", "value": "test_val"})
@@ -43,8 +44,6 @@ def test_get_sources_empty(client):
 
 def test_create_source(client, db):
     payload = {
-        "id": "reddit:smallbusiness",
-        "platform": "reddit",
         "target": "smallbusiness",
         "active": True
     }
@@ -52,18 +51,15 @@ def test_create_source(client, db):
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == "reddit:smallbusiness"
-    assert data["platform"] == "reddit"
     assert data["target"] == "smallbusiness"
     
     # Verify DB
-    src = db.query(Source).filter(Source.id == "reddit:smallbusiness").first()
+    src = db.query(RedditSubredditMonitored).filter(RedditSubredditMonitored.name == "smallbusiness").first()
     assert src is not None
-    assert src.target == "smallbusiness"
+    assert src.name == "smallbusiness"
 
 def test_create_duplicate_source_error(client):
     payload = {
-        "id": "reddit:smallbusiness",
-        "platform": "reddit",
         "target": "smallbusiness"
     }
     # First time succeeds
@@ -81,25 +77,24 @@ def test_get_leads_empty(client):
 
 def test_get_leads_populated(client, db):
     # Setup dependencies
-    source = Source(id="reddit:saas", platform="reddit", target="saas")
+    source = RedditSubredditMonitored(name="saas")
     db.add(source)
     db.commit()
 
-    raw_msg = RawMessage(
-        id="reddit:t3_12345",
-        platform="reddit",
-        source_id="reddit:saas",
+    post = RedditPost(
+        id="t3_12345",
+        subreddit_id=source.id,
         author="john_doe",
         title="Need saas recommendation",
         content="Looking for a tool to generate leads.",
         score=10,
         processed=1
     )
-    db.add(raw_msg)
+    db.add(post)
     db.commit()
 
     lead = Lead(
-        raw_message_id="reddit:t3_12345",
+        post_id="t3_12345",
         intent_score=0.95,
         pain_point="Lead generation",
         urgency="High",
@@ -119,25 +114,26 @@ def test_get_leads_populated(client, db):
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
-    assert data[0]["raw_message"]["title"] == "Need saas recommendation"
+    assert data[0]["post"]["title"] == "Need saas recommendation"
     assert len(data[0]["drafts"]) == 1
     assert data[0]["drafts"][0]["draft_content"] == "Hi John, we can help you build custom LLM scraping workflows..."
 
 def test_update_lead_status(client, db):
-    source = Source(id="reddit:saas", platform="reddit", target="saas")
+    source = RedditSubredditMonitored(name="saas")
     db.add(source)
-    raw_msg = RawMessage(
-        id="reddit:t3_123",
-        platform="reddit",
-        source_id="reddit:saas",
+    db.commit()
+
+    post = RedditPost(
+        id="t3_123",
+        subreddit_id=source.id,
         content="Test content",
         score=1,
         processed=1
     )
-    db.add(raw_msg)
+    db.add(post)
     db.commit()
 
-    lead = Lead(raw_message_id="reddit:t3_123", status="inbox")
+    lead = Lead(post_id="t3_123", status="inbox")
     db.add(lead)
     db.commit()
 
@@ -155,20 +151,21 @@ def test_update_lead_status_not_found(client):
     assert response.status_code == 404
 
 def test_update_lead_draft_create_and_update(client, db):
-    source = Source(id="reddit:saas", platform="reddit", target="saas")
+    source = RedditSubredditMonitored(name="saas")
     db.add(source)
-    raw_msg = RawMessage(
-        id="reddit:t3_123",
-        platform="reddit",
-        source_id="reddit:saas",
+    db.commit()
+
+    post = RedditPost(
+        id="t3_123",
+        subreddit_id=source.id,
         content="Test content",
         score=1,
         processed=1
     )
-    db.add(raw_msg)
+    db.add(post)
     db.commit()
 
-    lead = Lead(raw_message_id="reddit:t3_123", status="inbox")
+    lead = Lead(post_id="t3_123", status="inbox")
     db.add(lead)
     db.commit()
 
