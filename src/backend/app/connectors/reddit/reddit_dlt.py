@@ -17,6 +17,7 @@ def get_dlt_pipeline_and_destination():
         os.environ["DESTINATION__POSTGRES__CREDENTIALS"] = db_url
         return dlt.pipeline(
             pipeline_name="reddit_pipeline",
+            pipelines_dir="data/reddit",
             destination="postgres",
             dataset_name="public",
         )
@@ -25,6 +26,7 @@ def get_dlt_pipeline_and_destination():
         os.environ["DESTINATION__SQLITE__CREDENTIALS"] = db_url
         return dlt.pipeline(
             pipeline_name="reddit_pipeline",
+            pipelines_dir="data/reddit",
             destination="sqlite",
             dataset_name="public",
         )

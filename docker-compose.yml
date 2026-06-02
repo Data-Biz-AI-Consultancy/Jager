@@ -29,6 +29,7 @@ services:
       - ./src/backend:/app
       - ./src/frontend:/frontend
       - ./prompts:/prompts
+      - ./data/reddit:/app/data/reddit
 
 volumes:
   pgdata:
