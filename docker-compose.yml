@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: jager_db
+    restart: always
+    environment:
+      POSTGRES_DB: jager
+      POSTGRES_USER: jager
+      POSTGRES_PASSWORD: jager
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    container_name: jager_backend
+    restart: always
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://jager:jager@db:5432/jager
+      - OLLAMA_HOST=http://host.docker.internal:11434
+    depends_on:
+      - db
+    volumes:
+      - ./src/backend:/app
+      - ./prompts:/prompts
+
+volumes:
+  pgdata:
