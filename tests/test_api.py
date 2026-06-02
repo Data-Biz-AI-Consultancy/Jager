@@ -4,7 +4,7 @@ from app.models import Source, RawMessage, Lead, Draft, Setting
 def test_read_root(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert "Welcome to the Jager API" in response.json()["message"]
+    assert "Jager | Lead Generator" in response.text
 
 # --- SETTINGS TESTS ---
 def test_get_settings(client):
