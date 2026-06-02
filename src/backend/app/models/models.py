@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, Text, DateTime, func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, foreign
 from app.database import Base
 
 class RedditSubredditMonitored(Base):
@@ -31,7 +31,7 @@ class RedditPost(Base):
     processed = Column(Integer, default=0)                   # 0 = unprocessed, 1 = processed, -1 = error
 
     subreddit = relationship("RedditSubredditMonitored", back_populates="posts")
-    comments = relationship("RedditComment", back_populates="post", cascade="all, delete-orphan")
+    comments = relationship("RedditComment", primaryjoin="RedditPost.id == foreign(RedditComment.post_id)", back_populates="post", cascade="all, delete-orphan")
     leads = relationship("Lead", back_populates="post", cascade="all, delete-orphan")
 
 
@@ -39,13 +39,13 @@ class RedditComment(Base):
     __tablename__ = "reddit_comments"
 
     id = Column(String, primary_key=True)                    # Format: t1_xyz789
-    post_id = Column(String, ForeignKey("reddit_posts.id", ondelete="CASCADE"), nullable=False)
+    post_id = Column(String, nullable=False)                 # Loaded by dlt, no DB-level foreign key to avoid race conditions
     author = Column(String, nullable=True)
     content = Column(Text, nullable=False)
     score = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), nullable=True)
 
-    post = relationship("RedditPost", back_populates="comments")
+    post = relationship("RedditPost", primaryjoin="foreign(RedditComment.post_id) == RedditPost.id", back_populates="comments")
 
 
 class Lead(Base):
