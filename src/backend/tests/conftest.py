@@ -1,3 +1,7 @@
+import os
+# Set database URL environment variable to sqlite for tests before importing modules
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
 import sys
 from os.path import dirname, abspath
 import pytest
