@@ -30,7 +30,7 @@ def get_dlt_pipeline_and_destination():
         )
 
 @dlt.source
-def reddit_source(subreddits, subreddit_map, user_token=None):
+def reddit_source(subreddits, subreddit_map, user_token=None, subreddit_xmls=None):
     @dlt.resource(name="reddit_posts", write_disposition="merge", primary_key="id")
     def fetch_submissions():
         if user_token:
@@ -78,27 +78,33 @@ def reddit_source(subreddits, subreddit_map, user_token=None):
             import xml.etree.ElementTree as ET
             import re
             
-            headers = {
-                "User-Agent": "Jager/1.0 (by /u/jager_developer)"
-            }
             ns = {"atom": "http://www.w3.org/2005/Atom"}
             
             for subreddit in subreddits:
-                url = f"https://www.reddit.com/r/{subreddit}/new.rss"
-                try:
-                    response = requests.get(url, headers=headers, timeout=10)
-                    if response.status_code != 200:
-                        logger.error(f"Failed to fetch RSS from subreddit {subreddit}: status code {response.status_code}")
+                xml_content = (subreddit_xmls or {}).get(subreddit)
+                if not xml_content:
+                    headers = {
+                        "User-Agent": "Jager/1.0 (by /u/jager_developer)"
+                    }
+                    url = f"https://www.reddit.com/r/{subreddit}/new.rss"
+                    try:
+                        response = requests.get(url, headers=headers, timeout=10)
+                        if response.status_code == 200:
+                            xml_content = response.text
+                        else:
+                            logger.error(f"Failed to fetch RSS for subreddit {subreddit}: status code {response.status_code}")
+                            continue
+                    except Exception as e:
+                        logger.error(f"Error fetching RSS for subreddit {subreddit}: {e}")
                         continue
-                    
-                    root = ET.fromstring(response.text)
+                
+                try:
+                    root = ET.fromstring(xml_content)
                     for entry in root.findall("atom:entry", ns):
                         post_id = entry.findtext("atom:id", default="", namespaces=ns)
                         if not post_id:
                             continue
                             
-                        # If RSS ID contains URL or prefix, clean to get base ID, e.g. "t3_1tuppp9"
-                        # Reddit RSS <id> is usually exactly format "t3_xxxxxx"
                         if "/" in post_id:
                             post_id = post_id.split("/")[-1]
                             
@@ -111,7 +117,6 @@ def reddit_source(subreddits, subreddit_map, user_token=None):
                                 
                         title = entry.findtext("atom:title", default="", namespaces=ns)
                         content_html = entry.findtext("atom:content", default="", namespaces=ns)
-                        # Strip HTML tags
                         content = re.sub(r'<.*?>|&[a-zA-Z0-9#]+;', '', content_html).strip()
                         if not content:
                             content = title
@@ -139,7 +144,7 @@ def reddit_source(subreddits, subreddit_map, user_token=None):
                             "processed": 0
                         }
                 except Exception as e:
-                    logger.error(f"Error fetching from subreddit {subreddit} via RSS: {e}")
+                    logger.error(f"Error parsing RSS XML for subreddit {subreddit}: {e}")
                 
     return fetch_submissions
 
@@ -157,14 +162,46 @@ def run_reddit_ingestion(db: Session = None):
             logger.info("No active Reddit subreddits configured to monitor.")
             return {"status": "success", "message": "No active subreddits configured"}
             
-        subreddit_map = {src.name: src.id for src in reddit_sources}
-        subreddits = list(subreddit_map.keys())
-        
         setting = db.query(Setting).filter(Setting.key == "reddit_user_token").first()
         user_token = setting.value if (setting and setting.value.strip()) else None
         
+        # Pre-fetch RSS XML and extract feed-level metadata if not using token
+        subreddit_xmls = {}
+        if not user_token:
+            import xml.etree.ElementTree as ET
+            headers = {"User-Agent": "Jager/1.0 (by /u/jager_developer)"}
+            ns = {"atom": "http://www.w3.org/2005/Atom"}
+            
+            for src in reddit_sources:
+                url = f"https://www.reddit.com/r/{src.name}/new.rss"
+                try:
+                    response = requests.get(url, headers=headers, timeout=10)
+                    if response.status_code == 200:
+                        subreddit_xmls[src.name] = response.text
+                        root = ET.fromstring(response.text)
+                        
+                        feed_title = root.findtext("atom:title", default=None, namespaces=ns)
+                        feed_icon = root.findtext("atom:icon", default=None, namespaces=ns)
+                        feed_updated_str = root.findtext("atom:updated", default=None, namespaces=ns)
+                        
+                        if feed_title:
+                            src.title = feed_title
+                        if feed_icon:
+                            src.icon = feed_icon
+                        if feed_updated_str:
+                            try:
+                                src.updated_at = datetime.fromisoformat(feed_updated_str)
+                            except Exception:
+                                pass
+                except Exception as e:
+                    logger.error(f"Error fetching RSS metadata for subreddit {src.name}: {e}")
+            db.commit()
+            
+        subreddit_map = {src.name: src.id for src in reddit_sources}
+        subreddits = list(subreddit_map.keys())
+        
         pipeline = get_dlt_pipeline_and_destination()
-        info = pipeline.run(reddit_source(subreddits, subreddit_map, user_token))
+        info = pipeline.run(reddit_source(subreddits, subreddit_map, user_token, subreddit_xmls))
         logger.info(f"dlt pipeline loaded successfully: {info}")
         return {"status": "success", "info": str(info)}
     except Exception as e:

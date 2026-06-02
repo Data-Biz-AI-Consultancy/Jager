@@ -9,6 +9,9 @@ class RedditSubredditMonitored(Base):
     name = Column(String, nullable=False, unique=True)       # Subreddit name (e.g. 'smallbusiness')
     active = Column(Boolean, default=True)
     rules = Column(Text, nullable=True)                      # Custom rules for checking/AI
+    title = Column(String, nullable=True)                    # RSS feed title
+    updated_at = Column(DateTime(timezone=True), nullable=True) # RSS feed updated timestamp
+    icon = Column(String, nullable=True)                     # Subreddit RSS icon link
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     posts = relationship("RedditPost", back_populates="subreddit", cascade="all, delete-orphan")

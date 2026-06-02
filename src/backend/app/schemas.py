@@ -7,6 +7,9 @@ class RedditSubredditMonitoredBase(BaseModel):
     name: str
     active: Optional[bool] = True
     rules: Optional[str] = None
+    title: Optional[str] = None
+    updated_at: Optional[datetime] = None
+    icon: Optional[str] = None
 
 class RedditSubredditMonitoredCreate(RedditSubredditMonitoredBase):
     pass
