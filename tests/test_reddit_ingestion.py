@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from app.models import Source, Setting
+from app.models import RedditSubredditMonitored
 from app.connectors.reddit.reddit_dlt import reddit_source, run_reddit_ingestion
 
 def test_reddit_source_yields_standardized_data():
@@ -29,14 +29,13 @@ def test_reddit_source_yields_standardized_data():
         mock_get.return_value = mock_response
 
         # Execute source
-        source_func = reddit_source(["saas"], user_token="test_token_123")
-        items = list(source_func.resources["raw_messages"])
+        source_func = reddit_source(["saas"], subreddit_map={"saas": 1}, user_token="test_token_123")
+        items = list(source_func.resources["reddit_posts"])
 
         assert len(items) == 1
         item = items[0]
-        assert item["id"] == "reddit:t3_mock123"
-        assert item["platform"] == "reddit"
-        assert item["source_id"] == "reddit:saas"
+        assert item["id"] == "t3_mock123"
+        assert item["subreddit_id"] == 1
         assert item["author"] == "tester_bob"
         assert item["title"] == "Need SaaS to automate CRM"
         assert item["content"] == "Looking for tools."
@@ -70,11 +69,12 @@ def test_reddit_source_no_token_fallback():
         mock_response.text = mock_rss_xml
         mock_get.return_value = mock_response
 
-        source_func = reddit_source(["saas"], user_token=None)
-        items = list(source_func.resources["raw_messages"])
+        source_func = reddit_source(["saas"], subreddit_map={"saas": 1}, user_token=None)
+        items = list(source_func.resources["reddit_posts"])
 
         assert len(items) == 1
-        assert items[0]["id"] == "reddit:t3_mockrss123"
+        assert items[0]["id"] == "t3_mockrss123"
+        assert items[0]["subreddit_id"] == 1
         assert items[0]["author"] == "rss_author"
         assert items[0]["title"] == "Mock RSS Title"
         assert items[0]["content"] == "Mock Content"
@@ -91,7 +91,7 @@ def test_run_reddit_ingestion_no_sources(db):
 
 def test_run_reddit_ingestion_pipeline_orchestration(db):
     # Setup sources
-    source = Source(id="reddit:saas", platform="reddit", target="saas", active=True)
+    source = RedditSubredditMonitored(name="saas")
     db.add(source)
     db.commit()
 

@@ -1,18 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-from typing import List, Dict
+from typing import List, Dict, Any
 from app.database import get_db
-from app.models import Lead, Draft, Setting, Source
-from app.schemas import LeadWithDrafts, LeadUpdate, DraftUpdate, DraftRead, SettingRead, SettingUpdate, SourceRead, SourceCreate
+from app.models import Lead, Draft, Setting, RedditSubredditMonitored, RedditPost
+from app.schemas import LeadWithDrafts, LeadUpdate, DraftUpdate, DraftRead, SettingRead, SettingUpdate
 
 router = APIRouter(prefix="/api")
 
 # --- LEADS ---
 @router.get("/leads", response_model=List[LeadWithDrafts])
 def get_leads(db: Session = Depends(get_db)):
-    # Retrieve leads joined with their raw_message and drafts
     leads = db.query(Lead).options(
-        joinedload(Lead.raw_message),
+        joinedload(Lead.post),
         joinedload(Lead.drafts)
     ).order_by(Lead.created_at.desc()).all()
     return leads
@@ -33,12 +32,10 @@ def update_lead(lead_id: int, lead_update: LeadUpdate, db: Session = Depends(get
 # --- DRAFTS ---
 @router.put("/leads/{lead_id}/draft", response_model=DraftRead)
 def update_lead_draft(lead_id: int, draft_update: DraftUpdate, db: Session = Depends(get_db)):
-    # Find lead first
     lead = db.query(Lead).filter(Lead.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     
-    # Get the latest draft or create one if none exists
     draft = db.query(Draft).filter(Draft.lead_id == lead_id).order_by(Draft.created_at.desc()).first()
     if not draft:
         if draft_update.draft_content is None:
@@ -73,20 +70,63 @@ def save_setting(setting_update: SettingRead, db: Session = Depends(get_db)):
     return setting
 
 # --- MONITORED SOURCES ---
-@router.get("/sources", response_model=List[SourceRead])
+@router.get("/sources")
 def get_sources(db: Session = Depends(get_db)):
-    return db.query(Source).all()
+    # Map the new RedditSubredditMonitored model to backward-compatible Source representation
+    subreddits = db.query(RedditSubredditMonitored).all()
+    return [
+        {
+            "id": f"reddit:{sub.name}",
+            "platform": "reddit",
+            "target": sub.name,
+            "active": sub.active
+        }
+        for sub in subreddits
+    ]
 
-@router.post("/sources", response_model=SourceRead)
-def create_source(source: SourceCreate, db: Session = Depends(get_db)):
-    existing = db.query(Source).filter(Source.id == source.id).first()
+@router.post("/sources")
+def create_source(source_data: Dict[str, Any], db: Session = Depends(get_db)):
+    target_name = source_data.get("target")
+    if not target_name:
+        raise HTTPException(status_code=400, detail="Subreddit 'target' is required")
+    
+    target_name = target_name.strip().lower()
+    
+    existing = db.query(RedditSubredditMonitored).filter(RedditSubredditMonitored.name == target_name).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Source with this ID already exists")
-    db_source = Source(**source.model_dump())
-    db.add(db_source)
+        raise HTTPException(status_code=400, detail="Subreddit already exists in monitored list")
+    
+    db_sub = RedditSubredditMonitored(
+        name=target_name,
+        active=source_data.get("active", True),
+        rules=source_data.get("rules")
+    )
+    db.add(db_sub)
     db.commit()
-    db.refresh(db_source)
-    return db_source
+    db.refresh(db_sub)
+    
+    return {
+        "id": f"reddit:{db_sub.name}",
+        "platform": "reddit",
+        "target": db_sub.name,
+        "active": db_sub.active
+    }
+
+# --- DELETE SOURCE ---
+@router.delete("/sources/{source_id}")
+def delete_source(source_id: str, db: Session = Depends(get_db)):
+    # Extract subreddit name from source_id "reddit:saas"
+    if not source_id.startswith("reddit:"):
+        raise HTTPException(status_code=400, detail="Invalid source ID format")
+    
+    subreddit_name = source_id[7:].lower()
+    db_sub = db.query(RedditSubredditMonitored).filter(RedditSubredditMonitored.name == subreddit_name).first()
+    if not db_sub:
+        raise HTTPException(status_code=404, detail="Monitored subreddit not found")
+    
+    db.delete(db_sub)
+    db.commit()
+    return {"status": "success", "message": f"r/{subreddit_name} removed from monitored list"}
 
 from app.connectors.reddit.reddit_dlt import run_reddit_ingestion
 
@@ -95,4 +135,3 @@ from app.connectors.reddit.reddit_dlt import run_reddit_ingestion
 def trigger_scan(db: Session = Depends(get_db)):
     result = run_reddit_ingestion(db)
     return result
-

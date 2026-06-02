@@ -586,7 +586,7 @@
             }
 
             leads.forEach(lead => {
-                const msg = lead.raw_message || {};
+                const msg = lead.post || {};
                 const drafts = lead.drafts || [];
                 const latestDraft = drafts[0] || { draft_content: '' };
                 const formattedDate = msg.created_at ? new Date(msg.created_at).toLocaleString() : 'N/A';

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import dlt
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
-from app.models import Source, Setting
+from app.models import RedditSubredditMonitored, Setting
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +30,8 @@ def get_dlt_pipeline_and_destination():
         )
 
 @dlt.source
-def reddit_source(subreddits, user_token=None):
-    @dlt.resource(name="raw_messages", write_disposition="merge", primary_key="id")
+def reddit_source(subreddits, subreddit_map, user_token=None):
+    @dlt.resource(name="reddit_posts", write_disposition="merge", primary_key="id")
     def fetch_submissions():
         if user_token:
             headers = {
@@ -61,9 +61,8 @@ def reddit_source(subreddits, user_token=None):
                             created_dt = datetime.fromtimestamp(created_utc, tz=timezone.utc)
                         
                         yield {
-                            "id": f"reddit:{post_id}",
-                            "platform": "reddit",
-                            "source_id": f"reddit:{subreddit}",
+                            "id": post_id,
+                            "subreddit_id": subreddit_map[subreddit],
                             "author": post.get("author"),
                             "title": post.get("title"),
                             "content": post.get("selftext") or post.get("title") or "",
@@ -98,6 +97,11 @@ def reddit_source(subreddits, user_token=None):
                         if not post_id:
                             continue
                             
+                        # If RSS ID contains URL or prefix, clean to get base ID, e.g. "t3_1tuppp9"
+                        # Reddit RSS <id> is usually exactly format "t3_xxxxxx"
+                        if "/" in post_id:
+                            post_id = post_id.split("/")[-1]
+                            
                         author_el = entry.find("atom:author", ns)
                         author = "unknown"
                         if author_el is not None:
@@ -124,9 +128,8 @@ def reddit_source(subreddits, user_token=None):
                                 pass
                                 
                         yield {
-                            "id": f"reddit:{post_id}",
-                            "platform": "reddit",
-                            "source_id": f"reddit:{subreddit}",
+                            "id": post_id,
+                            "subreddit_id": subreddit_map[subreddit],
                             "author": author,
                             "title": title,
                             "content": content,
@@ -146,21 +149,22 @@ def run_reddit_ingestion(db: Session = None):
         db = SessionLocal()
         own_session = True
     try:
-        reddit_sources = db.query(Source).filter(
-            Source.platform == "reddit", 
-            Source.active == True
+        reddit_sources = db.query(RedditSubredditMonitored).filter(
+            RedditSubredditMonitored.active == True
         ).all()
         
-        subreddits = [src.target for src in reddit_sources]
-        if not subreddits:
+        if not reddit_sources:
             logger.info("No active Reddit subreddits configured to monitor.")
             return {"status": "success", "message": "No active subreddits configured"}
             
+        subreddit_map = {src.name: src.id for src in reddit_sources}
+        subreddits = list(subreddit_map.keys())
+        
         setting = db.query(Setting).filter(Setting.key == "reddit_user_token").first()
         user_token = setting.value if (setting and setting.value.strip()) else None
         
         pipeline = get_dlt_pipeline_and_destination()
-        info = pipeline.run(reddit_source(subreddits, user_token))
+        info = pipeline.run(reddit_source(subreddits, subreddit_map, user_token))
         logger.info(f"dlt pipeline loaded successfully: {info}")
         return {"status": "success", "info": str(info)}
     except Exception as e:
