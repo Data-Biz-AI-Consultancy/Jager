@@ -216,15 +216,4 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-data/reddit/reddit_pipeline/state.json
-data/reddit/reddit_pipeline/trace.pickle
-data/reddit/reddit_pipeline/load/.version
-data/reddit/reddit_pipeline/load/loaded/1780406869.7100093/applied_schema_updates.json
-data/reddit/reddit_pipeline/load/loaded/1780406869.7100093/load_package_state.json
-data/reddit/reddit_pipeline/load/loaded/1780406869.7100093/package_completed.json
-data/reddit/reddit_pipeline/load/loaded/1780406869.7100093/schema.json
-data/reddit/reddit_pipeline/load/loaded/1780406869.7100093/completed_jobs/_dlt_pipeline_state.36d216e73f.0.insert_values.gz
-data/reddit/reddit_pipeline/load/loaded/1780406869.7100093/completed_jobs/reddit_posts.3a34861912.0.insert_values.gz
-data/reddit/reddit_pipeline/load/loaded/1780406869.7100093/completed_jobs/reddit_posts.c1fd29fa9b.0.sql
-data/reddit/reddit_pipeline/normalize/.version
-data/reddit/reddit_pipeline/schemas/reddit_source.schema.json
+data/

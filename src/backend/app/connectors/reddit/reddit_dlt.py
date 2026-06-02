@@ -150,46 +150,98 @@ def reddit_source(subreddits, subreddit_map, user_token=None, subreddit_xmls=Non
                 
     @dlt.transformer(data_from=fetch_submissions, name="reddit_comments", write_disposition="merge", primary_key="id")
     def fetch_comments(post):
-        post_url = post.get("url")
-        if not post_url:
+        post_id = post.get("id")
+        if not post_id:
             return
             
-        headers = {
-            "User-Agent": "Jager/1.0 (by /u/jager_developer)"
-        }
-        # If url is old.reddit.com or www.reddit.com, query old.reddit.com comments JSON
-        json_url = post_url.rstrip("/") + ".json"
-        if "reddit.com" in json_url and not json_url.startswith("https://old.reddit.com"):
-            json_url = json_url.replace("https://www.reddit.com", "https://old.reddit.com")
-            json_url = json_url.replace("https://reddit.com", "https://old.reddit.com")
+        clean_id = post_id.split("_")[-1] if "_" in post_id else post_id
+        
+        if user_token:
+            headers = {
+                "User-Agent": "Jager/1.0 (by /u/jager_developer)",
+                "Authorization": f"Bearer {user_token}"
+            }
+            json_url = f"https://oauth.reddit.com/comments/{clean_id}.json"
+            try:
+                response = requests.get(json_url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if isinstance(data, list) and len(data) > 1:
+                        children = data[1].get("data", {}).get("children", [])
+                        for child in children:
+                            comment = child.get("data", {})
+                            comment_id = comment.get("name")
+                            if not comment_id:
+                                continue
+                                
+                            created_utc = comment.get("created_utc")
+                            created_dt = None
+                            if created_utc:
+                                created_dt = datetime.fromtimestamp(created_utc, tz=timezone.utc)
+                                
+                            yield {
+                                "id": comment_id,
+                                "post_id": post_id,
+                                "author": comment.get("author"),
+                                "content": comment.get("body") or "",
+                                "score": int(comment.get("score", 0)),
+                                "created_at": created_dt
+                            }
+            except Exception as e:
+                logger.error(f"Error fetching comments via API for post {post_id}: {e}")
+        else:
+            # RSS Fallback
+            import xml.etree.ElementTree as ET
+            import re
+            import html
             
-        try:
-            response = requests.get(json_url, headers=headers, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                if isinstance(data, list) and len(data) > 1:
-                    children = data[1].get("data", {}).get("children", [])
-                    for child in children:
-                        comment = child.get("data", {})
-                        comment_id = comment.get("name")
-                        if not comment_id:
+            headers = {
+                "User-Agent": "Jager/1.0 (by /u/jager_developer)"
+            }
+            rss_url = f"https://www.reddit.com/comments/{clean_id}/.rss"
+            try:
+                response = requests.get(rss_url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    root = ET.fromstring(response.content)
+                    ns = {"atom": "http://www.w3.org/2005/Atom"}
+                    for entry in root.findall("atom:entry", ns):
+                        comment_id = entry.findtext("atom:id", default="", namespaces=ns)
+                        if not comment_id or not comment_id.startswith("t1_"):
                             continue
                             
-                        created_utc = comment.get("created_utc")
+                        author_el = entry.find("atom:author", ns)
+                        author = "unknown"
+                        if author_el is not None:
+                            author = author_el.findtext("atom:name", default="unknown", namespaces=ns)
+                            if author.startswith("/u/"):
+                                author = author[3:]
+                                
+                        content_html = entry.findtext("atom:content", default="", namespaces=ns)
+                        match = re.search(r'(?:&lt;!-- SC_OFF --&gt;|<!-- SC_OFF -->)(.*?)(?:&lt;!-- SC_ON --&gt;|<!-- SC_ON -->)', content_html, re.DOTALL)
+                        body_html = match.group(1) if match else content_html
+                        body_html = html.unescape(body_html)
+                        content = re.sub(r'<.*?>', '', body_html).strip()
+                        
+                        updated_str = entry.findtext("atom:updated", default="", namespaces=ns)
                         created_dt = None
-                        if created_utc:
-                            created_dt = datetime.fromtimestamp(created_utc, tz=timezone.utc)
-                            
+                        if updated_str:
+                            try:
+                                created_dt = datetime.fromisoformat(updated_str)
+                            except Exception:
+                                pass
+                                
                         yield {
                             "id": comment_id,
-                            "post_id": post.get("id"),
-                            "author": comment.get("author"),
-                            "content": comment.get("body") or "",
-                            "score": int(comment.get("score", 0)),
+                            "post_id": post_id,
+                            "author": author,
+                            "content": content,
+                            "score": 0,
                             "created_at": created_dt
                         }
-        except Exception as e:
-            logger.error(f"Error fetching comments for post {post.get('id')}: {e}")
+                else:
+                    logger.error(f"Failed to fetch RSS comments for post {post_id}: status code {response.status_code}")
+            except Exception as e:
+                logger.error(f"Error fetching comments via RSS for post {post_id}: {e}")
                 
     return fetch_submissions, fetch_comments
 
