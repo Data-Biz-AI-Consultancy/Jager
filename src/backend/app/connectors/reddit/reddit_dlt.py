@@ -148,7 +148,50 @@ def reddit_source(subreddits, subreddit_map, user_token=None, subreddit_xmls=Non
                 except Exception as e:
                     logger.error(f"Error parsing RSS XML for subreddit {subreddit}: {e}")
                 
-    return fetch_submissions
+    @dlt.transformer(data_from=fetch_submissions, name="reddit_comments", write_disposition="merge", primary_key="id")
+    def fetch_comments(post):
+        post_url = post.get("url")
+        if not post_url:
+            return
+            
+        headers = {
+            "User-Agent": "Jager/1.0 (by /u/jager_developer)"
+        }
+        # If url is old.reddit.com or www.reddit.com, query old.reddit.com comments JSON
+        json_url = post_url.rstrip("/") + ".json"
+        if "reddit.com" in json_url and not json_url.startswith("https://old.reddit.com"):
+            json_url = json_url.replace("https://www.reddit.com", "https://old.reddit.com")
+            json_url = json_url.replace("https://reddit.com", "https://old.reddit.com")
+            
+        try:
+            response = requests.get(json_url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list) and len(data) > 1:
+                    children = data[1].get("data", {}).get("children", [])
+                    for child in children:
+                        comment = child.get("data", {})
+                        comment_id = comment.get("name")
+                        if not comment_id:
+                            continue
+                            
+                        created_utc = comment.get("created_utc")
+                        created_dt = None
+                        if created_utc:
+                            created_dt = datetime.fromtimestamp(created_utc, tz=timezone.utc)
+                            
+                        yield {
+                            "id": comment_id,
+                            "post_id": post.get("id"),
+                            "author": comment.get("author"),
+                            "content": comment.get("body") or "",
+                            "score": int(comment.get("score", 0)),
+                            "created_at": created_dt
+                        }
+        except Exception as e:
+            logger.error(f"Error fetching comments for post {post.get('id')}: {e}")
+                
+    return fetch_submissions, fetch_comments
 
 def run_reddit_ingestion(db: Session = None):
     own_session = False

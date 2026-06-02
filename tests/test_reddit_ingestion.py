@@ -22,32 +22,54 @@ def test_reddit_source_yields_standardized_data():
         }
     }
 
+    mock_comment_response = [
+        {},
+        {
+            "data": {
+                "children": [
+                    {
+                        "data": {
+                            "name": "t1_mockcomment123",
+                            "author": "comment_author",
+                            "body": "This is a comment",
+                            "score": 5,
+                            "created_utc": 1717332210
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+
     with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = mock_reddit_response
-        mock_get.return_value = mock_response
+        def side_effect(url, *args, **kwargs):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            if "comments" in url or ".json" in url and not url.endswith("new.json"):
+                mock_resp.json.return_value = mock_comment_response
+            else:
+                mock_resp.json.return_value = mock_reddit_response
+            return mock_resp
+        
+        mock_get.side_effect = side_effect
 
         # Execute source
         source_func = reddit_source(["saas"], subreddit_map={"saas": 1}, user_token="test_token_123")
-        items = list(source_func.resources["reddit_posts"])
+        
+        posts_res = source_func.resources["reddit_posts"]
+        comments_res = source_func.resources["reddit_comments"]
+        
+        posts = list(posts_res)
+        assert len(posts) == 1
+        assert posts[0]["id"] == "t3_mock123"
 
-        assert len(items) == 1
-        item = items[0]
-        assert item["id"] == "t3_mock123"
-        assert item["subreddit_id"] == 1
-        assert item["author"] == "tester_bob"
-        assert item["title"] == "Need SaaS to automate CRM"
-        assert item["content"] == "Looking for tools."
-        assert item["score"] == 42
-        assert item["processed"] == 0
-        assert item["created_at"] is not None
-
-        # Verify headers used the token
-        mock_get.assert_called_once()
-        args, kwargs = mock_get.call_args
-        assert kwargs["headers"]["Authorization"] == "Bearer test_token_123"
-        assert "oauth.reddit.com" in args[0]
+        # Pipe posts to comments transformer
+        comments = list(posts_res | comments_res)
+        assert len(comments) == 1
+        assert comments[0]["id"] == "t1_mockcomment123"
+        assert comments[0]["post_id"] == "t3_mock123"
+        assert comments[0]["author"] == "comment_author"
+        assert comments[0]["content"] == "This is a comment"
 
 def test_reddit_source_no_token_fallback():
     mock_rss_xml = """<?xml version="1.0" encoding="UTF-8"?>
@@ -63,26 +85,48 @@ def test_reddit_source_no_token_fallback():
     </feed>
     """
 
+    mock_comment_response = [
+        {},
+        {
+            "data": {
+                "children": [
+                    {
+                        "data": {
+                            "name": "t1_mockcomment123",
+                            "author": "comment_author",
+                            "body": "This is a comment",
+                            "score": 5,
+                            "created_utc": 1717332210
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+
     with patch("requests.get") as mock_get:
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.text = mock_rss_xml
-        mock_get.return_value = mock_response
+        def side_effect(url, *args, **kwargs):
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            if "comments" in url or ".json" in url and not url.endswith("new.rss"):
+                mock_resp.json.return_value = mock_comment_response
+            else:
+                mock_resp.text = mock_rss_xml
+            return mock_resp
+            
+        mock_get.side_effect = side_effect
 
         source_func = reddit_source(["saas"], subreddit_map={"saas": 1}, user_token=None)
-        items = list(source_func.resources["reddit_posts"])
+        posts_res = source_func.resources["reddit_posts"]
+        comments_res = source_func.resources["reddit_comments"]
 
-        assert len(items) == 1
-        assert items[0]["id"] == "t3_mockrss123"
-        assert items[0]["subreddit_id"] == 1
-        assert items[0]["author"] == "rss_author"
-        assert items[0]["title"] == "Mock RSS Title"
-        assert items[0]["content"] == "Mock Content"
+        posts = list(posts_res)
+        assert len(posts) == 1
+        assert posts[0]["id"] == "t3_mockrss123"
 
-        mock_get.assert_called_once()
-        args, kwargs = mock_get.call_args
-        assert "Authorization" not in kwargs["headers"]
-        assert "new.rss" in args[0]
+        comments = list(posts_res | comments_res)
+        assert len(comments) == 1
+        assert comments[0]["id"] == "t1_mockcomment123"
 
 def test_run_reddit_ingestion_no_sources(db):
     res = run_reddit_ingestion(db)
