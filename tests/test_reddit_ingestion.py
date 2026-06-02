@@ -85,33 +85,35 @@ def test_reddit_source_no_token_fallback():
     </feed>
     """
 
-    mock_comment_response = [
-        {},
-        {
-            "data": {
-                "children": [
-                    {
-                        "data": {
-                            "name": "t1_mockcomment123",
-                            "author": "comment_author",
-                            "body": "This is a comment",
-                            "score": 5,
-                            "created_utc": 1717332210
-                        }
-                    }
-                ]
-            }
-        }
-    ]
+    mock_comments_rss_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <feed xmlns="http://www.w3.org/2005/Atom">
+        <entry>
+            <id>t3_mockrss123</id>
+            <title>Mock RSS Title</title>
+            <content type="html">Mock Content</content>
+            <author><name>/u/rss_author</name></author>
+            <updated>2026-06-02T13:08:55+00:00</updated>
+        </entry>
+        <entry>
+            <id>t1_mockcomment123</id>
+            <title>Comment by comment_author</title>
+            <content type="html">&lt;!-- SC_OFF --&gt;&lt;div class="md"&gt;&lt;p&gt;This is a comment&lt;/p&gt;&lt;/div&gt;&lt;!-- SC_ON --&gt;</content>
+            <author><name>/u/comment_author</name></author>
+            <updated>2026-06-02T13:08:55+00:00</updated>
+        </entry>
+    </feed>
+    """
 
     with patch("requests.get") as mock_get:
         def side_effect(url, *args, **kwargs):
             mock_resp = MagicMock()
             mock_resp.status_code = 200
-            if "comments" in url or ".json" in url and not url.endswith("new.rss"):
-                mock_resp.json.return_value = mock_comment_response
+            if "comments" in url:
+                mock_resp.content = mock_comments_rss_xml.encode("utf-8")
+                mock_resp.text = mock_comments_rss_xml
             else:
                 mock_resp.text = mock_rss_xml
+                mock_resp.content = mock_rss_xml.encode("utf-8")
             return mock_resp
             
         mock_get.side_effect = side_effect
