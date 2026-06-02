@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 import requests
 from datetime import datetime, timezone
 import dlt
@@ -155,6 +156,9 @@ def reddit_source(subreddits, subreddit_map, user_token=None, subreddit_xmls=Non
             return
             
         clean_id = post_id.split("_")[-1] if "_" in post_id else post_id
+        
+        # Rate limit friendly sleep delay between comments fetching
+        time.sleep(1.0)
         
         if user_token:
             headers = {
