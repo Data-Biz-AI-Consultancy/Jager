@@ -37,7 +37,7 @@
               "id": "8b467ecc-2b63-5863-0cd6-d5e73ca04a11",
               "name": "end_date",
               "type": "string",
-              "value": "={{ $now.toFormat('yyyy-MM-dd') }}"
+              "value": "={{ $now.plus({ days: 0 }).toFormat('yyyy-MM-dd') }}"
             }
           ]
         }
