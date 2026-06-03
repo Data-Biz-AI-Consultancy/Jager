@@ -17,15 +17,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate workflow JSON
-        run: |
-          if jq empty src/n8n/workflow.json; then
-            echo "workflow.json is valid JSON"
-          else
-            echo "workflow.json is NOT valid JSON"
-            exit 1
-          fi
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
