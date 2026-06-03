@@ -7,6 +7,12 @@ while ! nc -z db 5432; do
 done
 echo "PostgreSQL is ready!"
 
+# Import credentials if they exist
+if [ -f /etc/n8n/credentials.json ]; then
+  echo "Importing N8N credentials..."
+  n8n import:credentials --input /etc/n8n/credentials.json
+fi
+
 # Import workflows from workflows directory
 if [ -d /etc/n8n/workflows ]; then
   for f in /etc/n8n/workflows/*.json; do
