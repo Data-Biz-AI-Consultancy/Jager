@@ -28,13 +28,13 @@
         "assignments": {
           "assignments": [
             {
-              "id": "start-date-id",
+              "id": "7a356dbb-1a52-4752-9bc5-c4d62b9f3900",
               "name": "start_date",
               "type": "string",
               "value": "={{ $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
             },
             {
-              "id": "end-date-id",
+              "id": "8b467ecc-2b63-5863-0cd6-d5e73ca04a11",
               "name": "end_date",
               "type": "string",
               "value": "={{ $now.toFormat('yyyy-MM-dd') }}"
