@@ -24,19 +24,23 @@
     },
     {
       "parameters": {
-        "fields": {
-          "values": [
+        "options": {},
+        "assignments": {
+          "assignments": [
             {
+              "id": "start-date-id",
               "name": "start_date",
+              "type": "string",
               "value": "={{ $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
             },
             {
+              "id": "end-date-id",
               "name": "end_date",
+              "type": "string",
               "value": "={{ $now.toFormat('yyyy-MM-dd') }}"
             }
           ]
-        },
-        "options": {}
+        }
       },
       "id": "workflow-parameters",
       "name": "Workflow Parameters",
