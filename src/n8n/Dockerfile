@@ -7,9 +7,9 @@ USER root
 COPY docker-entrypoint-custom.sh /docker-entrypoint-custom.sh
 RUN chmod +x /docker-entrypoint-custom.sh
 
-# Copy workflows to /etc/n8n
-RUN mkdir -p /etc/n8n
-COPY *.json /etc/n8n/
+# Copy workflows to /etc/n8n/workflows
+RUN mkdir -p /etc/n8n/workflows
+COPY workflows/ /etc/n8n/workflows/
 
 # Give node user ownership
 RUN chown -R node:node /etc/n8n /docker-entrypoint-custom.sh
