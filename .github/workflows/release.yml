@@ -1,26 +1,24 @@
-name: Manual Release
+name: Semantic Release
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag to release (e.g. v1.0.0)'
-        required: true
-        default: 'v1.0.0'
-      release_notes:
-        description: 'Release notes'
-        required: false
-        default: 'Manual release of N8N workflow'
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate workflow JSON
         run: |
@@ -42,16 +40,8 @@ jobs:
           push: false
           tags: n8n-custom:latest
 
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event.inputs.version }}
-          name: Release ${{ github.event.inputs.version }}
-          body: ${{ github.event.inputs.release_notes }}
-          draft: false
-          prerelease: false
-          files: |
-            src/n8n/workflow.json
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
