@@ -118,6 +118,7 @@
         850,
         300
       ],
+      "executeOnce": true,
       "credentials": {
         "postgres": {
           "id": "postgres-db",
