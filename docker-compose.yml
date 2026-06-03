@@ -19,8 +19,8 @@ services:
       context: ./src/n8n
       dockerfile: Dockerfile
     restart: always
-    ports:
-      - "5678:5678"
+    expose:
+      - "5678"
     environment:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=db
@@ -31,5 +31,20 @@ services:
     depends_on:
       - db
 
+  caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - n8n
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:
