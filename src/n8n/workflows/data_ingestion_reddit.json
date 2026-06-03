@@ -116,7 +116,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nlet startDateStr, endDateStr;\ntry {\n  startDateStr = $('Workflow Parameters').first().json.start_date;\n  endDateStr = $('Workflow Parameters').first().json.end_date;\n} catch (e) {\n  console.log('[Parse Posts] Could not read date range from Workflow Parameters:', e.message);\n}\n\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst today = new Date();\n\nlet startDate = startDateStr ? new Date(startDateStr + 'T00:00:00Z') : yesterday;\nlet endDate = endDateStr ? new Date(endDateStr + 'T00:00:00Z') : today;\n\nif (isNaN(startDate.getTime())) {\n  startDate = yesterday;\n}\nif (isNaN(endDate.getTime())) {\n  endDate = today;\n}\n\nfor (const item of items) {\n  const { subreddit_id, subreddit_name, xml } = item.json;\n  if (!xml) continue;\n\n  const entryMatches = xml.match(/<entry>[\\s\\S]*?<\\/entry>/g) || [];\n  let matchesInSubreddit = 0;\n  \n  for (const entry of entryMatches) {\n    const idMatch = entry.match(/<id>([^<]+)<\\/id>/);\n    const authorMatch = entry.match(/<author>[\\s\\S]*?<name>([^<]+)<\\/name>[\\s\\S]*?<\\/author>/);\n    const titleMatch = entry.match(/<title>([^<]+)<\\/title>/);\n    const contentMatch = entry.match(/<content[^>]*>([\\s\\S]*?)<\\/content>/);\n    const linkMatch = entry.match(/<link\\s+href=\"([^\"]+)\"/);\n    const updatedMatch = entry.match(/<updated>([^<]+)<\\/updated>/);\n\n    if (idMatch) {\n      let id = idMatch[1].trim();\n      if (id.includes('/')) {\n        id = id.split('/').pop();\n      }\n      let author = authorMatch ? authorMatch[1].trim() : 'unknown';\n      if (author.startsWith('/u/')) {\n        author = author.substring(3);\n      }\n      const title = titleMatch ? titleMatch[1].trim() : '';\n      let content = contentMatch ? contentMatch[1].trim() : '';\n      content = content.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n      if (!content) content = title;\n\n      const url = linkMatch ? linkMatch[1] : null;\n      const created_at = updatedMatch ? updatedMatch[1] : new Date().toISOString();\n\n      const postDate = new Date(created_at);\n      if (postDate >= startDate && postDate < endDate) {\n        matchesInSubreddit++;\n        results.push({\n          id,\n          subreddit_id,\n          author,\n          title,\n          content: content.substring(0, 5000),\n          url,\n          score: 0,\n          created_at,\n          processed: 0\n        });\n      }\n    }\n  }\n  console.log(`[Parse Posts] Subreddit: ${subreddit_name}, matches in date range: ${matchesInSubreddit}`);\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nlet startDateStr, endDateStr;\ntry {\n  startDateStr = $('Ingestion Date Range Parameters').first().json.start_date;\n  endDateStr = $('Ingestion Date Range Parameters').first().json.end_date;\n} catch (e) {\n  console.log('[Parse Posts] Could not read date range from Ingestion Date Range Parameters:', e.message);\n}\n\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst today = new Date();\n\nlet startDate = startDateStr ? new Date(startDateStr + 'T00:00:00Z') : yesterday;\nlet endDate = endDateStr ? new Date(endDateStr + 'T00:00:00Z') : today;\n\nif (isNaN(startDate.getTime())) {\n  startDate = yesterday;\n}\nif (isNaN(endDate.getTime())) {\n  endDate = today;\n}\n\nfor (const item of items) {\n  const { subreddit_id, subreddit_name, xml } = item.json;\n  if (!xml) continue;\n\n  const entryMatches = xml.match(/<entry>[\\s\\S]*?<\\/entry>/g) || [];\n  let matchesInSubreddit = 0;\n  \n  for (const entry of entryMatches) {\n    const idMatch = entry.match(/<id>([^<]+)<\\/id>/);\n    const authorMatch = entry.match(/<author>[\\s\\S]*?<name>([^<]+)<\\/name>[\\s\\S]*?<\\/author>/);\n    const titleMatch = entry.match(/<title>([^<]+)<\\/title>/);\n    const contentMatch = entry.match(/<content[^>]*>([\\s\\S]*?)<\\/content>/);\n    const linkMatch = entry.match(/<link\\s+href=\"([^\"]+)\"/);\n    const updatedMatch = entry.match(/<updated>([^<]+)<\\/updated>/);\n\n    if (idMatch) {\n      let id = idMatch[1].trim();\n      if (id.includes('/')) {\n        id = id.split('/').pop();\n      }\n      let author = authorMatch ? authorMatch[1].trim() : 'unknown';\n      if (author.startsWith('/u/')) {\n        author = author.substring(3);\n      }\n      const title = titleMatch ? titleMatch[1].trim() : '';\n      let content = contentMatch ? contentMatch[1].trim() : '';\n      content = content.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n      if (!content) content = title;\n\n      const url = linkMatch ? linkMatch[1] : null;\n      const created_at = updatedMatch ? updatedMatch[1] : new Date().toISOString();\n\n      const postDate = new Date(created_at);\n      if (postDate >= startDate && postDate < endDate) {\n        matchesInSubreddit++;\n        results.push({\n          id,\n          subreddit_id,\n          author,\n          title,\n          content: content.substring(0, 5000),\n          url,\n          score: 0,\n          created_at,\n          processed: 0\n        });\n      }\n    }\n  }\n  console.log(`[Parse Posts] Subreddit: ${subreddit_name}, matches in date range: ${matchesInSubreddit}`);\n}\nreturn results;"
       },
       "id": "parse-posts-xml",
       "name": "Parse Posts XML",
@@ -150,7 +150,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id FROM reddit_posts WHERE processed = 0 AND created_at >= '{{ $('Workflow Parameters').first().json.start_date || $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }} 00:00:00+00' AND created_at < '{{ $('Workflow Parameters').first().json.end_date || $now.toFormat('yyyy-MM-dd') }} 00:00:00+00' LIMIT 100;"
+        "query": "=SELECT id FROM reddit_posts WHERE processed = 0 AND created_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date || $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }} 00:00:00+00' AND created_at < '{{ $('Ingestion Date Range Parameters').first().json.end_date || $now.toFormat('yyyy-MM-dd') }} 00:00:00+00' LIMIT 100;"
       },
       "id": "get-unprocessed-posts",
       "name": "Get Unprocessed Posts",
@@ -262,14 +262,14 @@
       "main": [
         [
           {
-            "node": "Workflow Parameters",
+            "node": "Ingestion Date Range Parameters",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Workflow Parameters": {
+    "Ingestion Date Range Parameters": {
       "main": [
         [
           {
