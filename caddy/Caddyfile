@@ -1,4 +1,4 @@
-http://jager.n8n.com, http://192.168.178.164, http://localhost {
+http://jager.n8n.com, http://192.168.178.164 {
     # Download the root certificate over plain HTTP to bootstrap trust
     handle /caddy-root.crt {
         root * /data/caddy/pki/authorities/local
@@ -8,11 +8,16 @@ http://jager.n8n.com, http://192.168.178.164, http://localhost {
 
     # Redirect all other HTTP traffic to HTTPS
     handle {
-        redir https://{host}{uri}
+        redir https://jager.n8n.com{uri}
     }
 }
 
-jager.n8n.com, localhost {
+http://localhost {
+    reverse_proxy n8n:5678
+    encode gzip
+}
+
+jager.n8n.com {
     reverse_proxy n8n:5678
     encode gzip
     tls internal
