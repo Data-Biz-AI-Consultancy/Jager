@@ -24,6 +24,27 @@
     },
     {
       "parameters": {
+        "fields": {
+          "values": [
+            {
+              "name": "target_date",
+              "value": "={{ $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "workflow-parameters",
+      "name": "Workflow Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        250,
+        150
+      ]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, name FROM reddit_subreddits_monitored WHERE active = true;"
       },
@@ -32,7 +53,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        300,
+        250,
         300
       ],
       "credentials": {
@@ -52,7 +73,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
+        450,
         300
       ]
     },
@@ -66,7 +87,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        700,
+        650,
         300
       ],
       "credentials": {
@@ -79,14 +100,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id FROM reddit_posts WHERE processed = 0 ORDER BY created_at DESC;"
+        "query": "=SELECT id FROM reddit_posts WHERE processed = 0 AND created_at >= '{{ $('Workflow Parameters').item.json.target_date }} 00:00:00+00' AND created_at < '{{ $('Workflow Parameters').item.json.target_date }} 00:00:00+00'::timestamp with time zone + INTERVAL '1 day' ORDER BY created_at DESC;"
       },
       "id": "get-unprocessed-posts",
       "name": "Get Unprocessed Posts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        900,
+        850,
         300
       ],
       "credentials": {
@@ -106,7 +127,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
+        1050,
         200
       ]
     },
@@ -120,7 +141,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1300,
+        1250,
         200
       ],
       "credentials": {
@@ -140,7 +161,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1100,
+        1050,
         400
       ],
       "credentials": {
@@ -153,6 +174,17 @@
   ],
   "connections": {
     "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Parameters": {
       "main": [
         [
           {
