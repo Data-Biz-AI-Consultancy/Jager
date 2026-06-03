@@ -1,0 +1,240 @@
+{
+  "name": "Reddit Data Ingestion",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "value": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name FROM reddit_subreddits_monitored WHERE active = true;"
+      },
+      "id": "get-active-subreddits",
+      "name": "Get Active Subreddits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.reddit.com/r/{{ $json.name }}/new.json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Jager/1.0 (by /u/jager_developer)"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-reddit-posts",
+      "name": "Fetch Reddit Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n// Retrieve the subreddits input to match the subreddit_id\nconst subredditId = $('Get Active Subreddits').item.json.id;\nconst children = $json.data?.children || [];\n\nfor (const child of children) {\n  const post = child.data;\n  if (post && post.name) {\n    results.push({\n      id: post.name,\n      subreddit_id: subredditId,\n      author: post.author,\n      title: post.title,\n      content: post.selftext || post.title || '',\n      url: post.permalink ? `https://reddit.com${post.permalink}` : null,\n      score: post.score || 0,\n      created_at: post.created_utc ? new Date(post.created_utc * 1000).toISOString() : new Date().toISOString()\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-posts",
+      "name": "Parse Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO reddit_posts (id, subreddit_id, author, title, content, url, score, created_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.subreddit_id }},\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  {{ $json.score }},\n  '{{ $json.created_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET score = EXCLUDED.score\nRETURNING id, subreddit_id;"
+      },
+      "id": "insert-posts",
+      "name": "Insert/Upsert Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.reddit.com/comments/{{ $json.id.split('_')[1] || $json.id }}.json",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Jager/1.0 (by /u/jager_developer)"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-comments",
+      "name": "Fetch Comments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\nconst postId = $('Insert/Upsert Posts').item.json.id;\n// Reddit comments API returns an array: [post_details, comments_details]\nif (Array.isArray($json) && $json.length > 1) {\n  const children = $json[1].data?.children || [];\n  for (const child of children) {\n    const comment = child.data;\n    if (comment && comment.name) {\n      results.push({\n        id: comment.name,\n        post_id: postId,\n        author: comment.author || 'unknown',\n        content: comment.body || '',\n        score: comment.score || 0,\n        created_at: comment.created_utc ? new Date(comment.created_utc * 1000).toISOString() : new Date().toISOString()\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-comments",
+      "name": "Parse Comments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO reddit_comments (id, post_id, author, content, score, created_at)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  {{ $json.score }},\n  '{{ $json.created_at }}'\n)\nON CONFLICT (id) \nDO UPDATE SET score = EXCLUDED.score;"
+      },
+      "id": "insert-comments",
+      "name": "Insert/Upsert Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Active Subreddits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Subreddits": {
+      "main": [
+        [
+          {
+            "node": "Fetch Reddit Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Reddit Posts": {
+      "main": [
+        [
+          {
+            "node": "Parse Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Posts": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert/Upsert Posts": {
+      "main": [
+        [
+          {
+            "node": "Fetch Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Comments": {
+      "main": [
+        [
+          {
+            "node": "Parse Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Comments": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
