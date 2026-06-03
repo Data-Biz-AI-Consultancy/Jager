@@ -27,8 +27,12 @@
         "fields": {
           "values": [
             {
-              "name": "target_date",
+              "name": "start_date",
               "value": "={{ $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "name": "end_date",
+              "value": "={{ $now.toFormat('yyyy-MM-dd') }}"
             }
           ]
         },
@@ -100,7 +104,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id FROM reddit_posts WHERE processed = 0 AND created_at >= '{{ $('Workflow Parameters').item.json.target_date }} 00:00:00+00' AND created_at < '{{ $('Workflow Parameters').item.json.target_date }} 00:00:00+00'::timestamp with time zone + INTERVAL '1 day' ORDER BY created_at DESC;"
+        "query": "=SELECT id FROM reddit_posts WHERE processed = 0 AND created_at >= '{{ $('Workflow Parameters').item.json.start_date }} 00:00:00+00' AND created_at < '{{ $('Workflow Parameters').item.json.end_date }} 00:00:00+00';"
       },
       "id": "get-unprocessed-posts",
       "name": "Get Unprocessed Posts",
