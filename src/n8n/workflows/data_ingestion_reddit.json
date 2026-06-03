@@ -38,6 +38,37 @@
               "name": "end_date",
               "type": "string",
               "value": "={{ $now.plus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "id": "c62fbcd5-91db-496a-a82f-2d937ca25b22",
+              "name": "subreddits",
+              "type": "array",
+              "value": [
+                {
+                  "id": 1,
+                  "name": "smallbusiness"
+                },
+                {
+                  "id": 4,
+                  "name": "indiebiz"
+                },
+                {
+                  "id": 5,
+                  "name": "entrepreneurship"
+                },
+                {
+                  "id": 6,
+                  "name": "advancedentrepreneur"
+                },
+                {
+                  "id": 7,
+                  "name": "entrepreneurridealong"
+                },
+                {
+                  "id": 8,
+                  "name": "growmybusiness"
+                }
+              ]
             }
           ]
         }
@@ -53,23 +84,17 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, name FROM reddit_subreddits_monitored WHERE active = true;"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const subreddits = $('Workflow Parameters').first().json.subreddits || [];\nreturn subreddits;"
       },
       "id": "get-active-subreddits",
       "name": "Get Active Subreddits",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         250,
         300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
+      ]
     },
     {
       "parameters": {
