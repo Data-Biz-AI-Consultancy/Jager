@@ -7,7 +7,7 @@
       "@semantic-release/github",
       {
         "assets": [
-          { "path": "src/n8n/workflow.json", "label": "workflow.json" }
+          { "path": "src/n8n/workflows/workflow.json", "label": "workflow.json" }
         ]
       }
     ]

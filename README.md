@@ -38,6 +38,6 @@ We have established a manual trigger release CI pipeline via GitHub Actions.
 2. Select the **Manual Release** workflow.
 3. Click **Run workflow**, specify the version tag (e.g. `v1.0.0`), write release notes, and trigger the run.
 4. The workflow will:
-   - Validate that `src/n8n/workflow.json` is a valid JSON file.
+   - Validate that `src/n8n/workflows/workflow.json` is a valid JSON file.
    - Build the custom N8N Docker image to ensure compile-time correctness.
    - Create a GitHub Release with the specified tag and upload `workflow.json` as a release asset.
