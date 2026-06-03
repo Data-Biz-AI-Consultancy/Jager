@@ -44,7 +44,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trigger Private Deployment
-        if: steps.semantic.outputs.new_release_published == 'true'
+        env:
+          DEPLOYMENT_PAT: ${{ secrets.DEPLOYMENT_PAT }}
+        if: steps.semantic.outputs.new_release_published == 'true' && env.DEPLOYMENT_PAT != ''
         run: |
           curl -L \
             -X POST \
