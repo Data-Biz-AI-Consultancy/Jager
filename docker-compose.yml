@@ -29,6 +29,7 @@ services:
       - DB_POSTGRESDB_USER=jager
       - DB_POSTGRESDB_PASSWORD=jager
       - NODE_FUNCTION_ALLOW_EXTERNAL=*
+      - NODE_FUNCTION_ALLOW_BUILTIN=*
     depends_on:
       - db
 
