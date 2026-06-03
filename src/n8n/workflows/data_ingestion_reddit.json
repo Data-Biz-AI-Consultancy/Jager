@@ -38,9 +38,26 @@
               "name": "end_date",
               "type": "string",
               "value": "={{ $now.plus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
-            },
+            }
+          ]
+        }
+      },
+      "id": "workflow-parameters",
+      "name": "Workflow Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        250,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
             {
-              "id": "c62fbcd5-91db-496a-a82f-2d937ca25b22",
+              "id": "subreddits-uuid-parameters",
               "name": "subreddits",
               "type": "array",
               "value": [
@@ -73,24 +90,10 @@
           ]
         }
       },
-      "id": "workflow-parameters",
-      "name": "Workflow Parameters",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        250,
-        150
-      ]
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const subreddits = $('Workflow Parameters').first().json.subreddits || [];\nreturn subreddits;"
-      },
       "id": "get-active-subreddits",
       "name": "Get Active Subreddits",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
         250,
         300
@@ -99,7 +102,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const https = require('https');\n\nfunction fetchRSS(url, retries = 1) {\n  return new Promise((resolve, reject) => {\n    const options = {\n      headers: {\n        'User-Agent': 'Jager/1.0 (by /u/jager_developer)'\n      },\n      timeout: 5000\n    };\n    const req = https.get(url, options, (res) => {\n      let data = '';\n      res.on('data', (chunk) => { data += chunk; });\n      res.on('end', () => {\n        if (res.statusCode === 200) {\n          resolve(data);\n        } else {\n          if (retries > 0) {\n            console.log(`Retrying fetch for ${url} (status ${res.statusCode})...`);\n            setTimeout(() => {\n              fetchRSS(url, retries - 1).then(resolve).catch(reject);\n            }, 1000);\n          } else {\n            reject(new Error(`Status ${res.statusCode}`));\n          }\n        }\n      });\n    });\n    req.on('error', (err) => {\n      if (retries > 0) {\n        console.log(`Retrying fetch for ${url} due to error: ${err.message}...`);\n        setTimeout(() => {\n          fetchRSS(url, retries - 1).then(resolve).catch(reject);\n        }, 1000);\n      } else {\n        reject(err);\n      }\n    });\n    req.on('timeout', () => {\n      req.destroy();\n      if (retries > 0) {\n        console.log(`Retrying fetch for ${url} due to timeout...`);\n        setTimeout(() => {\n          fetchRSS(url, retries - 1).then(resolve).catch(reject);\n        }, 1000);\n      } else {\n        reject(new Error('Request Timeout'));\n      }\n    });\n  });\n}\n\nconst results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i].json;\n  const subredditName = item.name;\n  const subredditId = item.id;\n\n  if (i > 0) {\n    await new Promise(resolve => setTimeout(resolve, 1000));\n  }\n\n  try {\n    const xml = await fetchRSS(`https://www.reddit.com/r/${subredditName}/new.rss`);\n    results.push({\n      subreddit_id: subredditId,\n      subreddit_name: subredditName,\n      xml: xml\n    });\n  } catch (error) {\n    console.error(`Error fetching subreddit ${subredditName}:`, error.message);\n  }\n}\nreturn results;"
+        "jsCode": "const https = require('https');\n\nfunction fetchRSS(url, retries = 1) {\n  return new Promise((resolve, reject) => {\n    const options = {\n      headers: {\n        'User-Agent': 'Jager/1.0 (by /u/jager_developer)'\n      },\n      timeout: 5000\n    };\n    const req = https.get(url, options, (res) => {\n      let data = '';\n      res.on('data', (chunk) => { data += chunk; });\n      res.on('end', () => {\n        if (res.statusCode === 200) {\n          resolve(data);\n        } else {\n          if (retries > 0) {\n            console.log(`Retrying fetch for ${url} (status ${res.statusCode})...`);\n            setTimeout(() => {\n              fetchRSS(url, retries - 1).then(resolve).catch(reject);\n            }, 1000);\n          } else {\n            reject(new Error(`Status ${res.statusCode}`));\n          }\n        }\n      });\n    });\n    req.on('error', (err) => {\n      if (retries > 0) {\n        console.log(`Retrying fetch for ${url} due to error: ${err.message}...`);\n        setTimeout(() => {\n          fetchRSS(url, retries - 1).then(resolve).catch(reject);\n        }, 1000);\n      } else {\n        reject(err);\n      }\n    });\n    req.on('timeout', () => {\n      req.destroy();\n      if (retries > 0) {\n        console.log(`Retrying fetch for ${url} due to timeout...`);\n        setTimeout(() => {\n          fetchRSS(url, retries - 1).then(resolve).catch(reject);\n        }, 1000);\n      } else {\n        reject(new Error('Request Timeout'));\n      }\n    });\n  });\n}\n\nconst results = [];\nconst items = $input.first().json.subreddits || [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const subredditName = item.name;\n  const subredditId = item.id;\n\n  if (i > 0) {\n    await new Promise(resolve => setTimeout(resolve, 1000));\n  }\n\n  try {\n    const xml = await fetchRSS(`https://www.reddit.com/r/${subredditName}/new.rss`);\n    results.push({\n      subreddit_id: subredditId,\n      subreddit_name: subredditName,\n      xml: xml\n    });\n  } catch (error) {\n    console.error(`Error fetching subreddit ${subredditName}:`, error.message);\n  }\n}\nreturn results;"
       },
       "id": "fetch-posts-rss",
       "name": "Fetch Posts RSS",
