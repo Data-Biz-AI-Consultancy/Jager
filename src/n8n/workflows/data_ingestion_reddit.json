@@ -235,6 +235,26 @@
           "name": "postgres Credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO reddit_subreddits_monitored (id, name, active)\nSELECT (val->>'id')::integer, val->>'name', true\nFROM json_array_elements('{{ JSON.stringify($json.subreddits) }}'::json) AS val\nON CONFLICT (name) \nDO UPDATE SET active = true;"
+      },
+      "id": "update-monitored-subreddits",
+      "name": "Update Monitored Subreddits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        450,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     }
   ],
   "connections": {
@@ -265,6 +285,11 @@
         [
           {
             "node": "Fetch Posts RSS",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Monitored Subreddits",
             "type": "main",
             "index": 0
           }
