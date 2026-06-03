@@ -44,6 +44,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		workspace_id VARCHAR(255) NOT NULL UNIQUE,
 		workspace_name VARCHAR(255),
 		token BYTEA NOT NULL,
+		d_cookie BYTEA,
+		d_s_cookie BYTEA,
 		active BOOLEAN DEFAULT TRUE,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);

@@ -64,7 +64,8 @@
                 {
                   "channel_db_id": 1,
                   "channel_id": "C5GQ29DBM",
-                  "channel_name": "remote-jobs"
+                  "channel_name": "remote-jobs",
+                  "workspace_name": "rands-leadership"
                 }
               ]
             }
@@ -96,12 +97,16 @@
     },
     {
       "parameters": {
-        "url": "https://slack.com/api/conversations.history",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "slackApi",
-        "sendQuery": true,
-        "queryParameters": {
+        "method": "POST",
+        "url": "=https://{{ $json.workspace_name }}.slack.com/api/conversations.history",
+        "sendBody": true,
+        "bodyContentType": "form-urlencoded",
+        "bodyParameters": {
           "parameters": [
+            {
+              "name": "token",
+              "value": "={{ $env.SLACK_USER_TOKEN }}"
+            },
             {
               "name": "channel",
               "value": "={{ $json.channel_id }}"
@@ -116,6 +121,15 @@
             }
           ]
         },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "=d={{ $env.SLACK_D_COOKIE }}; d-s={{ $env.SLACK_D_S_COOKIE }}"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "fetch-slack-messages",
@@ -125,13 +139,7 @@
       "position": [
         650,
         300
-      ],
-      "credentials": {
-        "slackApi": {
-          "id": "slack-api-token",
-          "name": "Rands Leadership Slack Token"
-        }
-      }
+      ]
     },
     {
       "parameters": {
