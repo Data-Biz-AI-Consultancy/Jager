@@ -43,7 +43,7 @@
         }
       },
       "id": "workflow-parameters",
-      "name": "Workflow Parameters",
+      "name": "Ingestion Date Range Parameters",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
