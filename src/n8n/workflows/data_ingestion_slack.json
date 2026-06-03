@@ -1,0 +1,159 @@
+{
+  "id": "SlackIngestionWorkflow",
+  "name": "Data Ingestion - Slack",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "value": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "start-date-id",
+              "name": "start_date",
+              "type": "string",
+              "value": "={{ $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
+            },
+            {
+              "id": "end-date-id",
+              "name": "end_date",
+              "type": "string",
+              "value": "={{ $now.plus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
+            }
+          ]
+        }
+      },
+      "id": "workflow-parameters",
+      "name": "Ingestion Date Range Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        300,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT \n  w.workspace_id,\n  w.workspace_name,\n  pgp_sym_decrypt(w.token, '{{ $env.ENCRYPTION_KEY || 'default-secret-key' }}') AS token,\n  c.id AS channel_db_id,\n  c.channel_id,\n  c.name AS channel_name\nFROM slack_workspaces_monitored w\nJOIN slack_channels_monitored c ON c.workspace_id = w.id\nWHERE w.active = true AND c.active = true;"
+      },
+      "id": "get-active-slack-channels",
+      "name": "Get Active Slack Channels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const https = require('https');\n\nfunction fetchSlackHistory(channel, token, oldest, latest) {\n  return new Promise((resolve, reject) => {\n    const options = {\n      hostname: 'slack.com',\n      path: `/api/conversations.history?channel=${channel}&oldest=${oldest}&latest=${latest}`,\n      method: 'GET',\n      headers: {\n        'Authorization': `Bearer ${token}`,\n        'Content-Type': 'application/x-www-form-urlencoded'\n      },\n      timeout: 5000\n    };\n    const req = https.get(options, (res) => {\n      let data = '';\n      res.on('data', (chunk) => { data += chunk; });\n      res.on('end', () => {\n        if (res.statusCode === 200) {\n          try {\n            const json = JSON.parse(data);\n            if (json.ok) {\n              resolve(json.messages || []);\n            } else {\n              reject(new Error(`Slack API error: ${json.error}`));\n            }\n          } catch (e) {\n            reject(new Error(`Failed to parse JSON response: ${e.message}`));\n          }\n        } else {\n          reject(new Error(`HTTP Status ${res.statusCode}`));\n        }\n      });\n    });\n    req.on('error', (err) => reject(err));\n    req.on('timeout', () => {\n      req.destroy();\n      reject(new Error('Request Timeout'));\n    });\n  });\n}\n\nlet startDateStr, endDateStr;\ntry {\n  startDateStr = $('Ingestion Date Range Parameters').first().json.start_date;\n  endDateStr = $('Ingestion Date Range Parameters').first().json.end_date;\n} catch (e) {\n  console.log('[Fetch Slack] Could not read date range from Ingestion Date Range Parameters:', e.message);\n}\n\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst today = new Date();\n\nlet startDate = startDateStr ? new Date(startDateStr + 'T00:00:00Z') : yesterday;\nlet endDate = endDateStr ? new Date(endDateStr + 'T00:00:00Z') : today;\n\nconst oldest = Math.floor(startDate.getTime() / 1000);\nconst latest = Math.floor(endDate.getTime() / 1000);\n\nconst results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const { channel_db_id, channel_id, channel_name, token } = item.json;\n  if (!token || !channel_id) continue;\n\n  try {\n    const messages = await fetchSlackHistory(channel_id, token, oldest, latest);\n    for (const msg of messages) {\n      if (msg.subtype && msg.subtype !== 'bot_message') continue;\n      \n      const messageId = `${channel_id}_${msg.ts}`;\n      const created_at = new Date(parseFloat(msg.ts) * 1000).toISOString();\n      const cleanTs = msg.ts.replace('.', '');\n      const url = `https://slack.com/archives/${channel_id}/p${cleanTs}`;\n\n      results.push({\n        id: messageId,\n        channel_db_id: channel_db_id,\n        author: msg.user || msg.bot_id || 'unknown',\n        content: msg.text || '',\n        url: url,\n        created_at: created_at,\n        processed: 0\n      });\n    }\n  } catch (error) {\n    console.error(`Error fetching channel ${channel_name} (${channel_id}):`, error.message);\n  }\n}\n\nreturn results;"
+      },
+      "id": "fetch-and-parse-slack-messages",
+      "name": "Fetch & Parse Slack Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        550,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO slack_messages (id, channel_db_id, author, content, url, created_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.channel_db_id }},\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.created_at }}',\n  0\n)\nON CONFLICT (id) \nDO NOTHING\nRETURNING id;"
+      },
+      "id": "insert-slack-messages",
+      "name": "Insert Slack Messages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Ingestion Date Range Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingestion Date Range Parameters": {
+      "main": [
+        [
+          {
+            "node": "Get Active Slack Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Slack Channels": {
+      "main": [
+        [
+          {
+            "node": "Fetch & Parse Slack Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch & Parse Slack Messages": {
+      "main": [
+        [
+          {
+            "node": "Insert Slack Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
