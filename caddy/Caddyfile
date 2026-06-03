@@ -12,9 +12,10 @@ http://jager.n8n.com, http://192.168.178.164 {
     }
 }
 
-http://localhost {
+http://localhost, localhost {
     reverse_proxy n8n:5678
     encode gzip
+    tls internal
 }
 
 jager.n8n.com {
