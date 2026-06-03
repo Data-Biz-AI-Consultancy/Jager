@@ -47,7 +47,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        300,
+        250,
         150
       ]
     },
@@ -63,9 +63,8 @@
               "value": [
                 {
                   "channel_db_id": 1,
-                  "channel_id": "C01123456",
-                  "channel_name": "general",
-                  "token": "xoxp-mock-personal-token"
+                  "channel_id": "C5GQ29DBM",
+                  "channel_name": "remote-jobs"
                 }
               ]
             }
@@ -77,21 +76,74 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        300,
+        250,
         300
       ]
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const https = require('https');\n\nfunction fetchSlackHistory(channel, token, oldest, latest) {\n  return new Promise((resolve, reject) => {\n    const options = {\n      hostname: 'slack.com',\n      path: `/api/conversations.history?channel=${channel}&oldest=${oldest}&latest=${latest}`,\n      method: 'GET',\n      headers: {\n        'Authorization': `Bearer ${token}`,\n        'Content-Type': 'application/x-www-form-urlencoded'\n      },\n      timeout: 5000\n    };\n    const req = https.get(options, (res) => {\n      let data = '';\n      res.on('data', (chunk) => { data += chunk; });\n      res.on('end', () => {\n        if (res.statusCode === 200) {\n          try {\n            const json = JSON.parse(data);\n            if (json.ok) {\n              resolve(json.messages || []);\n            } else {\n              reject(new Error(`Slack API error: ${json.error}`));\n            }\n          } catch (e) {\n            reject(new Error(`Failed to parse JSON response: ${e.message}`));\n          }\n        } else {\n          reject(new Error(`HTTP Status ${res.statusCode}`));\n        }\n      });\n    });\n    req.on('error', (err) => reject(err));\n    req.on('timeout', () => {\n      req.destroy();\n      reject(new Error('Request Timeout'));\n    });\n  });\n}\n\nlet startDateStr, endDateStr;\ntry {\n  startDateStr = $('Ingestion Date Range Parameters').first().json.start_date;\n  endDateStr = $('Ingestion Date Range Parameters').first().json.end_date;\n} catch (e) {\n  console.log('[Fetch Slack] Could not read date range from Ingestion Date Range Parameters:', e.message);\n}\n\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst today = new Date();\n\nlet startDate = startDateStr ? new Date(startDateStr + 'T00:00:00Z') : yesterday;\nlet endDate = endDateStr ? new Date(endDateStr + 'T00:00:00Z') : today;\n\nconst oldest = Math.floor(startDate.getTime() / 1000);\nconst latest = Math.floor(endDate.getTime() / 1000);\n\nconst results = [];\nconst items = $input.first().json.channels || [];\n\nfor (const item of items) {\n  const { channel_db_id, channel_id, channel_name, token } = item;\n  if (!token || !channel_id) continue;\n\n  try {\n    const messages = await fetchSlackHistory(channel_id, token, oldest, latest);\n    for (const msg of messages) {\n      if (msg.subtype && msg.subtype !== 'bot_message') continue;\n      \n      const messageId = `${channel_id}_${msg.ts}`;\n      const created_at = new Date(parseFloat(msg.ts) * 1000).toISOString();\n      const cleanTs = msg.ts.replace('.', '');\n      const url = `https://slack.com/archives/${channel_id}/p${cleanTs}`;\n\n      results.push({\n        id: messageId,\n        channel_db_id: channel_db_id,\n        author: msg.user || msg.bot_id || 'unknown',\n        content: msg.text || '',\n        url: url,\n        created_at: created_at,\n        processed: 0\n      });\n    }\n  } catch (error) {\n    console.error(`Error fetching channel ${channel_name} (${channel_id}):`, error.message);\n  }\n}\n\nreturn results;"
+        "jsCode": "return $input.first().json.channels || [];"
       },
-      "id": "fetch-and-parse-slack-messages",
-      "name": "Fetch & Parse Slack Messages",
+      "id": "split-channels",
+      "name": "Split Channels",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        550,
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://slack.com/api/conversations.history",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "={{ $json.channel_id }}"
+            },
+            {
+              "name": "oldest",
+              "value": "={{ Math.floor(new Date($('Ingestion Date Range Parameters').first().json.start_date + 'T00:00:00Z').getTime() / 1000) }}"
+            },
+            {
+              "name": "latest",
+              "value": "={{ Math.floor(new Date($('Ingestion Date Range Parameters').first().json.end_date + 'T00:00:00Z').getTime() / 1000) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-slack-messages",
+      "name": "Fetch Slack Messages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-api-token",
+          "name": "Rands Leadership Slack Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const channel_db_id = item.pairedItem ? $input.getItem(item.pairedItem.index, 0).json.channel_db_id : 1;\n  const channel_id = item.pairedItem ? $input.getItem(item.pairedItem.index, 0).json.channel_id : 'C5GQ29DBM';\n  \n  const messages = item.json.messages || [];\n  for (const msg of messages) {\n    if (msg.subtype && msg.subtype !== 'bot_message') continue;\n    \n    const messageId = `${channel_id}_${msg.ts}`;\n    const created_at = new Date(parseFloat(msg.ts) * 1000).toISOString();\n    const cleanTs = msg.ts.replace('.', '');\n    const url = `https://slack.com/archives/${channel_id}/p${cleanTs}`;\n\n    results.push({\n      id: messageId,\n      channel_db_id: channel_db_id,\n      author: msg.user || msg.bot_id || 'unknown',\n      content: msg.text || '',\n      url: url,\n      created_at: created_at,\n      processed: 0\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "parse-slack-messages",
+      "name": "Parse Slack Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        850,
         300
       ]
     },
@@ -105,7 +157,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        800,
+        1050,
         300
       ],
       "credentials": {
@@ -143,14 +195,36 @@
       "main": [
         [
           {
-            "node": "Fetch & Parse Slack Messages",
+            "node": "Split Channels",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch & Parse Slack Messages": {
+    "Split Channels": {
+      "main": [
+        [
+          {
+            "node": "Fetch Slack Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Slack Messages": {
+      "main": [
+        [
+          {
+            "node": "Parse Slack Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Slack Messages": {
       "main": [
         [
           {
