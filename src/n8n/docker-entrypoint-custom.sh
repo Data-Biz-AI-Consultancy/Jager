@@ -7,15 +7,14 @@ while ! nc -z db 5432; do
 done
 echo "PostgreSQL is ready!"
 
-# Import workflows if the files exist
-if [ -f /etc/n8n/reddit_workflow.json ]; then
-  echo "Importing Reddit workflow..."
-  n8n import:workflow --input /etc/n8n/reddit_workflow.json
-fi
-
-if [ -f /etc/n8n/workflow.json ]; then
-  echo "Importing Instagram workflow..."
-  n8n import:workflow --input /etc/n8n/workflow.json
+# Import workflows from workflows directory
+if [ -d /etc/n8n/workflows ]; then
+  for f in /etc/n8n/workflows/*.json; do
+    if [ -f "$f" ]; then
+      echo "Importing workflow: $f"
+      n8n import:workflow --input "$f"
+    fi
+  done
 fi
 
 # Execute the default n8n entrypoint
