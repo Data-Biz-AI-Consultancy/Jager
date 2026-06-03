@@ -12,29 +12,12 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init-user-db.sh:/docker-entrypoint-initdb.d/init-user-db.sh
-
-  backend:
-    build:
-      context: ./src/backend
-      dockerfile: Dockerfile
-    restart: always
-    ports:
-      - "8001:8000"
-    environment:
-      - DATABASE_URL=postgresql://jager:jager@db:5432/jager
-      - OLLAMA_HOST=http://host.docker.internal:11434
-      - N8N_API_URL=http://n8n:5678
-    depends_on:
-      - db
-    volumes:
-      - ./src/backend:/app
-      - ./src/frontend:/frontend
-      - ./prompts:/prompts
-      - ./data/reddit:/app/data/reddit
+      - ./legacy/init-user-db.sh:/docker-entrypoint-initdb.d/init-user-db.sh
 
   n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
+    build:
+      context: ./src/n8n
+      dockerfile: Dockerfile
     restart: always
     ports:
       - "5678:5678"

@@ -1,0 +1,57 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to release (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      release_notes:
+        description: 'Release notes'
+        required: false
+        default: 'Manual release of N8N workflow'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate workflow JSON
+        run: |
+          if jq empty src/n8n/workflow.json; then
+            echo "workflow.json is valid JSON"
+          else
+            echo "workflow.json is NOT valid JSON"
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build custom N8N Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./src/n8n
+          file: ./src/n8n/Dockerfile
+          push: false
+          tags: n8n-custom:latest
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          body: ${{ github.event.inputs.release_notes }}
+          draft: false
+          prerelease: false
+          files: |
+            src/n8n/workflow.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
