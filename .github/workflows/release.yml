@@ -51,7 +51,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_PAT }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/YOUR_ORGANIZATION_OR_USERNAME/YOUR_PRIVATE_DEPLOYMENT_REPO/dispatches \
+            https://api.github.com/repos/Data-Biz-AI-Consultancy/Jager-Deployment/dispatches \
             -d '{"event_type":"deploy-release","client_payload":{"version":"${{ steps.semantic.outputs.new_release_version }}","tag":"${{ steps.semantic.outputs.new_release_git_tag }}"}}'
 
 
