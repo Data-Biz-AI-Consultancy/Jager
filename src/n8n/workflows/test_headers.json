@@ -1,0 +1,18 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const response = await fetch('https://httpbin.org/headers', {\n  headers: {\n    'User-Agent': 'Jager/1.0 (by /u/jager_developer)'\n  }\n});\nconst data = await response.json();\nreturn [{ json: data }];"
+      },
+      "id": "code-node",
+      "name": "Code Node",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ]
+    }
+  ],
+  "connections": {}
+}

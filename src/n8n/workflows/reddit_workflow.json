@@ -44,38 +44,14 @@
     },
     {
       "parameters": {
-        "url": "=https://www.reddit.com/r/{{ $json.name }}/new.rss",
-        "responseFormat": "text",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Jager/1.0 (by /u/jager_developer)"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "const results = [];\nconst subredditName = $json.name;\nconst subredditId = $json.id;\n\ntry {\n  const response = await fetch(`https://www.reddit.com/r/${subredditName}/new.rss`, {\n    headers: {\n      'User-Agent': 'Jager/1.0 (by /u/jager_developer)'\n    }\n  });\n\n  if (response.ok) {\n    const xml = await response.text();\n    const entryMatches = xml.match(/<entry>[\\s\\S]*?<\\/entry>/g) || [];\n    for (const entry of entryMatches) {\n      const idMatch = entry.match(/<id>([^<]+)<\\/id>/);\n      const authorMatch = entry.match(/<author>[\\s\\S]*?<name>([^<]+)<\\/name>[\\s\\S]*?<\\/author>/);\n      const titleMatch = entry.match(/<title>([^<]+)<\\/title>/);\n      const contentMatch = entry.match(/<content[^>]*>([\\s\\S]*?)<\\/content>/);\n      const linkMatch = entry.match(/<link\\s+href=\"([^\"]+)\"/);\n      const updatedMatch = entry.match(/<updated>([^<]+)<\\/updated>/);\n\n      if (idMatch) {\n        let id = idMatch[1].trim();\n        if (id.includes('/')) {\n          id = id.split('/').pop();\n        }\n        let author = authorMatch ? authorMatch[1].trim() : 'unknown';\n        if (author.startsWith('/u/')) {\n          author = author.substring(3);\n        }\n        const title = titleMatch ? titleMatch[1].trim() : '';\n        let content = contentMatch ? contentMatch[1].trim() : '';\n        content = content.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n        if (!content) content = title;\n\n        const url = linkMatch ? linkMatch[1] : null;\n        const created_at = updatedMatch ? updatedMatch[1] : new Date().toISOString();\n\n        results.push({\n          id,\n          subreddit_id: subredditId,\n          author,\n          title,\n          content: content.substring(0, 5000),\n          url,\n          score: 0,\n          created_at\n        });\n      }\n    }\n  } else {\n    console.error(`Failed to fetch subreddit ${subredditName}: status ${response.status}`);\n  }\n} catch (error) {\n  console.error(`Error fetching subreddit ${subredditName}:`, error);\n}\n\nreturn results;"
       },
-      "id": "fetch-reddit-posts",
-      "name": "Fetch Reddit Posts",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        500,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const results = [];\nconst xml = $json.data;\nconst subredditId = $('Get Active Subreddits').item.json.id;\n\nif (xml) {\n  const entryMatches = xml.match(/<entry>[\\s\\S]*?<\\/entry>/g) || [];\n  for (const entry of entryMatches) {\n    const idMatch = entry.match(/<id>([^<]+)<\\/id>/);\n    const authorMatch = entry.match(/<author>[\\s\\S]*?<name>([^<]+)<\\/name>[\\s\\S]*?<\\/author>/);\n    const titleMatch = entry.match(/<title>([^<]+)<\\/title>/);\n    const contentMatch = entry.match(/<content[^>]*>([\\s\\S]*?)<\\/content>/);\n    const linkMatch = entry.match(/<link\\s+href=\"([^\"]+)\"/);\n    const updatedMatch = entry.match(/<updated>([^<]+)<\\/updated>/);\n\n    if (idMatch) {\n      let id = idMatch[1].trim();\n      if (id.includes('/')) {\n        id = id.split('/').pop();\n      }\n      let author = authorMatch ? authorMatch[1].trim() : 'unknown';\n      if (author.startsWith('/u/')) {\n        author = author.substring(3);\n      }\n      const title = titleMatch ? titleMatch[1].trim() : '';\n      let content = contentMatch ? contentMatch[1].trim() : '';\n      content = content.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n      if (!content) content = title;\n\n      const url = linkMatch ? linkMatch[1] : null;\n      const created_at = updatedMatch ? updatedMatch[1] : new Date().toISOString();\n\n      results.push({\n        id,\n        subreddit_id: subredditId,\n        author,\n        title,\n        content: content.substring(0, 5000),\n        url,\n        score: 0,\n        created_at\n      });\n    }\n  }\n}\nreturn results;"
-      },
-      "id": "parse-posts",
-      "name": "Parse Posts",
+      "id": "fetch-parse-posts",
+      "name": "Fetch & Parse Posts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        700,
+        500,
         300
       ]
     },
@@ -89,7 +65,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        900,
+        700,
         300
       ],
       "credentials": {
@@ -101,38 +77,14 @@
     },
     {
       "parameters": {
-        "url": "=https://www.reddit.com/comments/{{ $json.id.split('_')[1] || $json.id }}/.rss",
-        "responseFormat": "text",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "User-Agent",
-              "value": "Jager/1.0 (by /u/jager_developer)"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "const results = [];\nconst postId = $json.id;\nconst cleanId = postId.split('_')[1] || postId;\n\ntry {\n  const response = await fetch(`https://www.reddit.com/comments/${cleanId}/.rss`, {\n    headers: {\n      'User-Agent': 'Jager/1.0 (by /u/jager_developer)'\n    }\n  });\n\n  if (response.ok) {\n    const xml = await response.text();\n    const entryMatches = xml.match(/<entry>[\\s\\S]*?<\\/entry>/g) || [];\n    for (const entry of entryMatches) {\n      const idMatch = entry.match(/<id>([^<]+)<\\/id>/);\n      const authorMatch = entry.match(/<author>[\\s\\S]*?<name>([^<]+)<\\/name>[\\s\\S]*?<\\/author>/);\n      const contentMatch = entry.match(/<content[^>]*>([\\s\\S]*?)<\\/content>/);\n      const updatedMatch = entry.match(/<updated>([^<]+)<\\/updated>/);\n\n      if (idMatch) {\n        let id = idMatch[1].trim();\n        if (id.includes('/')) {\n          id = id.split('/').pop();\n        }\n        if (!id.startsWith('t1_')) {\n          continue;\n        }\n        let author = authorMatch ? authorMatch[1].trim() : 'unknown';\n        if (author.startsWith('/u/')) {\n          author = author.substring(3);\n        }\n        let content = contentMatch ? contentMatch[1].trim() : '';\n        content = content.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>');\n        const created_at = updatedMatch ? updatedMatch[1] : new Date().toISOString();\n\n        results.push({\n          id,\n          post_id: postId,\n          author,\n          content: content.substring(0, 5000),\n          score: 0,\n          created_at\n        });\n      }\n    }\n  } else {\n    console.error(`Failed to fetch comments for post ${postId}: status ${response.status}`);\n  }\n} catch (error) {\n  console.error(`Error fetching comments for post ${postId}:`, error);\n}\n\nreturn results;"
       },
-      "id": "fetch-comments",
-      "name": "Fetch Comments",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1100,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const results = [];\nconst postId = $('Insert/Upsert Posts').item.json.id;\nconst xml = $json.data;\n\nif (xml) {\n  const entryMatches = xml.match(/<entry>[\\s\\S]*?<\\/entry>/g) || [];\n  for (const entry of entryMatches) {\n    const idMatch = entry.match(/<id>([^<]+)<\\/id>/);\n    const authorMatch = entry.match(/<author>[\\s\\S]*?<name>([^<]+)<\\/name>[\\s\\S]*?<\\/author>/);\n    const contentMatch = entry.match(/<content[^>]*>([\\s\\S]*?)<\\/content>/);\n    const updatedMatch = entry.match(/<updated>([^<]+)<\\/updated>/);\n\n    if (idMatch) {\n      let id = idMatch[1].trim();\n      if (id.includes('/')) {\n        id = id.split('/').pop();\n      }\n      if (!id.startsWith('t1_')) {\n        continue;\n      }\n      let author = authorMatch ? authorMatch[1].trim() : 'unknown';\n      if (author.startsWith('/u/')) {\n        author = author.substring(3);\n      }\n      let content = contentMatch ? contentMatch[1].trim() : '';\n      content = content.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n      const created_at = updatedMatch ? updatedMatch[1] : new Date().toISOString();\n\n      results.push({\n        id,\n        post_id: postId,\n        author,\n        content: content.substring(0, 5000),\n        score: 0,\n        created_at\n      });\n    }\n  }\n}\nreturn results;"
-      },
-      "id": "parse-comments",
-      "name": "Parse Comments",
+      "id": "fetch-parse-comments",
+      "name": "Fetch & Parse Comments",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
+        900,
         300
       ]
     },
@@ -146,7 +98,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1500,
+        1100,
         300
       ],
       "credentials": {
@@ -173,25 +125,14 @@
       "main": [
         [
           {
-            "node": "Fetch Reddit Posts",
+            "node": "Fetch & Parse Posts",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch Reddit Posts": {
-      "main": [
-        [
-          {
-            "node": "Parse Posts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Posts": {
+    "Fetch & Parse Posts": {
       "main": [
         [
           {
@@ -206,25 +147,14 @@
       "main": [
         [
           {
-            "node": "Fetch Comments",
+            "node": "Fetch & Parse Comments",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch Comments": {
-      "main": [
-        [
-          {
-            "node": "Parse Comments",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Comments": {
+    "Fetch & Parse Comments": {
       "main": [
         [
           {
