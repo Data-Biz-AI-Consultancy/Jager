@@ -100,8 +100,22 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const response = $input.first().json.response || '';\nlet clean = response.replace(/\\*\\*(.*?)\\*\\*/g, '*$1*');\nclean = clean.replace(/#{1,6}\\s+(.*?)($|\\n)/g, '*$1*\\n');\nclean = clean.replace(/\\[(.*?)\\]\\((.*?)\\)/g, '<$2|$1>');\nreturn [{ json: { response: clean } }];"
+      },
+      "id": "convert-markdown-to-slack",
+      "name": "Convert Markdown to Slack",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
         "channel": "={{ $env.SLACK_SUMMARY_CHANNEL || 'opportunities' }}",
-        "text": "=🤖 *Daily Reddit Summary Report* 🤖\n\n{{ $('Summarize via Ollama Cloud').first().json.response }}",
+        "text": "=🤖 *Daily Reddit Summary Report* 🤖\n\n{{ $('Convert Markdown to Slack').first().json.response }}",
         "otherOptions": {}
       },
       "id": "post-to-slack",
@@ -155,6 +169,17 @@
       ]
     },
     "Summarize via Ollama Cloud": {
+      "main": [
+        [
+          {
+            "node": "Convert Markdown to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Markdown to Slack": {
       "main": [
         [
           {
