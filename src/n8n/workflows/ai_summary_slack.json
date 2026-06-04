@@ -1,0 +1,143 @@
+{
+  "id": "AiSummarySlack",
+  "name": "AI Summary Slack",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 24
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  s.name AS subreddit_name,\n  s.active AS subreddit_active,\n  p.id AS post_id,\n  p.title AS post_title,\n  p.content AS post_content,\n  p.author AS post_author,\n  p.url AS post_url,\n  p.created_at AS post_created_at,\n  c.id AS comment_id,\n  c.author AS comment_author,\n  c.content AS comment_content,\n  c.created_at AS comment_created_at\nFROM reddit_subreddits_monitored s\nLEFT JOIN reddit_posts p ON p.subreddit_id = s.id AND p.created_at >= NOW() - INTERVAL '1 day'\nLEFT JOIN reddit_comments c ON c.post_id = p.id\nORDER BY s.name, p.created_at DESC, c.created_at DESC;"
+      },
+      "id": "get-latest-posts",
+      "name": "Get Latest Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [300, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all();\nif (rows.length === 0 || !rows[0].json.subreddit_name) {\n  return [{ json: { text: 'No monitored subreddits or posts found.', post_ids: [], ref_map: {} } }];\n}\n\nconst subreddits = {};\nconst postIds = new Set();\n\nrows.forEach(row => {\n  const data = row.json;\n  const subName = data.subreddit_name;\n  if (!subreddits[subName]) {\n    subreddits[subName] = { active: data.subreddit_active, posts: {} };\n  }\n  if (data.post_id) {\n    postIds.add(data.post_id);\n    if (!subreddits[subName].posts[data.post_id]) {\n      subreddits[subName].posts[data.post_id] = {\n        title: data.post_title,\n        content: data.post_content,\n        author: data.post_author,\n        url: data.post_url,\n        created_at: data.post_created_at,\n        comments: []\n      };\n    }\n    if (data.comment_id) {\n      subreddits[subName].posts[data.post_id].comments.push({\n        author: data.comment_author,\n        content: data.comment_content,\n        created_at: data.comment_created_at\n      });\n    }\n  }\n});\n\n// Assign sequential numbers to every post for the LLM to reference\nconst refMap = {};\nlet refCounter = 1;\n\nlet text = 'Posts to summarize (each has an id number):\\n\\n';\n\nfor (const [subName, subInfo] of Object.entries(subreddits)) {\n  const postsList = Object.values(subInfo.posts);\n  if (postsList.length === 0) continue;\n\n  text += `Subreddit: r/${subName}\\n`;\n  postsList.forEach(post => {\n    const refId = refCounter++;\n    refMap[String(refId)] = { title: post.title || 'Post', url: post.url || '' };\n\n    text += `  id:${refId} | ${post.title || 'No Title'} (by u/${post.author || 'unknown'})\\n`;\n    text += `  Content: ${(post.content || '').substring(0, 500)}\\n`;\n    if (post.comments.length > 0) {\n      text += `  Top comments:\\n`;\n      post.comments.slice(0, 3).forEach(comment => {\n        text += `    - u/${comment.author || 'unknown'}: ${(comment.content || '').substring(0, 200)}\\n`;\n      });\n    }\n    text += '\\n';\n  });\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/bella.md', 'utf8');\n} catch (e) {\n  persona = 'Warm, charming Italian secretary named Bella.';\n}\n\nreturn [{ json: { text, post_ids: Array.from(postIds), ref_map: refMap, bella_persona: persona } }];"
+      },
+      "id": "format-posts-for-llm",
+      "name": "Format Posts for LLM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ollama.com/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OLLAMA_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=### LANGUAGE RULE ###\nWrite everything in ENGLISH. One Italian greeting at the start (e.g. Caro Don Jimmy 💋) and one Italian sign-off at the end (e.g. Un grande abbraccio). All content in between: ENGLISH.\n\n### YOUR PERSONA ###\nYou are Bella, Don Jimmy's devoted Italian secretary. Warm, charming, professional. Use Unicode emojis (💋 ✨ 😉 💡) directly.\n\n### YOUR TASK ###\nRead the Reddit posts below and return a JSON object with this exact structure — no extra text, no markdown fences, just raw JSON:\n\n{\n  \"greeting\": \"One short warm Italian greeting line for Don Jimmy\",\n  \"insights\": [\n    {\n      \"topic\": \"Short topic label in English (3-6 words)\",\n      \"summary\": \"2-3 sentence English summary of the issue, who is affected, and why it matters for business opportunities.\",\n      \"post_ids\": [1, 3]\n    }\n  ],\n  \"signoff\": \"One short warm Italian sign-off line\"\n}\n\nRules:\n- \"post_ids\" must be an array of the id numbers from the data that this insight is based on.\n- Every insight must reference at least one post_id.\n- Group related posts into the same insight when they cover the same topic.\n- Write all \"topic\" and \"summary\" fields in English.\n- Output only valid JSON. No explanation, no markdown, no code fences.\n\n### REDDIT DATA ###\n{{ $json.text }}"
+            },
+            {
+              "name": "stream",
+              "value": "={{ false }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "summarize-via-ollama-cloud",
+      "name": "Summarize via Ollama Cloud",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const raw = $input.first().json.response || '';\nconst refMap = $('Format Posts for LLM').first().json.ref_map || {};\n\n// Strip markdown code fences if the model added them despite instructions\nlet jsonStr = raw.trim().replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  // Fallback: return the raw text if JSON parsing fails\n  return [{ json: { response: raw } }];\n}\n\nconst greeting = parsed.greeting || '';\nconst signoff = parsed.signoff || '';\nconst insights = Array.isArray(parsed.insights) ? parsed.insights : [];\n\n// Build Slack message\nlet msg = '';\n\nif (greeting) msg += `${greeting}\\n\\n`;\n\nmsg += '✨ *Key Insights & Opportunities*\\n\\n';\n\ninsights.forEach(insight => {\n  const topic = insight.topic || 'Insight';\n  const summary = insight.summary || '';\n  const postIds = Array.isArray(insight.post_ids) ? insight.post_ids : [];\n\n  // Build inline links for each referenced post\n  const links = postIds\n    .map(id => {\n      const ref = refMap[String(id)];\n      if (!ref || !ref.url) return null;\n      return `<${ref.url}|${ref.title}>`;\n    })\n    .filter(Boolean);\n\n  const linkStr = links.length > 0 ? ' ' + links.join(' ') : '';\n\n  msg += `• *${topic}:* ${summary}${linkStr}\\n`;\n});\n\nif (signoff) msg += `\\n${signoff}`;\n\nreturn [{ json: { response: msg } }];"
+      },
+      "id": "build-slack-message",
+      "name": "Build Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_SUMMARY_CHANNEL || 'opportunities' }}",
+        "text": "=🤖 *Daily Reddit Summary Report* 🤖\n\n{{ $('Build Slack Message').first().json.response }}",
+        "otherOptions": {}
+      },
+      "id": "post-to-slack",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [1300, 200],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-api-cred",
+          "name": "Slack API Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [[{ "node": "Get Latest Posts", "type": "main", "index": 0 }]]
+    },
+    "Get Latest Posts": {
+      "main": [[{ "node": "Format Posts for LLM", "type": "main", "index": 0 }]]
+    },
+    "Format Posts for LLM": {
+      "main": [[{ "node": "Summarize via Ollama Cloud", "type": "main", "index": 0 }]]
+    },
+    "Summarize via Ollama Cloud": {
+      "main": [[{ "node": "Build Slack Message", "type": "main", "index": 0 }]]
+    },
+    "Build Slack Message": {
+      "main": [[{ "node": "Post to Slack", "type": "main", "index": 0 }]]
+    },
+    "Post to Slack": {
+      "main": [[]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
