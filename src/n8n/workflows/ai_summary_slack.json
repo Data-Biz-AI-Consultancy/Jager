@@ -45,7 +45,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const rows = $input.all();\nif (rows.length === 0 || !rows[0].json.subreddit_name) {\n  return [{ json: { text: \"No monitored subreddits or posts found.\", post_ids: [] } }];\n}\n\nconst subreddits = {};\nconst postIds = new Set();\n\nrows.forEach(row => {\n  const data = row.json;\n  const subName = data.subreddit_name;\n  \n  if (!subreddits[subName]) {\n    subreddits[subName] = {\n      active: data.subreddit_active,\n      posts: {}\n    };\n  }\n  \n  if (data.post_id) {\n    postIds.add(data.post_id);\n    if (!subreddits[subName].posts[data.post_id]) {\n      subreddits[subName].posts[data.post_id] = {\n        title: data.post_title,\n        content: data.post_content,\n        author: data.post_author,\n        url: data.post_url,\n        created_at: data.post_created_at,\n        comments: []\n      };\n    }\n    \n    if (data.comment_id) {\n      subreddits[subName].posts[data.post_id].comments.push({\n        author: data.comment_author,\n        content: data.comment_content,\n        created_at: data.comment_created_at\n      });\n    }\n  }\n});\n\nlet text = \"Here is the summary of the Reddit monitoring status:\\n\\n\";\ntext += \"=== Monitored Subreddits ===\\n\";\nfor (const [subName, subInfo] of Object.entries(subreddits)) {\n  text += `- r/${subName} (Status: ${subInfo.active ? 'Active' : 'Inactive'})\\n`;\n}\ntext += \"\\n=== New Unprocessed Posts & Comments ===\\n\\n\";\n\nfor (const [subName, subInfo] of Object.entries(subreddits)) {\n  const postsList = Object.values(subInfo.posts);\n  if (postsList.length === 0) {\n    continue;\n  }\n  text += `Subreddit: r/${subName}\\n`;\n  postsList.forEach((post, index) => {\n    text += `  Post #${index + 1}: ${post.title || 'No Title'}\\n`;\n    text += `  Author: u/${post.author || 'unknown'}\\n`;\n    text += `  Content: ${(post.content || '').substring(0, 500)}\\n`;\n    text += `  URL: ${post.url || 'No URL'}\\n`;\n    if (post.comments.length > 0) {\n      text += `  Comments:\\n`;\n      post.comments.slice(0, 5).forEach((comment) => {\n        text += `    - [u/${comment.author || 'unknown'}]: ${(comment.content || '').substring(0, 300)}\\n`;\n      });\n    }\n    text += `  -------------------------------------------\\n`;\n  });\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/bella.md', 'utf8');\n} catch (e) {\n  persona = 'Warm, charming Italian secretary named Bella.';\n}\n\nreturn [{ json: { text: text, post_ids: Array.from(postIds), bella_persona: persona } }];"
+        "jsCode": "const rows = $input.all();\nif (rows.length === 0 || !rows[0].json.subreddit_name) {\n  return [{ json: { text: \"No monitored subreddits or posts found.\", post_ids: [], posts_refs: {} } }];\n}\n\nconst subreddits = {};\nconst postIds = new Set();\n\nrows.forEach(row => {\n  const data = row.json;\n  const subName = data.subreddit_name;\n\n  if (!subreddits[subName]) {\n    subreddits[subName] = {\n      active: data.subreddit_active,\n      posts: {}\n    };\n  }\n\n  if (data.post_id) {\n    postIds.add(data.post_id);\n    if (!subreddits[subName].posts[data.post_id]) {\n      subreddits[subName].posts[data.post_id] = {\n        title: data.post_title,\n        content: data.post_content,\n        author: data.post_author,\n        url: data.post_url,\n        created_at: data.post_created_at,\n        comments: []\n      };\n    }\n\n    if (data.comment_id) {\n      subreddits[subName].posts[data.post_id].comments.push({\n        author: data.comment_author,\n        content: data.comment_content,\n        created_at: data.comment_created_at\n      });\n    }\n  }\n});\n\n// Build plain-text prompt content for the LLM\nlet text = \"Here is the Reddit monitoring data:\\n\\n\";\ntext += \"=== Monitored Subreddits ===\\n\";\nfor (const [subName, subInfo] of Object.entries(subreddits)) {\n  text += `- r/${subName} (Status: ${subInfo.active ? 'Active' : 'Inactive'})\\n`;\n}\ntext += \"\\n=== New Posts & Comments (last 24h) ===\\n\\n\";\n\n// Build posts_refs for guaranteed programmatic links later\n// Structure: { subredditName: [ { title, url, author } ] }\nconst postsRefs = {};\n\nfor (const [subName, subInfo] of Object.entries(subreddits)) {\n  const postsList = Object.values(subInfo.posts);\n  if (postsList.length === 0) continue;\n\n  postsRefs[subName] = [];\n\n  text += `Subreddit: r/${subName}\\n`;\n  postsList.forEach((post, index) => {\n    text += `  Post #${index + 1}: ${post.title || 'No Title'}\\n`;\n    text += `  Author: u/${post.author || 'unknown'}\\n`;\n    text += `  Content: ${(post.content || '').substring(0, 500)}\\n`;\n    if (post.comments.length > 0) {\n      text += `  Comments:\\n`;\n      post.comments.slice(0, 5).forEach((comment) => {\n        text += `    - [u/${comment.author || 'unknown'}]: ${(comment.content || '').substring(0, 300)}\\n`;\n      });\n    }\n    text += `  -------------------------------------------\\n`;\n\n    if (post.url) {\n      postsRefs[subName].push({ title: post.title || 'Post', url: post.url, author: post.author || 'unknown' });\n    }\n  });\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/bella.md', 'utf8');\n} catch (e) {\n  persona = 'Warm, charming Italian secretary named Bella.';\n}\n\nreturn [{ json: { text: text, post_ids: Array.from(postIds), posts_refs: postsRefs, bella_persona: persona } }];"
       },
       "id": "format-posts-for-llm",
       "name": "Format Posts for LLM",
@@ -79,7 +79,7 @@
             },
             {
               "name": "prompt",
-              "value": "=### ABSOLUTE LANGUAGE RULE — READ THIS FIRST ###\nYOU MUST WRITE YOUR ENTIRE RESPONSE IN ENGLISH. NOT ITALIAN. NOT ANY OTHER LANGUAGE. ENGLISH ONLY.\nThe ONLY Italian permitted is: a single greeting word (e.g. Buongiorno, Caro) at the very start, and a single sign-off (e.g. Un grande abbraccio) at the very end. Everything else — every sentence, every bullet point, every description — MUST be in English.\n\n### YOUR PERSONA ###\nYou are Bella, Don Jimmy's devoted Italian secretary. You are warm, charming, and highly competent. You speak of Don Jimmy with immense respect. Despite your Italian character, you ALWAYS write professional reports and summaries in ENGLISH. You use Unicode emojis (💋 ✨ 😉 💡) directly — never text codes like :kiss:.\n\n### TASK ###\nSummarize the Reddit posts below into a clear, structured Slack message for Don Jimmy. Highlight key user pain points, requests for recommendations, and business opportunities. Be concise and engaging.\n\n### HYPERLINK RULE ###\nFor every post you mention, embed its URL inline using standard Markdown link format: `[Post Title](post_url)` or `[Read post](post_url)`. Do NOT list URLs as plain text on a separate line. Attach the link directly to the anchor text. Example: `[Scaling international partners](https://reddit.com/r/...)` — NOT `https://reddit.com/r/...` on its own line.\n\n### REDDIT DATA ###\n{{ $json.text }}\n\n### FINAL REMINDER ###\nYour response MUST be written entirely in ENGLISH (except for one Italian greeting and one Italian sign-off). If you write in Italian, you have failed your task.\""
+              "value": "=### ABSOLUTE LANGUAGE RULE — READ THIS FIRST ###\nYOU MUST WRITE YOUR ENTIRE RESPONSE IN ENGLISH. NOT ITALIAN. NOT ANY OTHER LANGUAGE. ENGLISH ONLY.\nThe ONLY Italian permitted is: a single greeting word (e.g. Buongiorno, Caro) at the very start, and a single sign-off (e.g. Un grande abbraccio) at the very end. Everything else — every sentence, every bullet point, every description — MUST be in English.\n\n### YOUR PERSONA ###\nYou are Bella, Don Jimmy's devoted Italian secretary. You are warm, charming, and highly competent. You speak of Don Jimmy with immense respect. Despite your Italian character, you ALWAYS write professional reports and summaries in ENGLISH. You use Unicode emojis (💋 ✨ 😉 💡) directly — never text codes like :kiss:.\n\n### TASK ###\nSummarize the Reddit posts below into a clear, structured Slack message for Don Jimmy. Highlight key user pain points, requests for recommendations, and business opportunities. Be concise and engaging. Do NOT include any URLs or links — a separate References section will be appended automatically.\n\n### REDDIT DATA ###\n{{ $json.text }}\n\n### FINAL REMINDER ###\nYour response MUST be written entirely in ENGLISH (except for one Italian greeting and one Italian sign-off). If you write in Italian, you have failed your task."
             },
             {
               "name": "stream",
@@ -114,8 +114,22 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Pull the LLM summary from the previous node\nconst summary = $('Convert Markdown to Slack').first().json.response || '';\n\n// Pull the posts_refs that were built deterministically in Format Posts for LLM\nconst postsRefs = $('Format Posts for LLM').first().json.posts_refs || {};\n\n// Build a guaranteed References section\nlet refs = '';\nconst subreddits = Object.keys(postsRefs);\nif (subreddits.length > 0) {\n  refs += '\\n\\n📎 *References*\\n';\n  for (const subName of subreddits) {\n    const posts = postsRefs[subName];\n    if (!posts || posts.length === 0) continue;\n    refs += `*r/${subName}*\\n`;\n    posts.forEach(post => {\n      refs += `• <${post.url}|${post.title}>\\n`;\n    });\n  }\n}\n\nreturn [{ json: { final_message: summary + refs } }];"
+      },
+      "id": "append-references",
+      "name": "Append References",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
         "channel": "={{ $env.SLACK_SUMMARY_CHANNEL || 'opportunities' }}",
-        "text": "=🤖 *Daily Reddit Summary Report* 🤖\n\n{{ $('Convert Markdown to Slack').first().json.response }}",
+        "text": "=🤖 *Daily Reddit Summary Report* 🤖\n\n{{ $('Append References').first().json.final_message }}",
         "otherOptions": {}
       },
       "id": "post-to-slack",
@@ -123,7 +137,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        1300,
+        1500,
         200
       ],
       "credentials": {
@@ -180,6 +194,17 @@
       ]
     },
     "Convert Markdown to Slack": {
+      "main": [
+        [
+          {
+            "node": "Append References",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append References": {
       "main": [
         [
           {
