@@ -17,7 +17,10 @@
       "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [100, 300]
+      "position": [
+        100,
+        300
+      ]
     },
     {
       "parameters": {
@@ -28,7 +31,10 @@
       "name": "Get Latest Posts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [300, 300],
+      "position": [
+        300,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-db",
@@ -45,7 +51,10 @@
       "name": "Format Posts for LLM",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [700, 200]
+      "position": [
+        700,
+        200
+      ]
     },
     {
       "parameters": {
@@ -80,7 +89,10 @@
       "name": "Summarize via Ollama Cloud",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [900, 200],
+      "position": [
+        900,
+        200
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "ollama-cloud-api",
@@ -97,7 +109,10 @@
       "name": "Build Slack Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 200]
+      "position": [
+        1100,
+        200
+      ]
     },
     {
       "parameters": {
@@ -109,7 +124,10 @@
       "name": "Post to Slack",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
-      "position": [1300, 200],
+      "position": [
+        1300,
+        200
+      ],
       "credentials": {
         "slackApi": {
           "id": "slack-api-cred",
@@ -120,22 +138,64 @@
   ],
   "connections": {
     "Schedule Trigger": {
-      "main": [[{ "node": "Get Latest Posts", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Get Latest Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Get Latest Posts": {
-      "main": [[{ "node": "Format Posts for LLM", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Format Posts for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Format Posts for LLM": {
-      "main": [[{ "node": "Summarize via Ollama Cloud", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Summarize via Ollama Cloud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Summarize via Ollama Cloud": {
-      "main": [[{ "node": "Build Slack Message", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Slack Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Slack Message": {
-      "main": [[{ "node": "Post to Slack", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Post to Slack": {
-      "main": [[]]
+      "main": [
+        []
+      ]
     }
   },
   "active": true,
