@@ -36,6 +36,7 @@ services:
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
       - OLLAMA_CLOUD_MODEL=${OLLAMA_CLOUD_MODEL}
+      - SLACK_SUMMARY_CHANNEL=${SLACK_SUMMARY_CHANNEL}
     depends_on:
       - db
 

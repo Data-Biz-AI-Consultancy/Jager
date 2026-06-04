@@ -42,7 +42,6 @@
         }
       }
     },
-
     {
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -101,26 +100,6 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n  w.workspace_name,\n  pgp_sym_decrypt(w.token, '{{ $env.ENCRYPTION_KEY || 'default-secret-key' }}') AS token,\n  pgp_sym_decrypt(w.d_cookie, '{{ $env.ENCRYPTION_KEY || 'default-secret-key' }}') AS d_cookie,\n  pgp_sym_decrypt(w.d_s_cookie, '{{ $env.ENCRYPTION_KEY || 'default-secret-key' }}') AS d_s_cookie,\n  c.channel_id\nFROM slack_workspaces_monitored w\nJOIN slack_channels_monitored c ON c.workspace_id = w.id\nWHERE w.active = true AND c.active = true\nLIMIT 1;"
-      },
-      "id": "get-active-slack-channel",
-      "name": "Get Active Slack Channel",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1100,
-        200
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "https://slack.com/api/chat.postMessage",
         "sendHeaders": true,
@@ -128,11 +107,11 @@
           "parameters": [
             {
               "name": "Cookie",
-              "value": "=d={{ $json.d_cookie }}; d-s={{ $json.d_s_cookie }}"
+              "value": "=d={{ $env.SLACK_D_COOKIE }}; d-s={{ $env.SLACK_D_S_COOKIE }}"
             },
             {
               "name": "Authorization",
-              "value": "=Bearer {{ $json.token }}"
+              "value": "=Bearer {{ $env.SLACK_USER_TOKEN }}"
             }
           ]
         },
@@ -142,7 +121,7 @@
           "parameters": [
             {
               "name": "channel",
-              "value": "={{ $json.channel_id }}"
+              "value": "={{ $env.SLACK_SUMMARY_CHANNEL || 'opportunities' }}"
             },
             {
               "name": "text",
@@ -197,17 +176,6 @@
       ]
     },
     "Summarize via Ollama Cloud": {
-      "main": [
-        [
-          {
-            "node": "Get Active Slack Channel",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Active Slack Channel": {
       "main": [
         [
           {
