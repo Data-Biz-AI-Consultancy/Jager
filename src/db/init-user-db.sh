@@ -70,6 +70,25 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		processed INTEGER DEFAULT 0
 	);
 
+	CREATE TABLE IF NOT EXISTS substack_feeds_monitored (
+		id SERIAL PRIMARY KEY,
+		name VARCHAR(255) NOT NULL UNIQUE,
+		feed_url VARCHAR(1024) NOT NULL UNIQUE,
+		active BOOLEAN DEFAULT TRUE,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS substack_posts (
+		id VARCHAR(255) PRIMARY KEY,
+		feed_id INTEGER REFERENCES substack_feeds_monitored(id) ON DELETE CASCADE,
+		author VARCHAR(255),
+		title VARCHAR(1024),
+		content TEXT NOT NULL,
+		url VARCHAR(2048),
+		published_at TIMESTAMP WITH TIME ZONE,
+		processed INTEGER DEFAULT 0
+	);
+
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('smallbusiness', TRUE) ON CONFLICT (name) DO NOTHING;
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('saas', TRUE) ON CONFLICT (name) DO NOTHING;
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('solopreneur', TRUE) ON CONFLICT (name) DO NOTHING;
@@ -78,5 +97,6 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('advancedentrepreneur', TRUE) ON CONFLICT (name) DO NOTHING;
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('entrepreneurridealong', TRUE) ON CONFLICT (name) DO NOTHING;
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('growmybusiness', TRUE) ON CONFLICT (name) DO NOTHING;
-EOSQL
 
+	INSERT INTO substack_feeds_monitored (name, feed_url, active) VALUES ('SeattleDataGuy', 'https://seattledataguy.substack.com/feed', TRUE) ON CONFLICT (name) DO NOTHING;
+EOSQL
