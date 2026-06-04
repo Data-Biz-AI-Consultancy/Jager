@@ -1,0 +1,35 @@
+{
+  "_metadata": {
+    "major_version": 1,
+    "minor_version": 1
+  },
+  "display_information": {
+    "name": "Bella",
+    "description": "Dedicated Slack bot for the Jager opportunity finder and Reddit summaries.",
+    "background_color": "#611f69",
+    "long_description": "Bella is a dedicated assistant that monitors community channels, aggregates opportunities, and posts summary updates to team channels."
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Bella",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "chat:write.public",
+        "channels:history",
+        "groups:history",
+        "channels:read",
+        "groups:read"
+      ]
+    }
+  },
+  "settings": {
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}
