@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS substack_feeds_monitored (
 CREATE TABLE IF NOT EXISTS substack_posts (
   id VARCHAR(255) PRIMARY KEY,
   feed_id INTEGER REFERENCES substack_feeds_monitored(id) ON DELETE CASCADE,
+  feed_name VARCHAR(255),
   author VARCHAR(255),
   title VARCHAR(1024),
   content TEXT NOT NULL,
@@ -104,7 +105,14 @@ INSERT INTO reddit_subreddits_monitored (name, active) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO substack_feeds_monitored (name, feed_url, active) 
-VALUES ('SeattleDataGuy', 'https://seattledataguy.substack.com/feed', TRUE) 
+VALUES 
+('SeattleDataGuy', 'https://seattledataguy.substack.com/feed', TRUE),
+('Decision', 'https://decision.substack.com/feed', TRUE),
+('TheGoodBoss', 'https://read.thegoodboss.com/feed', TRUE),
+('EngLeadership', 'https://newsletter.eng-leadership.com/feed', TRUE),
+('ThrivingInEngineering', 'https://thrivinginengineering.substack.com/feed', TRUE),
+('CodeLikeAGirl', 'https://codelikeagirl.substack.com/feed', TRUE),
+('JimmyPang', 'https://jimmypang.substack.com/feed', TRUE)
 ON CONFLICT (name) DO NOTHING;
 `;
 

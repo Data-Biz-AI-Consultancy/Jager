@@ -65,6 +65,36 @@
                   "id": 1,
                   "name": "SeattleDataGuy",
                   "feed_url": "https://seattledataguy.substack.com/feed"
+                },
+                {
+                  "id": 2,
+                  "name": "Decision",
+                  "feed_url": "https://decision.substack.com/feed"
+                },
+                {
+                  "id": 3,
+                  "name": "TheGoodBoss",
+                  "feed_url": "https://read.thegoodboss.com/feed"
+                },
+                {
+                  "id": 4,
+                  "name": "EngLeadership",
+                  "feed_url": "https://newsletter.eng-leadership.com/feed"
+                },
+                {
+                  "id": 5,
+                  "name": "ThrivingInEngineering",
+                  "feed_url": "https://thrivinginengineering.substack.com/feed"
+                },
+                {
+                  "id": 6,
+                  "name": "CodeLikeAGirl",
+                  "feed_url": "https://codelikeagirl.substack.com/feed"
+                },
+                {
+                  "id": 7,
+                  "name": "JimmyPang",
+                  "feed_url": "https://jimmypang.substack.com/feed"
                 }
               ]
             }
@@ -97,7 +127,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nlet startDateStr, endDateStr;\ntry {\n  startDateStr = $('Ingestion Date Range Parameters').first().json.start_date;\n  endDateStr = $('Ingestion Date Range Parameters').first().json.end_date;\n} catch (e) {\n  console.log('[Parse Posts] Could not read date range from Ingestion Date Range Parameters:', e.message);\n}\n\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst today = new Date();\n\nlet startDate = startDateStr ? new Date(startDateStr + 'T00:00:00Z') : yesterday;\nlet endDate = endDateStr ? new Date(endDateStr + 'T00:00:00Z') : today;\n\nif (isNaN(startDate.getTime())) {\n  startDate = yesterday;\n}\nif (isNaN(endDate.getTime())) {\n  endDate = today;\n}\n\nfor (const item of items) {\n  const { feed_id, feed_name, xml } = item.json;\n  if (!xml) continue;\n\n  const itemMatches = xml.match(/<item>[\\s\\S]*?<\\/item>/g) || [];\n  let matchesInFeed = 0;\n  \n  for (const entry of itemMatches) {\n    const guidMatch = entry.match(/<guid[^>]*>([\\s\\S]*?)<\\/guid>/);\n    const linkMatch = entry.match(/<link>([\\s\\S]*?)<\\/link>/);\n    const creatorMatch = entry.match(/<dc:creator><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/dc:creator>/) || entry.match(/<dc:creator>([\\s\\S]*?)<\\/dc:creator>/);\n    const titleMatch = entry.match(/<title><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/title>/) || entry.match(/<title>([\\s\\S]*?)<\\/title>/);\n    const contentMatch = entry.match(/<content:encoded><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/content:encoded>/) || entry.match(/<content:encoded>([\\s\\S]*?)<\\/content:encoded>/) || entry.match(/<description><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/description>/) || entry.match(/<description>([\\s\\S]*?)<\\/description>/);\n    const pubDateMatch = entry.match(/<pubDate>([\\s\\S]*?)<\\/pubDate>/);\n\n    if (guidMatch || linkMatch) {\n      const id = guidMatch ? guidMatch[1].replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/, '$1').trim() : linkMatch[1].trim();\n      const url = linkMatch ? linkMatch[1].trim() : '';\n      const author = creatorMatch ? creatorMatch[1].trim() : feed_name;\n      const title = titleMatch ? titleMatch[1].trim() : '';\n      let content = contentMatch ? contentMatch[1].trim() : '';\n      \n      content = content.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n      if (!content) content = title;\n\n      const published_at_raw = pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString();\n      const published_at = new Date(published_at_raw);\n\n      if (published_at >= startDate && published_at < endDate) {\n        matchesInFeed++;\n        results.push({\n          id,\n          feed_id,\n          author,\n          title,\n          content: content.substring(0, 5000),\n          url,\n          published_at: published_at.toISOString(),\n          processed: 0\n        });\n      }\n    }\n  }\n  console.log(`[Parse Posts] Feed: ${feed_name}, matches in date range: ${matchesInFeed}`);\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nlet startDateStr, endDateStr;\ntry {\n  startDateStr = $('Ingestion Date Range Parameters').first().json.start_date;\n  endDateStr = $('Ingestion Date Range Parameters').first().json.end_date;\n} catch (e) {\n  console.log('[Parse Posts] Could not read date range from Ingestion Date Range Parameters:', e.message);\n}\n\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst today = new Date();\n\nlet startDate = startDateStr ? new Date(startDateStr + 'T00:00:00Z') : yesterday;\nlet endDate = endDateStr ? new Date(endDateStr + 'T00:00:00Z') : today;\n\nif (isNaN(startDate.getTime())) {\n  startDate = yesterday;\n}\nif (isNaN(endDate.getTime())) {\n  endDate = today;\n}\n\nfor (const item of items) {\n  const { feed_id, feed_name, xml } = item.json;\n  if (!xml) continue;\n\n  const itemMatches = xml.match(/<item>[\\s\\S]*?<\\/item>/g) || [];\n  let matchesInFeed = 0;\n  \n  for (const entry of itemMatches) {\n    const guidMatch = entry.match(/<guid[^>]*>([\\s\\S]*?)<\\/guid>/);\n    const linkMatch = entry.match(/<link>([\\s\\S]*?)<\\/link>/);\n    const creatorMatch = entry.match(/<dc:creator><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/dc:creator>/) || entry.match(/<dc:creator>([\\s\\S]*?)<\\/dc:creator>/);\n    const titleMatch = entry.match(/<title><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/title>/) || entry.match(/<title>([\\s\\S]*?)<\\/title>/);\n    const contentMatch = entry.match(/<content:encoded><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/content:encoded>/) || entry.match(/<content:encoded>([\\s\\S]*?)<\\/content:encoded>/) || entry.match(/<description><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/description>/) || entry.match(/<description>([\\s\\S]*?)<\\/description>/);\n    const pubDateMatch = entry.match(/<pubDate>([\\s\\S]*?)<\\/pubDate>/);\n\n    if (guidMatch || linkMatch) {\n      const id = guidMatch ? guidMatch[1].replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/, '$1').trim() : linkMatch[1].trim();\n      const url = linkMatch ? linkMatch[1].trim() : '';\n      const author = creatorMatch ? creatorMatch[1].trim() : feed_name;\n      const title = titleMatch ? titleMatch[1].trim() : '';\n      let content = contentMatch ? contentMatch[1].trim() : '';\n      \n      content = content.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n      if (!content) content = title;\n\n      const published_at_raw = pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString();\n      const published_at = new Date(published_at_raw);\n\n      if (published_at >= startDate && published_at < endDate) {\n        matchesInFeed++;\n        results.push({\n          id,\n          feed_id,\n          feed_name,\n          author,\n          title,\n          content: content.substring(0, 5000),\n          url,\n          published_at: published_at.toISOString(),\n          processed: 0\n        });\n      }\n    }\n  }\n  console.log(`[Parse Posts] Feed: ${feed_name}, matches in date range: ${matchesInFeed}`);\n}\nreturn results;"
       },
       "id": "parse-posts-xml",
       "name": "Parse Posts XML",
@@ -111,7 +141,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO substack_posts (id, feed_id, author, title, content, url, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.feed_id }},\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content\nRETURNING id, feed_id;"
+        "query": "=INSERT INTO substack_posts (id, feed_id, feed_name, author, title, content, url, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  (SELECT id FROM substack_feeds_monitored WHERE name = '{{ $json.feed_name }}' LIMIT 1),\n  '{{ $json.feed_name }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content\nRETURNING id, feed_id;"
       },
       "id": "insert-posts",
       "name": "Insert/Upsert Posts",
