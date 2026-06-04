@@ -25,10 +25,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  s.name AS subreddit_name,\n  s.active AS subreddit_active,\n  p.id AS post_id,\n  p.title AS post_title,\n  p.content AS post_content,\n  p.author AS post_author,\n  p.url AS post_url,\n  p.created_at AS post_created_at,\n  c.id AS comment_id,\n  c.author AS comment_author,\n  c.content AS comment_content,\n  c.created_at AS comment_created_at\nFROM reddit_subreddits_monitored s\nLEFT JOIN reddit_posts p ON p.subreddit_id = s.id AND p.processed = 0\nLEFT JOIN reddit_comments c ON c.post_id = p.id\nORDER BY s.name, p.created_at DESC, c.created_at DESC;"
+        "query": "SELECT \n  s.name AS subreddit_name,\n  s.active AS subreddit_active,\n  p.id AS post_id,\n  p.title AS post_title,\n  p.content AS post_content,\n  p.author AS post_author,\n  p.url AS post_url,\n  p.created_at AS post_created_at,\n  c.id AS comment_id,\n  c.author AS comment_author,\n  c.content AS comment_content,\n  c.created_at AS comment_created_at\nFROM reddit_subreddits_monitored s\nLEFT JOIN reddit_posts p ON p.subreddit_id = s.id AND p.created_at >= NOW() - INTERVAL '1 day'\nLEFT JOIN reddit_comments c ON c.post_id = p.id\nORDER BY s.name, p.created_at DESC, c.created_at DESC;"
       },
-      "id": "get-unprocessed-posts",
-      "name": "Get Unprocessed Posts",
+      "id": "get-latest-posts",
+      "name": "Get Latest Posts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
@@ -166,26 +166,6 @@
         1300,
         200
       ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=UPDATE reddit_posts \nSET processed = 1 \nWHERE id IN ({{ $('Format Posts for LLM').first().json.post_ids.length > 0 ? $('Format Posts for LLM').first().json.post_ids.map(id => \"'\" + id + \"'\").join(',') : \"''\" }});"
-      },
-      "id": "mark-posts-processed",
-      "name": "Mark Posts Processed",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1500,
-        200
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
     }
   ],
   "connections": {
@@ -193,14 +173,14 @@
       "main": [
         [
           {
-            "node": "Get Unprocessed Posts",
+            "node": "Get Latest Posts",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Unprocessed Posts": {
+    "Get Latest Posts": {
       "main": [
         [
           {
@@ -257,13 +237,7 @@
     },
     "Post to Slack": {
       "main": [
-        [
-          {
-            "node": "Mark Posts Processed",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        []
       ]
     }
   },
