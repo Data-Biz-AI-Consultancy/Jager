@@ -76,7 +76,7 @@
       },
       "id": "summarize-via-ollama-cloud",
       "name": "Summarize via Ollama Cloud",
-      "type": "n8n-nodes-langchain.ollama",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
         900,
