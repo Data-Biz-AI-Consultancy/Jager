@@ -66,13 +66,28 @@
           "parameters": [
             {
               "name": "Authorization",
-              "value": "Bearer {{ $env.OLLAMA_API_KEY }}"
+              "value": "=Bearer {{ $env.OLLAMA_API_KEY }}"
             }
           ]
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "{\n  \"model\": \"{{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}\",\n  \"prompt\": \"You are a helpful business scout and community manager. Summarize the following Reddit posts into a clear, structured summary highlighting key user pain points, requests for recommendations, or business opportunities. Keep it concise, engaging, and format it using Slack markdown (bold, bullet points, headers, emojis). Here are the posts:\\n\\n{{ $json.text }}\",\n  \"stream\": false\n}",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}"
+            },
+            {
+              "name": "prompt",
+              "value": "=You are a helpful business scout and community manager. Summarize the following Reddit posts into a clear, structured summary highlighting key user pain points, requests for recommendations, or business opportunities. Keep it concise, engaging, and format it using Slack markdown (bold, bullet points, headers, emojis). Here are the posts:\n\n{{ $json.text }}"
+            },
+            {
+              "name": "stream",
+              "value": "={{ false }}"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "summarize-via-ollama-cloud",
@@ -113,17 +128,28 @@
           "parameters": [
             {
               "name": "Cookie",
-              "value": "d={{ $json.d_cookie }}; d-s={{ $json.d_s_cookie }}"
+              "value": "=d={{ $json.d_cookie }}; d-s={{ $json.d_s_cookie }}"
             },
             {
               "name": "Authorization",
-              "value": "Bearer {{ $json.token }}"
+              "value": "=Bearer {{ $json.token }}"
             }
           ]
         },
         "sendBody": true,
         "bodyContentType": "json",
-        "jsonBody": "{\n  \"channel\": \"{{ $json.channel_id }}\",\n  \"text\": \"🤖 *Daily Reddit Summary Report* 🤖\\n\\n{{ $('Summarize via Ollama Cloud').first().json.response }}\"\n}",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "={{ $json.channel_id }}"
+            },
+            {
+              "name": "text",
+              "value": "=🤖 *Daily Reddit Summary Report* 🤖\n\n{{ $('Summarize via Ollama Cloud').first().json.response }}"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "post-to-slack",
