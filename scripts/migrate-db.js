@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS substack_feeds_monitored (
 CREATE TABLE IF NOT EXISTS substack_posts (
   id VARCHAR(255) PRIMARY KEY,
   feed_id INTEGER REFERENCES substack_feeds_monitored(id) ON DELETE CASCADE,
+  feed_name VARCHAR(255),
   author VARCHAR(255),
   title VARCHAR(1024),
   content TEXT NOT NULL,
