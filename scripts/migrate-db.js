@@ -93,6 +93,8 @@ CREATE TABLE IF NOT EXISTS substack_posts (
   processed INTEGER DEFAULT 0
 );
 
+ALTER TABLE substack_posts ADD COLUMN IF NOT EXISTS feed_name VARCHAR(255);
+
 INSERT INTO reddit_subreddits_monitored (name, active) VALUES 
 ('smallbusiness', TRUE),
 ('saas', TRUE),
