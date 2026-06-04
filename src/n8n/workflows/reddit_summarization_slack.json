@@ -1,0 +1,274 @@
+{
+  "id": "RedditSummarizationWorkflow",
+  "name": "Reddit Summarization and Slack Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 24
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT p.id, p.title, p.content, p.author, p.url, p.created_at, s.name AS subreddit \nFROM reddit_posts p\nJOIN reddit_subreddits_monitored s ON p.subreddit_id = s.id\nWHERE p.processed = 0 \nLIMIT 20;"
+      },
+      "id": "get-unprocessed-posts",
+      "name": "Get Unprocessed Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "check-posts-exist",
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "name": "filter.operator.isNotEmpty",
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "if-posts-exist",
+      "name": "If Posts Exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const posts = $input.all();\nif (posts.length === 0 || !posts[0].json.id) {\n  return [{ json: { text: \"\", post_ids: [] } }];\n}\n\nlet text = \"Here are the recent Reddit posts retrieved:\\n\\n\";\nposts.forEach((post, index) => {\n  text += `Post #${index + 1} (Subreddit: r/${post.json.subreddit})\\n`;\n  text += `Title: ${post.json.title || 'No Title'}\\n`;\n  text += `Author: u/${post.json.author || 'unknown'}\\n`;\n  text += `Content: ${(post.json.content || '').substring(0, 800)}\\n`;\n  text += `URL: ${post.json.url || 'No URL'}\\n`;\n  text += `-------------------------------------------\\n\\n`;\n});\n\nreturn [{ json: { text: text, post_ids: posts.map(p => p.json.id) } }];"
+      },
+      "id": "format-posts-for-llm",
+      "name": "Format Posts for LLM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ollama.com/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OLLAMA_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $env.OLLAMA_CLOUD_MODEL || 'llama3:cloud' }}\",\n  \"prompt\": \"You are a helpful business scout and community manager. Summarize the following Reddit posts into a clear, structured summary highlighting key user pain points, requests for recommendations, or business opportunities. Keep it concise, engaging, and format it using Slack markdown (bold, bullet points, headers, emojis). Here are the posts:\\n\\n{{ $json.text }}\",\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "id": "summarize-via-ollama-cloud",
+      "name": "Summarize via Ollama Cloud",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  w.workspace_name,\n  pgp_sym_decrypt(w.token, '{{ $env.ENCRYPTION_KEY || 'default-secret-key' }}') AS token,\n  pgp_sym_decrypt(w.d_cookie, '{{ $env.ENCRYPTION_KEY || 'default-secret-key' }}') AS d_cookie,\n  pgp_sym_decrypt(w.d_s_cookie, '{{ $env.ENCRYPTION_KEY || 'default-secret-key' }}') AS d_s_cookie,\n  c.channel_id\nFROM slack_workspaces_monitored w\nJOIN slack_channels_monitored c ON c.workspace_id = w.id\nWHERE w.active = true AND c.active = true\nLIMIT 1;"
+      },
+      "id": "get-active-slack-channel",
+      "name": "Get Active Slack Channel",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "=d={{ $json.d_cookie }}; d-s={{ $json.d_s_cookie }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"channel\": \"{{ $json.channel_id }}\",\n  \"text\": \"🤖 *Daily Reddit Summary Report* 🤖\\n\\n{{ $('Summarize via Ollama Cloud').first().json.response }}\"\n}",
+        "options": {}
+      },
+      "id": "post-to-slack",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE reddit_posts \nSET processed = 1 \nWHERE id IN ({{ $('Format Posts for LLM').first().json.post_ids.map(id => \"'\" + id + \"'\").join(',') }});"
+      },
+      "id": "mark-posts-processed",
+      "name": "Mark Posts Processed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Unprocessed Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unprocessed Posts": {
+      "main": [
+        [
+          {
+            "node": "If Posts Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Posts Exist": {
+      "main": [
+        [
+          {
+            "node": "Format Posts for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Posts for LLM": {
+      "main": [
+        [
+          {
+            "node": "Summarize via Ollama Cloud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize via Ollama Cloud": {
+      "main": [
+        [
+          {
+            "node": "Get Active Slack Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Slack Channel": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Slack": {
+      "main": [
+        [
+          {
+            "node": "Mark Posts Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
