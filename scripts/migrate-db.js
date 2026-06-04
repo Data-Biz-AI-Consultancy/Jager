@@ -110,7 +110,8 @@ VALUES
 ('TheGoodBoss', 'https://read.thegoodboss.com/feed', TRUE),
 ('EngLeadership', 'https://newsletter.eng-leadership.com/feed', TRUE),
 ('ThrivingInEngineering', 'https://thrivinginengineering.substack.com/feed', TRUE),
-('CodeLikeAGirl', 'https://codelikeagirl.substack.com/feed', TRUE)
+('CodeLikeAGirl', 'https://codelikeagirl.substack.com/feed', TRUE),
+('JimmyPang', 'https://jimmypang.substack.com/feed', TRUE)
 ON CONFLICT (name) DO NOTHING;
 `;
 

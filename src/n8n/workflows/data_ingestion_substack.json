@@ -90,6 +90,11 @@
                   "id": 6,
                   "name": "CodeLikeAGirl",
                   "feed_url": "https://codelikeagirl.substack.com/feed"
+                },
+                {
+                  "id": 7,
+                  "name": "JimmyPang",
+                  "feed_url": "https://jimmypang.substack.com/feed"
                 }
               ]
             }
