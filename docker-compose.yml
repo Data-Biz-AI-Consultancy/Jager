@@ -36,6 +36,8 @@ services:
       - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
     depends_on:
       - db
+    volumes:
+      - n8n_data:/home/node/.n8n
 
   caddy:
     image: caddy:alpine
@@ -54,3 +56,4 @@ volumes:
   pgdata:
   caddy_data:
   caddy_config:
+  n8n_data:
