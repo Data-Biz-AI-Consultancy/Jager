@@ -31,7 +31,7 @@
               "id": "start-date-uuid",
               "name": "start_date",
               "type": "string",
-              "value": "={{ $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
+              "value": "={{ $now.minus({ days: 30 }).toFormat('yyyy-MM-dd') }}"
             },
             {
               "id": "end-date-uuid",
