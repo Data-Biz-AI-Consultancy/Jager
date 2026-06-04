@@ -30,6 +30,10 @@ services:
       - DB_POSTGRESDB_PASSWORD=jager
       - NODE_FUNCTION_ALLOW_EXTERNAL=*
       - NODE_FUNCTION_ALLOW_BUILTIN=*
+      - SLACK_USER_TOKEN=${SLACK_USER_TOKEN}
+      - SLACK_D_COOKIE=${SLACK_D_COOKIE}
+      - SLACK_D_S_COOKIE=${SLACK_D_S_COOKIE}
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
     depends_on:
       - db
 

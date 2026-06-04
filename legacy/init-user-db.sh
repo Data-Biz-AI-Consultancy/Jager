@@ -37,6 +37,39 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		created_at TIMESTAMP WITH TIME ZONE
 	);
 
+	CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+	CREATE TABLE IF NOT EXISTS slack_workspaces_monitored (
+		id SERIAL PRIMARY KEY,
+		workspace_id VARCHAR(255) NOT NULL UNIQUE,
+		workspace_name VARCHAR(255),
+		token BYTEA NOT NULL,
+		d_cookie BYTEA,
+		d_s_cookie BYTEA,
+		active BOOLEAN DEFAULT TRUE,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS slack_channels_monitored (
+		id SERIAL PRIMARY KEY,
+		workspace_id INTEGER REFERENCES slack_workspaces_monitored(id) ON DELETE CASCADE,
+		channel_id VARCHAR(255) NOT NULL,
+		name VARCHAR(255),
+		active BOOLEAN DEFAULT TRUE,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		UNIQUE (workspace_id, channel_id)
+	);
+
+	CREATE TABLE IF NOT EXISTS slack_messages (
+		id VARCHAR(255) PRIMARY KEY,
+		channel_db_id INTEGER REFERENCES slack_channels_monitored(id) ON DELETE CASCADE,
+		author VARCHAR(255),
+		content TEXT NOT NULL,
+		url VARCHAR(2048),
+		created_at TIMESTAMP WITH TIME ZONE,
+		processed INTEGER DEFAULT 0
+	);
+
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('smallbusiness', TRUE) ON CONFLICT (name) DO NOTHING;
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('saas', TRUE) ON CONFLICT (name) DO NOTHING;
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('solopreneur', TRUE) ON CONFLICT (name) DO NOTHING;
