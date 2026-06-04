@@ -51,15 +51,9 @@
       "parameters": {
         "method": "POST",
         "url": "https://ollama.com/api/generate",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.OLLAMA_API_KEY }}"
-            }
-          ]
-        },
+        "authentication": "predefined",
+        "nodeCredentialType": "httpHeaderAuth",
+        "nodeCredential": "ollama-cloud-api",
         "sendBody": true,
         "bodyContentType": "json",
         "bodyParameters": {
@@ -84,7 +78,13 @@
       "name": "Summarize via Ollama Cloud",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [900, 200]
+      "position": [900, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
     },
     {
       "parameters": {
