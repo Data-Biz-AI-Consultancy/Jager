@@ -12,6 +12,7 @@ RUN mkdir -p /etc/n8n/workflows
 COPY workflows/ /etc/n8n/workflows/
 COPY credentials.json /etc/n8n/credentials.json
 COPY bella.md /etc/n8n/bella.md
+COPY import-workflows.js /etc/n8n/import-workflows.js
 
 
 # Give node user ownership

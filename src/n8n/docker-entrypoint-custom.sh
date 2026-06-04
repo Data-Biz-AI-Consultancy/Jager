@@ -54,14 +54,10 @@ client.connect()
   fi
 fi
 
-# Import workflows from workflows directory
-if [ -d /etc/n8n/workflows ]; then
-  for f in /etc/n8n/workflows/*.json; do
-    if [ -f "$f" ]; then
-      echo "Importing workflow: $f"
-      n8n import:workflow --input "$f"
-    fi
-  done
+# Import workflows using comparison script to preserve active state of unchanged workflows
+if [ -f /etc/n8n/import-workflows.js ]; then
+  echo "Checking and importing workflows..."
+  node /etc/n8n/import-workflows.js
 fi
 
 # Execute the default n8n entrypoint

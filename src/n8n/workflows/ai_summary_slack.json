@@ -52,8 +52,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        700,
-        200
+        500,
+        300
       ]
     },
     {
@@ -79,8 +79,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        900,
-        200
+        700,
+        300
       ],
       "credentials": {
         "ollamaApi": {
@@ -99,8 +99,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
-        200
+        900,
+        300
       ]
     },
     {
@@ -114,8 +114,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        1300,
-        200
+        1100,
+        300
       ],
       "credentials": {
         "slackApi": {
