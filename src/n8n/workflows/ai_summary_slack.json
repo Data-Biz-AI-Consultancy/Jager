@@ -58,43 +58,32 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://ollama.com/api/generate",
-        "authentication": "predefined",
-        "nodeCredentialType": "httpHeaderAuth",
-        "nodeCredential": "ollama-cloud-api",
-        "sendBody": true,
-        "bodyContentType": "json",
-        "bodyParameters": {
-          "parameters": [
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
             {
-              "name": "model",
-              "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}"
-            },
-            {
-              "name": "prompt",
-              "value": "=### LANGUAGE RULE ###\nWrite everything in ENGLISH. One Italian greeting at the start (e.g. Caro Don Jimmy 💋) and one Italian sign-off at the end (e.g. Un grande abbraccio). All content in between: ENGLISH.\n\n### YOUR PERSONA ###\nYou are Bella, Don Jimmy's devoted Italian secretary. Warm, charming, professional. Use Unicode emojis (💋 ✨ 😉 💡) directly.\n\n### YOUR TASK ###\nRead the Reddit posts below and return a JSON object with this exact structure — no extra text, no markdown fences, just raw JSON:\n\n{\n  \"greeting\": \"One short warm Italian greeting line for Don Jimmy\",\n  \"insights\": [\n    {\n      \"topic\": \"Short topic label in English (3-6 words)\",\n      \"summary\": \"2-3 sentence English summary of the issue, who is affected, and why it matters for business opportunities.\",\n      \"post_ids\": [1, 3]\n    }\n  ],\n  \"signoff\": \"One short warm Italian sign-off line\"\n}\n\nRules:\n- \"post_ids\" must be an array of the id numbers from the data that this insight is based on.\n- Every insight must reference at least one post_id.\n- Group related posts into the same insight when they cover the same topic.\n- Write all \"topic\" and \"summary\" fields in English.\n- Output only valid JSON. No explanation, no markdown, no code fences.\n\n### REDDIT DATA ###\n{{ $json.text }}"
-            },
-            {
-              "name": "stream",
-              "value": "={{ false }}"
+              "content": "=### LANGUAGE RULE ###\nWrite everything in ENGLISH. One Italian greeting at the start (e.g. Caro Don Jimmy 💋) and one Italian sign-off at the end (e.g. Un grande abbraccio). All content in between: ENGLISH.\n\n### YOUR PERSONA ###\nYou are Bella, Don Jimmy's devoted Italian secretary. Warm, charming, professional. Use Unicode emojis (💋 ✨ 😉 💡) directly.\n\n### YOUR TASK ###\nRead the Reddit posts below and return a JSON object with this exact structure — no extra text, no markdown fences, just raw JSON:\n\n{\n  \"greeting\": \"One short warm Italian greeting line for Don Jimmy\",\n  \"insights\": [\n    {\n      \"topic\": \"Short topic label in English (3-6 words)\",\n      \"summary\": \"2-3 sentence English summary of the issue, who is affected, and why it matters for business opportunities.\",\n      \"post_ids\": [1, 3]\n    }\n  ],\n  \"signoff\": \"One short warm Italian sign-off line\"\n}\n\nRules:\n- \"post_ids\" must be an array of the id numbers from the data that this insight is based on.\n- Every insight must reference at least one post_id.\n- Group related posts into the same insight when they cover the same topic.\n- Write all \"topic\" and \"summary\" fields in English.\n- Output only valid JSON. No explanation, no markdown, no code fences.\n\n### REDDIT DATA ###\n{{ $json.text }}"
             }
           ]
         },
         "options": {
-          "rejectUnauthorized": false
+          "format": "json"
         }
       },
       "id": "summarize-via-ollama-cloud",
       "name": "Summarize via Ollama Cloud",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
       "position": [
         900,
         200
       ],
       "credentials": {
-        "httpHeaderAuth": {
+        "ollamaApi": {
           "id": "ollama-cloud-api",
           "name": "Ollama Cloud API"
         }
@@ -103,7 +92,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const raw = $input.first().json.response || '';\nconst refMap = $('Format Posts for LLM').first().json.ref_map || {};\n\n// Strip markdown code fences if the model added them despite instructions\nlet jsonStr = raw.trim().replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  // Fallback: return the raw text if JSON parsing fails\n  return [{ json: { response: raw } }];\n}\n\nconst greeting = parsed.greeting || '';\nconst signoff = parsed.signoff || '';\nconst insights = Array.isArray(parsed.insights) ? parsed.insights : [];\n\n// Build Slack message\nlet msg = '';\n\nif (greeting) msg += `${greeting}\\n\\n`;\n\nmsg += '✨ *Key Insights & Opportunities*\\n\\n';\n\ninsights.forEach(insight => {\n  const topic = insight.topic || 'Insight';\n  const summary = insight.summary || '';\n  const postIds = Array.isArray(insight.post_ids) ? insight.post_ids : [];\n\n  // Build inline links for each referenced post\n  const links = postIds\n    .map(id => {\n      const ref = refMap[String(id)];\n      if (!ref || !ref.url) return null;\n      return `<${ref.url}|${ref.title}>`;\n    })\n    .filter(Boolean);\n\n  const linkStr = links.length > 0 ? ' ' + links.join(' ') : '';\n\n  msg += `• *${topic}:* ${summary}${linkStr}\\n`;\n});\n\nif (signoff) msg += `\\n${signoff}`;\n\nreturn [{ json: { response: msg } }];"
+        "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nconst refMap = $('Format Posts for LLM').first().json.ref_map || {};\n\n// Strip markdown code fences if the model added them despite instructions\nlet jsonStr = raw.trim().replace(/^```(?:json)?\\s*/i, '').replace(/\\s*```$/, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  // Fallback: return the raw text if JSON parsing fails\n  return [{ json: { response: raw } }];\n}\n\nconst greeting = parsed.greeting || '';\nconst signoff = parsed.signoff || '';\nconst insights = Array.isArray(parsed.insights) ? parsed.insights : [];\n\n// Build Slack message\nlet msg = '';\n\nif (greeting) msg += `${greeting}\\n\\n`;\n\nmsg += '✨ *Key Insights & Opportunities*\\n\\n';\n\ninsights.forEach(insight => {\n  const topic = insight.topic || 'Insight';\n  const summary = insight.summary || '';\n  const postIds = Array.isArray(insight.post_ids) ? insight.post_ids : [];\n\n  // Build inline links for each referenced post\n  const links = postIds\n    .map(id => {\n      const ref = refMap[String(id)];\n      if (!ref || !ref.url) return null;\n      return `<${ref.url}|${ref.title}>`;\n    })\n    .filter(Boolean);\n\n  const linkStr = links.length > 0 ? ' ' + links.join(' ') : '';\n\n  msg += `• *${topic}:* ${summary}${linkStr}\\n`;\n});\n\nif (signoff) msg += `\\n${signoff}`;\n\nreturn [{ json: { response: msg } }];"
       },
       "id": "build-slack-message",
       "name": "Build Slack Message",
