@@ -32,7 +32,7 @@ jobs:
       - name: Build custom N8N Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./src/n8n
+          context: .
           file: ./src/n8n/Dockerfile
           push: false
           tags: n8n-custom:latest
