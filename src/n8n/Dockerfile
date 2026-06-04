@@ -11,6 +11,8 @@ RUN chmod +x /docker-entrypoint-custom.sh
 RUN mkdir -p /etc/n8n/workflows
 COPY workflows/ /etc/n8n/workflows/
 COPY credentials.json /etc/n8n/credentials.json
+COPY bella.md /etc/n8n/bella.md
+
 
 # Give node user ownership
 RUN chown -R node:node /etc/n8n /docker-entrypoint-custom.sh
