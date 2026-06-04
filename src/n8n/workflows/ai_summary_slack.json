@@ -72,7 +72,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {
+          "rejectUnauthorized": false
+        }
       },
       "id": "summarize-via-ollama-cloud",
       "name": "Summarize via Ollama Cloud",
