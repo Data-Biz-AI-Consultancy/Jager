@@ -98,5 +98,12 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('entrepreneurridealong', TRUE) ON CONFLICT (name) DO NOTHING;
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('growmybusiness', TRUE) ON CONFLICT (name) DO NOTHING;
 
-	INSERT INTO substack_feeds_monitored (name, feed_url, active) VALUES ('SeattleDataGuy', 'https://seattledataguy.substack.com/feed', TRUE) ON CONFLICT (name) DO NOTHING;
+	INSERT INTO substack_feeds_monitored (name, feed_url, active) VALUES 
+		('SeattleDataGuy', 'https://seattledataguy.substack.com/feed', TRUE),
+		('Decision', 'https://decision.substack.com/feed', TRUE),
+		('TheGoodBoss', 'https://read.thegoodboss.com/feed', TRUE),
+		('EngLeadership', 'https://newsletter.eng-leadership.com/feed', TRUE),
+		('ThrivingInEngineering', 'https://thrivinginengineering.substack.com/feed', TRUE),
+		('CodeLikeAGirl', 'https://codelikeagirl.substack.com/feed', TRUE)
+	ON CONFLICT (name) DO NOTHING;
 EOSQL

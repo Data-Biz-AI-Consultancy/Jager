@@ -65,6 +65,31 @@
                   "id": 1,
                   "name": "SeattleDataGuy",
                   "feed_url": "https://seattledataguy.substack.com/feed"
+                },
+                {
+                  "id": 2,
+                  "name": "Decision",
+                  "feed_url": "https://decision.substack.com/feed"
+                },
+                {
+                  "id": 3,
+                  "name": "TheGoodBoss",
+                  "feed_url": "https://read.thegoodboss.com/feed"
+                },
+                {
+                  "id": 4,
+                  "name": "EngLeadership",
+                  "feed_url": "https://newsletter.eng-leadership.com/feed"
+                },
+                {
+                  "id": 5,
+                  "name": "ThrivingInEngineering",
+                  "feed_url": "https://thrivinginengineering.substack.com/feed"
+                },
+                {
+                  "id": 6,
+                  "name": "CodeLikeAGirl",
+                  "feed_url": "https://codelikeagirl.substack.com/feed"
                 }
               ]
             }
