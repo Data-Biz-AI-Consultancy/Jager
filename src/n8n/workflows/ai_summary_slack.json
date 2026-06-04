@@ -100,45 +100,24 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://slack.com/api/chat.postMessage",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Cookie",
-              "value": "=d={{ $env.SLACK_D_COOKIE }}; d-s={{ $env.SLACK_D_S_COOKIE }}"
-            },
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.SLACK_USER_TOKEN }}"
-            }
-          ]
-        },
-        "sendBody": true,
-        "bodyContentType": "json",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "channel",
-              "value": "={{ $env.SLACK_SUMMARY_CHANNEL || 'opportunities' }}"
-            },
-            {
-              "name": "text",
-              "value": "=🤖 *Daily Reddit Summary Report* 🤖\n\n{{ $('Summarize via Ollama Cloud').first().json.response }}"
-            }
-          ]
-        },
-        "options": {}
+        "channel": "={{ $env.SLACK_SUMMARY_CHANNEL || 'opportunities' }}",
+        "text": "=🤖 *Daily Reddit Summary Report* 🤖\n\n{{ $('Summarize via Ollama Cloud').first().json.response }}",
+        "otherOptions": {}
       },
       "id": "post-to-slack",
       "name": "Post to Slack",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
       "position": [
         1300,
         200
-      ]
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-api-cred",
+          "name": "Slack API Credential"
+        }
+      }
     }
   ],
   "connections": {
