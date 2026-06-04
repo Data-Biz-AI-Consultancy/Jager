@@ -1,6 +1,6 @@
 {
-  "id": "RedditSummarizationWorkflow",
-  "name": "Reddit Summarization and Slack Notification",
+  "id": "AiSummarySlack",
+  "name": "AI Summary Slack",
   "nodes": [
     {
       "parameters": {
@@ -25,7 +25,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT p.id, p.title, p.content, p.author, p.url, p.created_at, s.name AS subreddit \nFROM reddit_posts p\nJOIN reddit_subreddits_monitored s ON p.subreddit_id = s.id\nWHERE p.processed = 0 \nLIMIT 20;"
+        "query": "SELECT \n  s.name AS subreddit_name,\n  s.active AS subreddit_active,\n  p.id AS post_id,\n  p.title AS post_title,\n  p.content AS post_content,\n  p.author AS post_author,\n  p.url AS post_url,\n  p.created_at AS post_created_at,\n  c.id AS comment_id,\n  c.author AS comment_author,\n  c.content AS comment_content,\n  c.created_at AS comment_created_at\nFROM reddit_subreddits_monitored s\nLEFT JOIN reddit_posts p ON p.subreddit_id = s.id AND p.processed = 0\nLEFT JOIN reddit_comments c ON c.post_id = p.id\nORDER BY s.name, p.created_at DESC, c.created_at DESC;"
       },
       "id": "get-unprocessed-posts",
       "name": "Get Unprocessed Posts",
@@ -55,7 +55,7 @@
           "conditions": [
             {
               "id": "check-posts-exist",
-              "leftValue": "={{ $json.id }}",
+              "leftValue": "={{ $json.subreddit_name }}",
               "operator": {
                 "name": "filter.operator.isNotEmpty",
                 "type": "string",
@@ -78,7 +78,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const posts = $input.all();\nif (posts.length === 0 || !posts[0].json.id) {\n  return [{ json: { text: \"\", post_ids: [] } }];\n}\n\nlet text = \"Here are the recent Reddit posts retrieved:\\n\\n\";\nposts.forEach((post, index) => {\n  text += `Post #${index + 1} (Subreddit: r/${post.json.subreddit})\\n`;\n  text += `Title: ${post.json.title || 'No Title'}\\n`;\n  text += `Author: u/${post.json.author || 'unknown'}\\n`;\n  text += `Content: ${(post.json.content || '').substring(0, 800)}\\n`;\n  text += `URL: ${post.json.url || 'No URL'}\\n`;\n  text += `-------------------------------------------\\n\\n`;\n});\n\nreturn [{ json: { text: text, post_ids: posts.map(p => p.json.id) } }];"
+        "jsCode": "const rows = $input.all();\nif (rows.length === 0 || !rows[0].json.subreddit_name) {\n  return [{ json: { text: \"No monitored subreddits or posts found.\", post_ids: [] } }];\n}\n\nconst subreddits = {};\nconst postIds = new Set();\n\nrows.forEach(row => {\n  const data = row.json;\n  const subName = data.subreddit_name;\n  \n  if (!subreddits[subName]) {\n    subreddits[subName] = {\n      active: data.subreddit_active,\n      posts: {}\n    };\n  }\n  \n  if (data.post_id) {\n    postIds.add(data.post_id);\n    if (!subreddits[subName].posts[data.post_id]) {\n      subreddits[subName].posts[data.post_id] = {\n        title: data.post_title,\n        content: data.post_content,\n        author: data.post_author,\n        url: data.post_url,\n        created_at: data.post_created_at,\n        comments: []\n      };\n    }\n    \n    if (data.comment_id) {\n      subreddits[subName].posts[data.post_id].comments.push({\n        author: data.comment_author,\n        content: data.comment_content,\n        created_at: data.comment_created_at\n      });\n    }\n  }\n});\n\nlet text = \"Here is the summary of the Reddit monitoring status:\\n\\n\";\ntext += \"=== Monitored Subreddits ===\\n\";\nfor (const [subName, subInfo] of Object.entries(subreddits)) {\n  text += `- r/${subName} (Status: ${subInfo.active ? 'Active' : 'Inactive'})\\n`;\n}\ntext += \"\\n=== New Unprocessed Posts & Comments ===\\n\\n\";\n\nfor (const [subName, subInfo] of Object.entries(subreddits)) {\n  const postsList = Object.values(subInfo.posts);\n  if (postsList.length === 0) {\n    continue;\n  }\n  text += `Subreddit: r/${subName}\\n`;\n  postsList.forEach((post, index) => {\n    text += `  Post #${index + 1}: ${post.title || 'No Title'}\\n`;\n    text += `  Author: u/${post.author || 'unknown'}\\n`;\n    text += `  Content: ${(post.content || '').substring(0, 500)}\\n`;\n    text += `  URL: ${post.url || 'No URL'}\\n`;\n    if (post.comments.length > 0) {\n      text += `  Comments:\\n`;\n      post.comments.slice(0, 5).forEach((comment) => {\n        text += `    - [u/${comment.author || 'unknown'}]: ${(comment.content || '').substring(0, 300)}\\n`;\n      });\n    }\n    text += `  -------------------------------------------\\n`;\n  });\n}\n\nreturn [{ json: { text: text, post_ids: Array.from(postIds) } }];"
       },
       "id": "format-posts-for-llm",
       "name": "Format Posts for LLM",
@@ -170,7 +170,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE reddit_posts \nSET processed = 1 \nWHERE id IN ({{ $('Format Posts for LLM').first().json.post_ids.map(id => \"'\" + id + \"'\").join(',') }});"
+        "query": "=UPDATE reddit_posts \nSET processed = 1 \nWHERE id IN ({{ $('Format Posts for LLM').first().json.post_ids.length > 0 ? $('Format Posts for LLM').first().json.post_ids.map(id => \"'\" + id + \"'\").join(',') : \"''\" }});"
       },
       "id": "mark-posts-processed",
       "name": "Mark Posts Processed",
