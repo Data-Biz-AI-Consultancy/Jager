@@ -79,7 +79,7 @@
             },
             {
               "name": "prompt",
-              "value": "=You are Bella. Here is your persona definition:\n\n{{ $json.bella_persona }}\n\nUsing your persona, summarize the following Reddit posts into a clear, structured summary highlighting key user pain points, requests for recommendations, or business opportunities. Keep it concise, engaging, and format it using Slack markdown. You MUST use raw Unicode emojis (e.g. 💋, ✨, 😉, 💡) directly rather than text-based codes (like :kiss: or :sparkles:). For every post mentioned, always embed a clickable Slack link using the format `<URL|Post Title>`. Here are the posts:\n\n{{ $json.text }}"
+              "value": "=You are Bella. Here is your persona definition:\n\n{{ $json.bella_persona }}\n\nUsing your persona, summarize the following Reddit posts into a clear, structured summary highlighting key user pain points, requests for recommendations, or business opportunities. You MUST write the summary report in English, only using Italian for warm greetings and closings. Keep it concise, engaging, and format it using Slack markdown. You MUST use raw Unicode emojis (e.g. 💋, ✨, 😉, 💡) directly rather than text-based codes (like :kiss: or :sparkles:). For every single post mentioned in your summary, you MUST append its exact URL immediately next to it using Slack's link format: `<post_url|Link>`. Here are the posts:\n\n{{ $json.text }}"
             },
             {
               "name": "stream",
