@@ -16,8 +16,8 @@ services:
 
   n8n:
     build:
-      context: ./src/n8n
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: src/n8n/Dockerfile
     restart: always
     expose:
       - "5678"

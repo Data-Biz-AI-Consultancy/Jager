@@ -7,6 +7,12 @@ while ! nc -z db 5432; do
 done
 echo "PostgreSQL is ready!"
 
+# Run application database migrations
+if [ -f /etc/n8n/migrate-db.js ]; then
+  echo "Running database schema migrations..."
+  node /etc/n8n/migrate-db.js
+fi
+
 # Import credentials if they exist and haven't been imported yet
 if [ -f /etc/n8n/credentials.json ]; then
   IMPORT_STATUS=$(node -e "
