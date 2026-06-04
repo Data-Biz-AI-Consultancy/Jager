@@ -42,39 +42,7 @@
         }
       }
     },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 2
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "check-posts-exist",
-              "leftValue": "={{ $json.subreddit_name }}",
-              "operator": {
-                "name": "filter.operator.isNotEmpty",
-                "type": "string",
-                "operation": "isNotEmpty"
-              }
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "if-posts-exist",
-      "name": "If Posts Exist",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        500,
-        300
-      ]
-    },
+
     {
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -181,17 +149,6 @@
       ]
     },
     "Get Latest Posts": {
-      "main": [
-        [
-          {
-            "node": "If Posts Exist",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If Posts Exist": {
       "main": [
         [
           {
