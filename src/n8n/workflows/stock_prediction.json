@@ -1,6 +1,6 @@
 {
   "id": "stock-prediction-workflow",
-  "name": "Stock Prediction - ML and LLM",
+  "name": "ML - Stock Prediction",
   "nodes": [
     {
       "parameters": {
@@ -64,107 +64,6 @@
         500,
         200
       ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT price_timestamp::date as date, close_price \nFROM yahoo_finance_stock_prices \nWHERE symbol = '^GSPC' \nORDER BY price_timestamp DESC \nLIMIT 14;"
-      },
-      "id": "get-stock-history-for-llm",
-      "name": "Get Stock History for LLM",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        300,
-        400
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const rows = $input.all();\nif (rows.length === 0) {\n  return [{ json: { text: \"No history\", last_date: new Date().toISOString().split('T')[0] } }];\n}\n\n// reverse to get chronological order\nconst data = rows.map(r => r.json).reverse();\nconst text = data.map(d => `${d.date}: ${d.close_price}`).join('\\n');\nconst last_date = data[data.length - 1].date;\n\nreturn [{ json: { text, last_date } }];"
-      },
-      "id": "format-history-for-llm",
-      "name": "Format History for LLM",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        500,
-        400
-      ]
-    },
-    {
-      "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
-          "mode": "id"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "=You are an expert financial analyst. Analyze the following S&P 500 (^GSPC) historical daily close prices:\n\n{{ $json.text }}\n\nPredict the close price for the next trading day after {{ $json.last_date }}.\n\nReturn EXACTLY a JSON object matching this structure (no code block, no markdown, no comments, just raw JSON):\n{\n  \"predicted_close_price\": 5123.45,\n  \"trend\": \"UP\",\n  \"confidence\": 0.75,\n  \"reasoning\": \"State your 1-2 sentence concise explanation here.\"\n}\n\nRules:\n- \"predicted_close_price\" must be a number.\n- \"trend\" must be one of: \"UP\", \"DOWN\", \"FLAT\".\n- \"confidence\" must be a number between 0.0 and 1.0.\n- Do not include markdown formatting or backticks around the JSON."
-            }
-          ]
-        },
-        "options": {
-          "format": "json"
-        }
-      },
-      "id": "ollama-llm-predict",
-      "name": "Ollama LLM Predict",
-      "type": "@n8n/n8n-nodes-langchain.ollama",
-      "typeVersion": 1,
-      "position": [
-        700,
-        400
-      ],
-      "credentials": {
-        "ollamaApi": {
-          "id": "ollama-cloud-api",
-          "name": "Ollama Cloud API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  // fallback default values if parsing fails\n  parsed = {\n    predicted_close_price: 0,\n    trend: \"FLAT\",\n    confidence: 0,\n    reasoning: \"Failed to parse model response: \" + raw.substring(0, 100)\n  };\n}\n\n// Compute prediction date (skipping weekends)\nconst lastDateStr = $('Format History for LLM').first().json.last_date;\nconst lastDate = new Date(lastDateStr);\nconst nextDay = new Date(lastDate);\nnextDay.setDate(lastDate.getDate() + 1);\nwhile (nextDay.getDay() === 0 || nextDay.getDay() === 6) {\n  nextDay.setDate(nextDay.getDate() + 1);\n}\nconst prediction_date = nextDay.toISOString().split('T')[0];\n\nreturn [{\n  json: {\n    symbol: \"^GSPC\",\n    prediction_date,\n    predicted_close_price: parsed.predicted_close_price || 0,\n    trend: parsed.trend || \"FLAT\",\n    confidence: parsed.confidence || 0,\n    reasoning: parsed.reasoning || \"No reasoning provided.\",\n    model_name: $env.OLLAMA_CLOUD_MODEL || \"gemma3:4b\"\n  }\n}];"
-      },
-      "id": "parse-llm-prediction",
-      "name": "Parse LLM Prediction",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        900,
-        400
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO prediction.stock_predictions (symbol, prediction_date, predicted_close_price, trend, confidence, reasoning, model_name)\nVALUES ('{{ $json.symbol }}', '{{ $json.prediction_date }}', {{ $json.predicted_close_price }}, '{{ $json.trend }}', {{ $json.confidence }}, '{{ $json.reasoning.replace(/'/g, \"''\") }}', '{{ $json.model_name }}')\nON CONFLICT (symbol, prediction_date, model_name)\nDO UPDATE SET\n  predicted_close_price = EXCLUDED.predicted_close_price,\n  trend = EXCLUDED.trend,\n  confidence = EXCLUDED.confidence,\n  reasoning = EXCLUDED.reasoning,\n  created_at = NOW();"
-      },
-      "id": "save-llm-prediction",
-      "name": "Save LLM Prediction",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1100,
-        400
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
     }
   ],
   "connections": {
@@ -173,11 +72,6 @@
         [
           {
             "node": "Call Python ML Predict",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Get Stock History for LLM",
             "type": "main",
             "index": 0
           }
@@ -189,50 +83,6 @@
         [
           {
             "node": "Call Python ML Evaluate",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Stock History for LLM": {
-      "main": [
-        [
-          {
-            "node": "Format History for LLM",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format History for LLM": {
-      "main": [
-        [
-          {
-            "node": "Ollama LLM Predict",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ollama LLM Predict": {
-      "main": [
-        [
-          {
-            "node": "Parse LLM Prediction",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LLM Prediction": {
-      "main": [
-        [
-          {
-            "node": "Save LLM Prediction",
             "type": "main",
             "index": 0
           }
