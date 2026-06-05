@@ -95,6 +95,85 @@ CREATE TABLE IF NOT EXISTS substack_posts (
 
 ALTER TABLE substack_posts ADD COLUMN IF NOT EXISTS feed_name VARCHAR(255);
 
+
+CREATE TABLE IF NOT EXISTS eurostat_regional_gdp (
+  id SERIAL PRIMARY KEY,
+  geo_code VARCHAR(50) NOT NULL,
+  geo_name VARCHAR(255),
+  year INTEGER NOT NULL,
+  gdp_value NUMERIC,
+  unit VARCHAR(50),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (geo_code, year, unit)
+);
+
+CREATE TABLE IF NOT EXISTS eurostat_regional_crime_rates (
+  id SERIAL PRIMARY KEY,
+  geo_code VARCHAR(50) NOT NULL,
+  geo_name VARCHAR(255),
+  year INTEGER NOT NULL,
+  offence_category VARCHAR(255),
+  crime_count NUMERIC,
+  unit VARCHAR(50),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (geo_code, year, offence_category, unit)
+);
+
+CREATE TABLE IF NOT EXISTS eurostat_inflation (
+  id SERIAL PRIMARY KEY,
+  geo_code VARCHAR(50) NOT NULL,
+  geo_name VARCHAR(255),
+  time VARCHAR(50) NOT NULL,
+  coicop_code VARCHAR(50) NOT NULL,
+  coicop_name VARCHAR(255),
+  unit VARCHAR(50),
+  value NUMERIC,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (geo_code, time, coicop_code, unit)
+);
+
+CREATE TABLE IF NOT EXISTS eurostat_quarterly_gdp (
+  id SERIAL PRIMARY KEY,
+  geo_code VARCHAR(50) NOT NULL,
+  geo_name VARCHAR(255),
+  time VARCHAR(50) NOT NULL,
+  na_item VARCHAR(50) NOT NULL,
+  unit VARCHAR(50),
+  s_adj VARCHAR(50),
+  value NUMERIC,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (geo_code, time, na_item, unit, s_adj)
+);
+
+CREATE TABLE IF NOT EXISTS eurostat_unemployment (
+  id SERIAL PRIMARY KEY,
+  geo_code VARCHAR(50) NOT NULL,
+  geo_name VARCHAR(255),
+  time VARCHAR(50) NOT NULL,
+  age VARCHAR(50),
+  sex VARCHAR(10),
+  unit VARCHAR(50),
+  s_adj VARCHAR(50),
+  value NUMERIC,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (geo_code, time, age, sex, unit, s_adj)
+);
+
+CREATE TABLE IF NOT EXISTS eurostat_house_price_index (
+  id SERIAL PRIMARY KEY,
+  geo_code VARCHAR(50) NOT NULL,
+  geo_name VARCHAR(255),
+  time VARCHAR(50) NOT NULL,
+  purchase VARCHAR(50),
+  unit VARCHAR(50),
+  value NUMERIC,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (geo_code, time, purchase, unit)
+);
+
+
+
+
 INSERT INTO reddit_subreddits_monitored (name, active) VALUES 
 ('smallbusiness', TRUE),
 ('saas', TRUE),
