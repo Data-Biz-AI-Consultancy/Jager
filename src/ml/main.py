@@ -22,6 +22,7 @@ engine = create_engine(DATABASE_URL)
 class PredictionRequest(BaseModel):
     symbol: str = "^GSPC"
     lag_days: int = 5
+    prediction_days: int = 7
 
 def get_next_trading_day(current_date: datetime.date) -> datetime.date:
     """Helper to find the next trading day (skipping weekends)."""
@@ -33,7 +34,7 @@ def get_next_trading_day(current_date: datetime.date) -> datetime.date:
 
 @app.post("/predict")
 def predict_stock(req: PredictionRequest):
-    logger.info(f"Received prediction request for symbol: {req.symbol}")
+    logger.info(f"Received prediction request for symbol: {req.symbol}, forecasting {req.prediction_days} days")
     
     # 1. Fetch historical data from DB
     query = text("""
@@ -87,91 +88,99 @@ def predict_stock(req: PredictionRequest):
     model.fit(X, y)
     
     # Calculate R-squared for logging / metadata
-    # Bounded R-squared calculation
     if len(df) > len(feature_cols) + 1:
         r2_score = float(model.score(X, y))
     else:
         r2_score = 1.0 # Perfect fit on small dataset
     logger.info(f"Model trained successfully. R^2 score: {r2_score:.4f}")
     
-    # 4. Predict the next day's price
-    # The feature vector for the next prediction is the most recent close prices
-    most_recent_data = df.iloc[-1]
-    last_actual_price = float(most_recent_data['close_price'])
-    last_date = most_recent_data['date']
+    # 4. Predict the next N days iteratively (autoregressive)
+    # Start with the most recent actual values from the dataset
+    recent_lags = [float(df.iloc[-1]['close_price'])] + [float(df.iloc[-1][f'lag_{i}']) for i in range(1, actual_lags)]
     
-    # Feature vector for next day prediction: [close(t), close(t-1), close(t-2), ...]
-    next_features = [last_actual_price] + [float(most_recent_data[f'lag_{i}']) for i in range(1, actual_lags)]
-    next_features_arr = np.array(next_features).reshape(1, -1)
+    last_actual_price = float(df.iloc[-1]['close_price'])
+    last_date = df.iloc[-1]['date']
+    current_prediction_date = last_date
     
-    predicted_price = float(model.predict(next_features_arr)[0])
-    
-    # Determine predicted trend
-    if predicted_price > last_actual_price:
-        trend = "UP"
-    elif predicted_price < last_actual_price:
-        trend = "DOWN"
-    else:
-        trend = "FLAT"
-        
-    prediction_date = get_next_trading_day(last_date)
-    
-    # Simple heuristic confidence score based on R-squared (bounded [0, 1])
-    confidence = max(0.0, min(1.0, r2_score))
-    
-    reasoning = (
-        f"Linear Regression trained on {len(df)} days of historical data. "
-        f"R-squared: {r2_score:.4f}. Lag inputs: {[round(x, 2) for x in next_features]}."
-    )
-    
-    features_json = {
-        "lags": next_features,
-        "r2": r2_score,
-        "last_actual_price": last_actual_price,
-        "last_date": str(last_date)
-    }
-    
-    model_name = f"linear-regression-lag-{actual_lags}"
-    
-    # 5. Save prediction to DB
-    insert_query = text("""
-        INSERT INTO prediction.stock_predictions 
-        (symbol, prediction_date, predicted_close_price, trend, confidence, reasoning, model_name, features)
-        VALUES (:symbol, :prediction_date, :predicted_close_price, :trend, :confidence, :reasoning, :model_name, :features)
-        ON CONFLICT (symbol, prediction_date, model_name)
-        DO UPDATE SET
-            predicted_close_price = EXCLUDED.predicted_close_price,
-            trend = EXCLUDED.trend,
-            confidence = EXCLUDED.confidence,
-            reasoning = EXCLUDED.reasoning,
-            features = EXCLUDED.features,
-            created_at = NOW();
-    """)
+    predictions = []
     
     import json
-    with engine.begin() as conn:
-        conn.execute(insert_query, {
-            "symbol": req.symbol,
-            "prediction_date": prediction_date,
+    for day in range(1, req.prediction_days + 1):
+        # Feature vector for the next step prediction
+        features_arr = np.array(recent_lags[:actual_lags]).reshape(1, -1)
+        predicted_price = float(model.predict(features_arr)[0])
+        
+        # Determine predicted trend relative to last actual price
+        if predicted_price > last_actual_price:
+            trend = "UP"
+        elif predicted_price < last_actual_price:
+            trend = "DOWN"
+        else:
+            trend = "FLAT"
+            
+        current_prediction_date = get_next_trading_day(current_prediction_date)
+        confidence = max(0.0, min(1.0, r2_score))
+        
+        reasoning = (
+            f"Step {day} of {req.prediction_days}-day autoregressive Linear Regression prediction. "
+            f"Lag inputs: {[round(x, 2) for x in recent_lags[:actual_lags]]}."
+        )
+        
+        features_json = {
+            "lags": recent_lags[:actual_lags],
+            "r2": r2_score,
+            "step": day,
+            "last_actual_price": last_actual_price,
+            "last_date": str(last_date)
+        }
+        
+        model_name = f"linear-regression-lag-{actual_lags}"
+        
+        # 5. Save prediction to DB
+        insert_query = text("""
+            INSERT INTO prediction.stock_predictions 
+            (symbol, prediction_date, predicted_close_price, trend, confidence, reasoning, model_name, features)
+            VALUES (:symbol, :prediction_date, :predicted_close_price, :trend, :confidence, :reasoning, :model_name, :features)
+            ON CONFLICT (symbol, prediction_date, model_name)
+            DO UPDATE SET
+                predicted_close_price = EXCLUDED.predicted_close_price,
+                trend = EXCLUDED.trend,
+                confidence = EXCLUDED.confidence,
+                reasoning = EXCLUDED.reasoning,
+                features = EXCLUDED.features,
+                created_at = NOW();
+        """)
+        
+        with engine.begin() as conn:
+            conn.execute(insert_query, {
+                "symbol": req.symbol,
+                "prediction_date": current_prediction_date,
+                "predicted_close_price": predicted_price,
+                "trend": trend,
+                "confidence": confidence,
+                "reasoning": reasoning,
+                "model_name": model_name,
+                "features": json.dumps(features_json)
+            })
+            
+        predictions.append({
+            "step": day,
+            "prediction_date": str(current_prediction_date),
             "predicted_close_price": predicted_price,
             "trend": trend,
-            "confidence": confidence,
-            "reasoning": reasoning,
-            "model_name": model_name,
-            "features": json.dumps(features_json)
+            "reasoning": reasoning
         })
         
-    logger.info(f"Saved prediction for {req.symbol} on {prediction_date}: {predicted_price:.2f} ({trend})")
+        # Autoregressive update: insert new prediction at the start of lags list, and drop the oldest
+        recent_lags = [predicted_price] + recent_lags[:-1]
+        
+    logger.info(f"Generated {len(predictions)} step predictions for {req.symbol} starting on {predictions[0]['prediction_date']}")
     
     return {
         "status": "success",
         "symbol": req.symbol,
-        "prediction_date": str(prediction_date),
-        "predicted_close_price": predicted_price,
-        "trend": trend,
-        "confidence": confidence,
-        "reasoning": reasoning,
-        "model_name": model_name
+        "predictions": predictions,
+        "model_name": f"linear-regression-lag-{actual_lags}"
     }
 
 @app.post("/evaluate")
