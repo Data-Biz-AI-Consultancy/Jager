@@ -24,27 +24,29 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, urn, name, type FROM linkedin_pages_monitored WHERE active = true;"
+        "url": "https://api.linkedin.com/v2/me",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "options": {}
       },
-      "id": "get-active-linkedin-pages",
-      "name": "Get Active LinkedIn Pages",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
+      "id": "get-linkedin-profile",
+      "name": "Get LinkedIn Profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [
         300,
         300
       ],
       "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
+        "linkedInOAuth2Api": {
+          "id": "linkedin-oauth2",
+          "name": "LinkedIn OAuth2 Credential"
         }
       }
     },
     {
       "parameters": {
-        "url": "=https://api.linkedin.com/v2/ugcPosts?q=authors&authors={{ encodeURIComponent($json.urn) }}",
+        "url": "=https://api.linkedin.com/v2/ugcPosts?q=authors&authors=urn:li:person:{{ $json.id }}",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "linkedInOAuth2Api",
         "options": {}
@@ -55,71 +57,7 @@
       "typeVersion": 4.1,
       "position": [
         500,
-        200
-      ],
-      "credentials": {
-        "linkedInOAuth2Api": {
-          "id": "linkedin-oauth2",
-          "name": "LinkedIn OAuth2 Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.type }}",
-              "value2": "organization"
-            }
-          ]
-        }
-      },
-      "id": "check-if-organization",
-      "name": "Check If Organization",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [
-        500,
-        400
-      ]
-    },
-    {
-      "parameters": {
-        "url": "=https://api.linkedin.com/v2/organizationalEntityFollowerStatistics?organizationalEntity={{ encodeURIComponent($json.urn) }}",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "linkedInOAuth2Api",
-        "options": {}
-      },
-      "id": "fetch-follower-statistics",
-      "name": "Fetch Follower Stats",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        700,
-        350
-      ],
-      "credentials": {
-        "linkedInOAuth2Api": {
-          "id": "linkedin-oauth2",
-          "name": "LinkedIn OAuth2 Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "=https://api.linkedin.com/v2/organizationalEntityShareStatistics?organizationalEntity={{ encodeURIComponent($json.urn) }}",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "linkedInOAuth2Api",
-        "options": {}
-      },
-      "id": "fetch-share-statistics",
-      "name": "Fetch Share Stats",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [
-        700,
-        500
+        300
       ],
       "credentials": {
         "linkedInOAuth2Api": {
@@ -131,41 +69,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\n// Combine inputs from Follower Stats and Share Stats nodes\n// n8n outputs them as separate lists or we can merge them by organization urn\nconst followerStats = $('Fetch Follower Stats').all();\nconst shareStats = $('Fetch Share Stats').all();\nconst pages = $('Get Active LinkedIn Pages').all();\n\nfor (const page of pages) {\n  const urn = page.json.urn;\n  const dbId = page.json.id;\n  \n  const fStat = followerStats.find(item => item.json.organizationalEntity === urn) || { json: {} };\n  const sStat = shareStats.find(item => item.json.organizationalEntity === urn) || { json: {} };\n  \n  // LinkedIn returns statistics in nested arrays (e.g. elements[0].followerCountsByStaffCountRange, etc.)\n  // We will parse out the primary follower count and aggregate shares statistics\n  const totalFollowers = fStat.json.elements?.[0]?.firstDegreeFollowerResults?.followerCounts?.organicFollowerCount || 0;\n  \n  const totalImpressions = sStat.json.elements?.[0]?.totalShareStatistics?.impressionCount || 0;\n  const totalShares = sStat.json.elements?.[0]?.totalShareStatistics?.shareCount || 0;\n  const totalLikes = sStat.json.elements?.[0]?.totalShareStatistics?.likeCount || 0;\n  const totalComments = sStat.json.elements?.[0]?.totalShareStatistics?.commentCount || 0;\n  \n  results.push({\n    page_db_id: dbId,\n    followers_count: totalFollowers,\n    total_impressions: totalImpressions,\n    total_shares: totalShares,\n    total_likes: totalLikes,\n    total_comments: totalComments\n  });\n}\n\nreturn results;"
-      },
-      "id": "merge-and-format-analytics",
-      "name": "Merge & Format Analytics",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        900,
-        420
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO linkedin_page_analytics (page_db_id, followers_count, total_impressions, total_shares, total_likes, total_comments)\nVALUES (\n  {{ $json.page_db_id }},\n  {{ $json.followers_count }},\n  {{ $json.total_impressions }},\n  {{ $json.total_shares }},\n  {{ $json.total_likes }},\n  {{ $json.total_comments }}\n);"
-      },
-      "id": "insert-linkedin-analytics",
-      "name": "Insert LinkedIn Analytics",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1100,
-        420
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst postResponses = $('Fetch LinkedIn Posts').all();\nconst pages = $('Get Active LinkedIn Pages').all();\n\nfor (const resp of postResponses) {\n  const elements = resp.json.elements || [];\n  // Find which page this response belongs to by looking at the author URN in the first element\n  const firstAuthor = elements[0]?.author;\n  const matchedPage = pages.find(p => p.json.urn === firstAuthor) || { json: {} };\n  const pageDbId = matchedPage.json.id;\n\n  for (const element of elements) {\n    const id = element.id;\n    const author = element.author;\n    // Extract commentary text/content\n    const content = element.specificContent?.['com.linkedin.ugc.ShareContent']?.shareCommentary?.text || '';\n    const publishedAtRaw = element.created?.time || Date.now();\n    const publishedAt = new Date(publishedAtRaw).toISOString();\n    \n    // Construct standard LinkedIn share URL if organization page or member post\n    // e.g. https://www.linkedin.com/feed/update/urn:li:share:123456\n    const url = `https://www.linkedin.com/feed/update/${id}`;\n    \n    results.push({\n      id,\n      page_db_id: pageDbId,\n      author_urn: author,\n      content,\n      url,\n      published_at: publishedAt\n    });\n  }\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst postResponses = $('Fetch LinkedIn Posts').all();\n\nfor (const resp of postResponses) {\n  const elements = resp.json.elements || [];\n  for (const element of elements) {\n    const id = element.id;\n    const author = element.author;\n    // Extract commentary text/content\n    const content = element.specificContent?.['com.linkedin.ugc.ShareContent']?.shareCommentary?.text || '';\n    const publishedAtRaw = element.created?.time || Date.now();\n    const publishedAt = new Date(publishedAtRaw).toISOString();\n    \n    // Construct standard LinkedIn share URL\n    const url = `https://www.linkedin.com/feed/update/${id}`;\n    \n    results.push({\n      id,\n      author_urn: author,\n      content,\n      url,\n      published_at: publishedAt\n    });\n  }\n}\nreturn results;"
       },
       "id": "parse-linkedin-posts",
       "name": "Parse LinkedIn Posts",
@@ -173,13 +77,13 @@
       "typeVersion": 2,
       "position": [
         700,
-        200
+        300
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO linkedin_posts (id, page_db_id, author_urn, content, url, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.page_db_id || 'NULL' }},\n  '{{ $json.author_urn }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id)\nDO UPDATE SET content = EXCLUDED.content\nRETURNING id;"
+        "query": "=INSERT INTO linkedin_posts (id, author_urn, content, url, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.author_urn }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id)\nDO UPDATE SET content = EXCLUDED.content\nRETURNING id;"
       },
       "id": "upsert-linkedin-posts",
       "name": "Upsert LinkedIn Posts",
@@ -187,7 +91,7 @@
       "typeVersion": 2.5,
       "position": [
         900,
-        200
+        300
       ],
       "credentials": {
         "postgres": {
@@ -202,23 +106,18 @@
       "main": [
         [
           {
-            "node": "Get Active LinkedIn Pages",
+            "node": "Get LinkedIn Profile",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Active LinkedIn Pages": {
+    "Get LinkedIn Profile": {
       "main": [
         [
           {
             "node": "Fetch LinkedIn Posts",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Check If Organization",
             "type": "main",
             "index": 0
           }
@@ -246,57 +145,8 @@
           }
         ]
       ]
-    },
-    "Check If Organization": {
-      "main": [
-        [
-          {
-            "node": "Fetch Follower Stats",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch Share Stats",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Follower Stats": {
-      "main": [
-        [
-          {
-            "node": "Merge & Format Analytics",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Share Stats": {
-      "main": [
-        [
-          {
-            "node": "Merge & Format Analytics",
-            "type": "main",
-            "index": 1
-          }
-        ]
-      ]
-    },
-    "Merge & Format Analytics": {
-      "main": [
-        [
-          {
-            "node": "Insert LinkedIn Analytics",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
-  },
+  ],
   "active": false,
   "settings": {
     "executionOrder": "v1"
