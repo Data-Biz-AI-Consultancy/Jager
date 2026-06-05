@@ -13,8 +13,8 @@ node tests/test-dockerfile.js
 ```
 
 ### Python ML Backend Tests
-You can run the Python unit tests using `pytest` and `uv`:
+You can run the Python unit tests using `pytest` and `uv` targeting the `tests/` folder:
 
 ```bash
-uv run pytest
+uv run pytest tests/
 ```
