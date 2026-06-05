@@ -34,6 +34,8 @@ services:
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
       - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID}
+      - LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET}
     depends_on:
       - db
     volumes:
