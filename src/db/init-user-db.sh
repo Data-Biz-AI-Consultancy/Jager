@@ -128,7 +128,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		UNIQUE (geo_code, year, offence_category, unit)
 	);
 
-	CREATE TABLE IF NOT EXISTS frankfurter_fx_rates (
+	CREATE TABLE IF NOT EXISTS eurostat_fx_rates (
 		id SERIAL PRIMARY KEY,
 		base_currency VARCHAR(3) NOT NULL,
 		target_currency VARCHAR(3) NOT NULL,
