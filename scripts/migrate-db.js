@@ -4,7 +4,7 @@ const { Client } = require(pgPath);
 const client = new Client({
   host: process.env.DB_POSTGRESDB_HOST || 'db',
   port: parseInt(process.env.DB_POSTGRESDB_PORT || '5432', 10),
-  database: 'jager',
+  database: process.env.POSTGRES_DB || process.env.DB_POSTGRESDB_DATABASE_APP || 'jager',
   user: process.env.DB_POSTGRESDB_USER || 'jager',
   password: process.env.DB_POSTGRESDB_PASSWORD || 'jager',
 });
