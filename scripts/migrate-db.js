@@ -1,13 +1,24 @@
 const pgPath = require.resolve('pg', { paths: ['/usr/local/lib/node_modules/n8n'] });
 const { Client } = require(pgPath);
 
-const client = new Client({
-  host: process.env.DB_POSTGRESDB_HOST || 'db',
-  port: parseInt(process.env.DB_POSTGRESDB_PORT || '5432', 10),
-  database: process.env.POSTGRES_DB || process.env.DB_POSTGRESDB_DATABASE_APP || 'jager',
-  user: process.env.DB_POSTGRESDB_USER || 'jager',
-  password: process.env.DB_POSTGRESDB_PASSWORD || 'jager',
-});
+let client;
+if (process.env.DATABASE_URL) {
+  client = new Client({
+    connectionString: process.env.DATABASE_URL,
+  });
+} else if (process.env.DB_APPLICATION_URL) {
+  client = new Client({
+    connectionString: process.env.DB_APPLICATION_URL,
+  });
+} else {
+  client = new Client({
+    host: process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db',
+    port: parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10),
+    database: 'jager',
+    user: process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager',
+    password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',
+  });
+}
 
 const ddl = `
 CREATE TABLE IF NOT EXISTS reddit_subreddits_monitored (
