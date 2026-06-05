@@ -178,6 +178,19 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		UNIQUE (base_currency, target_currency, rate_date)
 	);
 
+	CREATE TABLE IF NOT EXISTS market_index_prices (
+		id SERIAL PRIMARY KEY,
+		symbol VARCHAR(50) NOT NULL,
+		price_timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+		open_price NUMERIC,
+		high_price NUMERIC,
+		low_price NUMERIC,
+		close_price NUMERIC,
+		volume NUMERIC,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		UNIQUE (symbol, price_timestamp)
+	);
+
 
 
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('smallbusiness', TRUE) ON CONFLICT (name) DO NOTHING;

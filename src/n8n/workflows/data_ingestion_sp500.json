@@ -1,0 +1,113 @@
+{
+  "id": "sp500-ingestion-workflow",
+  "name": "Data Ingestion - Yahoo Finance (S&P 500)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://query1.finance.yahoo.com/v8/finance/chart/^GSPC?interval=1h&range=5d",
+        "options": {}
+      },
+      "id": "fetch-yahoo-finance",
+      "name": "Fetch S&P 500",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const response = $input.first().json;\nif (!response || !response.chart || !response.chart.result || !response.chart.result[0]) {\n  return [];\n}\n\nconst result = response.chart.result[0];\nconst timestamps = result.timestamp || [];\nconst quotes = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};\n\nconst opens = quotes.open || [];\nconst highs = quotes.high || [];\nconst lows = quotes.low || [];\nconst closes = quotes.close || [];\nconst volumes = quotes.volume || [];\n\nconst parsedData = [];\n\nfor (let i = 0; i < timestamps.length; i++) {\n  // Only include if timestamp and at least close price is present\n  if (timestamps[i] && closes[i] !== null && closes[i] !== undefined) {\n    parsedData.push({\n      symbol: result.meta.symbol || '^GSPC',\n      price_timestamp: new Date(timestamps[i] * 1000).toISOString(),\n      open_price: opens[i] !== null ? opens[i] : null,\n      high_price: highs[i] !== null ? highs[i] : null,\n      low_price: lows[i] !== null ? lows[i] : null,\n      close_price: closes[i] !== null ? closes[i] : null,\n      volume: volumes[i] !== null ? volumes[i] : null\n    });\n  }\n}\n\nreturn parsedData;"
+      },
+      "id": "parse-yahoo-finance",
+      "name": "Parse S&P 500",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO market_index_prices (symbol, price_timestamp, open_price, high_price, low_price, close_price, volume)\nVALUES ('{{ $json.symbol }}', '{{ $json.price_timestamp }}', {{ $json.open_price !== null ? $json.open_price : 'NULL' }}, {{ $json.high_price !== null ? $json.high_price : 'NULL' }}, {{ $json.low_price !== null ? $json.low_price : 'NULL' }}, {{ $json.close_price !== null ? $json.close_price : 'NULL' }}, {{ $json.volume !== null ? $json.volume : 'NULL' }})\nON CONFLICT (symbol, price_timestamp)\nDO UPDATE SET \n  open_price = EXCLUDED.open_price,\n  high_price = EXCLUDED.high_price,\n  low_price = EXCLUDED.low_price,\n  close_price = EXCLUDED.close_price,\n  volume = EXCLUDED.volume;"
+      },
+      "id": "insert-database",
+      "name": "Insert/Update Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch S&P 500",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch S&P 500": {
+      "main": [
+        [
+          {
+            "node": "Parse S&P 500",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse S&P 500": {
+      "main": [
+        [
+          {
+            "node": "Insert/Update Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
