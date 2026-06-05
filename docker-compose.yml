@@ -36,7 +36,7 @@ services:
       - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
       - LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID}
       - LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET}
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=https://localhost/
     depends_on:
       - db
     volumes:
