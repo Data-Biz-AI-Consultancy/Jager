@@ -95,18 +95,6 @@ CREATE TABLE IF NOT EXISTS substack_posts (
 
 ALTER TABLE substack_posts ADD COLUMN IF NOT EXISTS feed_name VARCHAR(255);
 
-CREATE TABLE IF NOT EXISTS open_meteo_weather_data (
-  id SERIAL PRIMARY KEY,
-  location VARCHAR(255) NOT NULL,
-  temperature NUMERIC,
-  humidity NUMERIC,
-  apparent_temperature NUMERIC,
-  precipitation NUMERIC,
-  wind_speed NUMERIC,
-  weather_code INTEGER,
-  recorded_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
 
 CREATE TABLE IF NOT EXISTS eurostat_regional_gdp (
   id SERIAL PRIMARY KEY,
@@ -131,15 +119,6 @@ CREATE TABLE IF NOT EXISTS eurostat_regional_crime_rates (
   UNIQUE (geo_code, year, offence_category, unit)
 );
 
-CREATE TABLE IF NOT EXISTS eurostat_fx_rates (
-  id SERIAL PRIMARY KEY,
-  base_currency VARCHAR(3) NOT NULL,
-  target_currency VARCHAR(3) NOT NULL,
-  rate NUMERIC NOT NULL,
-  rate_date DATE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE (base_currency, target_currency, rate_date)
-);
 
 
 INSERT INTO reddit_subreddits_monitored (name, active) VALUES 
