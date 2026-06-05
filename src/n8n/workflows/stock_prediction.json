@@ -1,0 +1,138 @@
+{
+  "id": "stock-prediction-workflow",
+  "name": "ML - Stock Prediction",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 12
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/predict",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "symbol",
+              "value": "^GSPC"
+            },
+            {
+              "name": "lag_days",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-python-ml-predict",
+      "name": "Call Python ML Predict",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/evaluate",
+        "options": {}
+      },
+      "id": "call-python-ml-evaluate",
+      "name": "Call Python ML Evaluate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/backtest",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "symbol",
+              "value": "^GSPC"
+            },
+            {
+              "name": "lag_days",
+              "value": "5"
+            },
+            {
+              "name": "exclude_last_days",
+              "value": "14"
+            },
+            {
+              "name": "predict_days",
+              "value": "7"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-python-ml-backtest",
+      "name": "Call Python ML Backtest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Call Python ML Predict",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call Python ML Backtest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Python ML Predict": {
+      "main": [
+        [
+          {
+            "node": "Call Python ML Evaluate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

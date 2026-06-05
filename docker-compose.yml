@@ -34,10 +34,21 @@ services:
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
       - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
+      - ML_SERVICE_URL=${ML_SERVICE_URL:-http://ml:8000}
     depends_on:
       - db
     volumes:
       - n8n_data:/home/node/.n8n
+
+  ml:
+    build:
+      context: ./
+      dockerfile: src/ml/Dockerfile
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://jager:jager@db:5432/jager
+    depends_on:
+      - db
 
   caddy:
     image: caddy:alpine
