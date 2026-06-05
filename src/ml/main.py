@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, text
 
 from train import train_model
 from predict import generate_predictions
+from backtest import run_backtest
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -21,6 +22,12 @@ class PredictionRequest(BaseModel):
     symbol: str = "^GSPC"
     lag_days: int = 5
     prediction_days: int = 7
+
+class BacktestRequest(BaseModel):
+    symbol: str = "^GSPC"
+    lag_days: int = 5
+    exclude_last_days: int = 14
+    predict_days: int = 7
 
 @app.post("/predict")
 def predict_stock(req: PredictionRequest):
@@ -103,3 +110,22 @@ def evaluate_predictions():
         "status": "success",
         "evaluated_records_count": update_count
     }
+
+@app.post("/backtest")
+def backtest_model(req: BacktestRequest):
+    logger.info(f"Received backtest request for symbol: {req.symbol}, excluding last {req.exclude_last_days} days to predict {req.predict_days} days")
+    try:
+        res = run_backtest(
+            engine=engine,
+            symbol=req.symbol,
+            lag_days=req.lag_days,
+            exclude_last_days=req.exclude_last_days,
+            predict_days=req.predict_days
+        )
+        return res
+    except ValueError as e:
+        logger.error(f"Value error during backtest execution: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Unexpected error during backtest execution: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error occurred.")
