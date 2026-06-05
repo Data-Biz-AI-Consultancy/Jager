@@ -4,7 +4,6 @@ import unittest.mock as mock
 import pytest
 import datetime
 import pandas as pd
-import numpy as np
 import warnings
 
 # Suppress deprecation warnings from third-party libraries
