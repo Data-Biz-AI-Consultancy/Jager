@@ -90,19 +90,8 @@ async function run() {
         );
 
         if (res.rows.length > 0) {
-          const dbWorkflow = res.rows[0];
-          
-          const nameMatch = localWorkflow.name === dbWorkflow.name;
-          const nodesMatch = isEqual(localWorkflow.nodes || [], dbWorkflow.nodes || []);
-          const connectionsMatch = isEqual(localWorkflow.connections || {}, dbWorkflow.connections || {});
-          const settingsMatch = isEqual(localWorkflow.settings || {}, dbWorkflow.settings || {});
-
-          if (nameMatch && nodesMatch && connectionsMatch && settingsMatch) {
-            console.log(`Workflow "${localWorkflow.name}" (${workflowId}) is unchanged. Skipping import to keep active status.`);
-            shouldImport = false;
-          } else {
-            console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has changed. Re-importing.`);
-          }
+          console.log(`Workflow "${localWorkflow.name}" (${workflowId}) already exists in database. Skipping import.`);
+          shouldImport = false;
         } else {
           console.log(`Workflow "${localWorkflow.name}" (${workflowId}) does not exist in database. Importing.`);
         }
