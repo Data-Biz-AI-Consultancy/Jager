@@ -13,8 +13,8 @@ node tests/test-dockerfile.js
 ```
 
 ### Python ML Backend Tests
-You can run the Python unit tests using `pytest` and `uv` (recommended):
+You can run the Python unit tests using `pytest` and `uv`:
 
 ```bash
-uv run --with pytest --with scikit-learn --with pandas --with fastapi --with httpx --with numpy pytest tests/test_ml.py
+uv run pytest
 ```
