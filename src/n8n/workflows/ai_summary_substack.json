@@ -25,7 +25,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  f.name AS feed_name,\n  f.active AS feed_active,\n  p.id AS post_id,\n  p.title AS post_title,\n  p.content AS post_content,\n  p.author AS post_author,\n  p.url AS post_url,\n  p.published_at AS post_published_at\nFROM substack_feeds_monitored f\nLEFT JOIN substack_posts p ON p.feed_id = f.id AND p.published_at >= NOW() - INTERVAL '7 days'\nWHERE f.active = TRUE\nORDER BY f.name, p.published_at DESC;"
+        "query": "SELECT \n  f.name AS feed_name,\n  f.active AS feed_active,\n  p.id AS post_id,\n  p.title AS post_title,\n  p.content AS post_content,\n  p.author AS post_author,\n  p.url AS post_url,\n  p.published_at AS post_published_at\nFROM s_substack.feeds_monitored f\nLEFT JOIN s_substack.posts p ON p.feed_id = f.id AND p.published_at >= NOW() - INTERVAL '7 days'\nWHERE f.active = TRUE\nORDER BY f.name, p.published_at DESC;"
       },
       "id": "get-latest-posts",
       "name": "Get Latest Posts",

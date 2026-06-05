@@ -193,7 +193,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO eurostat_regional_gdp (geo_code, geo_name, year, gdp_value, unit)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', {{ $json.year }}, {{ $json.gdp_value }}, '{{ $json.unit }}')\nON CONFLICT (geo_code, year, unit)\nDO UPDATE SET gdp_value = EXCLUDED.gdp_value, geo_name = EXCLUDED.geo_name;"
+        "query": "=INSERT INTO s_euro_stat.regional_gdp (geo_code, geo_name, year, gdp_value, unit)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', {{ $json.year }}, {{ $json.gdp_value }}, '{{ $json.unit }}')\nON CONFLICT (geo_code, year, unit)\nDO UPDATE SET gdp_value = EXCLUDED.gdp_value, geo_name = EXCLUDED.geo_name;"
       },
       "id": "insert-gdp",
       "name": "Insert GDP",
@@ -213,7 +213,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO eurostat_regional_crime_rates (geo_code, geo_name, year, offence_category, crime_count, unit)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', {{ $json.year }}, '{{ $json.offence_category.replace(/'/g, \"''\") }}', {{ $json.crime_count }}, '{{ $json.unit }}')\nON CONFLICT (geo_code, year, offence_category, unit)\nDO UPDATE SET crime_count = EXCLUDED.crime_count, geo_name = EXCLUDED.geo_name;"
+        "query": "=INSERT INTO s_euro_stat.regional_crime_rates (geo_code, geo_name, year, offence_category, crime_count, unit)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', {{ $json.year }}, '{{ $json.offence_category.replace(/'/g, \"''\") }}', {{ $json.crime_count }}, '{{ $json.unit }}')\nON CONFLICT (geo_code, year, offence_category, unit)\nDO UPDATE SET crime_count = EXCLUDED.crime_count, geo_name = EXCLUDED.geo_name;"
       },
       "id": "insert-crime",
       "name": "Insert Crime",
@@ -233,7 +233,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO eurostat_inflation (geo_code, geo_name, time, coicop_code, coicop_name, unit, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.coicop_code }}', '{{ $json.coicop_name.replace(/'/g, \"''\") }}', '{{ $json.unit }}', {{ $json.value }})\nON CONFLICT (geo_code, time, coicop_code, unit)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
+        "query": "=INSERT INTO s_euro_stat.inflation (geo_code, geo_name, time, coicop_code, coicop_name, unit, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.coicop_code }}', '{{ $json.coicop_name.replace(/'/g, \"''\") }}', '{{ $json.unit }}', {{ $json.value }})\nON CONFLICT (geo_code, time, coicop_code, unit)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
       },
       "id": "insert-inflation",
       "name": "Insert Inflation",
@@ -253,7 +253,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO eurostat_quarterly_gdp (geo_code, geo_name, time, na_item, unit, s_adj, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.na_item }}', '{{ $json.unit }}', '{{ $json.s_adj }}', {{ $json.value }})\nON CONFLICT (geo_code, time, na_item, unit, s_adj)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
+        "query": "=INSERT INTO s_euro_stat.quarterly_gdp (geo_code, geo_name, time, na_item, unit, s_adj, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.na_item }}', '{{ $json.unit }}', '{{ $json.s_adj }}', {{ $json.value }})\nON CONFLICT (geo_code, time, na_item, unit, s_adj)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
       },
       "id": "insert-quarterly-gdp",
       "name": "Insert Quarterly GDP",
@@ -273,7 +273,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO eurostat_unemployment (geo_code, geo_name, time, age, sex, unit, s_adj, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.age }}', '{{ $json.sex }}', '{{ $json.unit }}', '{{ $json.s_adj }}', {{ $json.value }})\nON CONFLICT (geo_code, time, age, sex, unit, s_adj)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
+        "query": "=INSERT INTO s_euro_stat.unemployment (geo_code, geo_name, time, age, sex, unit, s_adj, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.age }}', '{{ $json.sex }}', '{{ $json.unit }}', '{{ $json.s_adj }}', {{ $json.value }})\nON CONFLICT (geo_code, time, age, sex, unit, s_adj)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
       },
       "id": "insert-unemployment",
       "name": "Insert Unemployment",
@@ -293,7 +293,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO eurostat_house_price_index (geo_code, geo_name, time, purchase, unit, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.purchase }}', '{{ $json.unit }}', {{ $json.value }})\nON CONFLICT (geo_code, time, purchase, unit)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
+        "query": "=INSERT INTO s_euro_stat.house_price_index (geo_code, geo_name, time, purchase, unit, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.purchase }}', '{{ $json.unit }}', {{ $json.value }})\nON CONFLICT (geo_code, time, purchase, unit)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
       },
       "id": "insert-hpi",
       "name": "Insert HPI",

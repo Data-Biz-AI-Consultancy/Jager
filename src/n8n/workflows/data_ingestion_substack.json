@@ -141,7 +141,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO substack_posts (id, feed_id, feed_name, author, title, content, url, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  (SELECT id FROM substack_feeds_monitored WHERE name = '{{ $json.feed_name }}' LIMIT 1),\n  '{{ $json.feed_name }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content\nRETURNING id, feed_id;"
+        "query": "=INSERT INTO s_substack.posts (id, feed_id, feed_name, author, title, content, url, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  (SELECT id FROM s_substack.feeds_monitored WHERE name = '{{ $json.feed_name }}' LIMIT 1),\n  '{{ $json.feed_name }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content\nRETURNING id, feed_id;"
       },
       "id": "insert-posts",
       "name": "Insert/Upsert Posts",
@@ -161,7 +161,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO substack_feeds_monitored (id, name, feed_url, active)\nSELECT (val->>'id')::integer, val->>'name', val->>'feed_url', true\nFROM json_array_elements('{{ JSON.stringify($json.feeds) }}'::json) AS val\nON CONFLICT (name) \nDO UPDATE SET feed_url = EXCLUDED.feed_url, active = true;"
+        "query": "=INSERT INTO s_substack.feeds_monitored (id, name, feed_url, active)\nSELECT (val->>'id')::integer, val->>'name', val->>'feed_url', true\nFROM json_array_elements('{{ JSON.stringify($json.feeds) }}'::json) AS val\nON CONFLICT (name) \nDO UPDATE SET feed_url = EXCLUDED.feed_url, active = true;"
       },
       "id": "update-monitored-feeds",
       "name": "Update Monitored Feeds",

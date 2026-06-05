@@ -53,7 +53,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO eurostat_fx_rates (base_currency, target_currency, rate, rate_date)\nVALUES ('{{ $json.base_currency }}', '{{ $json.target_currency }}', {{ $json.rate }}, '{{ $json.rate_date }}')\nON CONFLICT (base_currency, target_currency, rate_date)\nDO UPDATE SET rate = EXCLUDED.rate;"
+        "query": "=INSERT INTO s_euro_stat.fx_rates (base_currency, target_currency, rate, rate_date)\nVALUES ('{{ $json.base_currency }}', '{{ $json.target_currency }}', {{ $json.rate }}, '{{ $json.rate_date }}')\nON CONFLICT (base_currency, target_currency, rate_date)\nDO UPDATE SET rate = EXCLUDED.rate;"
       },
       "id": "insert-fx",
       "name": "Insert FX Rates",

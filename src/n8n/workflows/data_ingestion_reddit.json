@@ -130,7 +130,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO reddit_posts (id, subreddit_id, author, title, content, url, score, created_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.subreddit_id }},\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  {{ $json.score }},\n  '{{ $json.created_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET score = EXCLUDED.score\nRETURNING id, subreddit_id;"
+        "query": "=INSERT INTO s_reddit.posts (id, subreddit_id, author, title, content, url, score, created_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.subreddit_id }},\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  {{ $json.score }},\n  '{{ $json.created_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET score = EXCLUDED.score\nRETURNING id, subreddit_id;"
       },
       "id": "insert-posts",
       "name": "Insert/Upsert Posts",
@@ -150,7 +150,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id FROM reddit_posts WHERE processed = 0 AND created_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date || $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }} 00:00:00+00' AND created_at < '{{ $('Ingestion Date Range Parameters').first().json.end_date || $now.toFormat('yyyy-MM-dd') }} 00:00:00+00' LIMIT 100;"
+        "query": "=SELECT id FROM s_reddit.posts WHERE processed = 0 AND created_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date || $now.minus({ days: 1 }).toFormat('yyyy-MM-dd') }} 00:00:00+00' AND created_at < '{{ $('Ingestion Date Range Parameters').first().json.end_date || $now.toFormat('yyyy-MM-dd') }} 00:00:00+00' LIMIT 100;"
       },
       "id": "get-unprocessed-posts",
       "name": "Get Unprocessed Posts",
@@ -199,7 +199,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO reddit_comments (id, post_id, author, content, score, created_at)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  {{ $json.score }},\n  '{{ $json.created_at }}'\n)\nON CONFLICT (id) \nDO UPDATE SET score = EXCLUDED.score;"
+        "query": "=INSERT INTO s_reddit.comments (id, post_id, author, content, score, created_at)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  {{ $json.score }},\n  '{{ $json.created_at }}'\n)\nON CONFLICT (id) \nDO UPDATE SET score = EXCLUDED.score;"
       },
       "id": "insert-comments",
       "name": "Insert/Upsert Comments",
@@ -219,7 +219,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE reddit_posts SET processed = 1 WHERE id = '{{ $json.id }}';"
+        "query": "=UPDATE s_reddit.posts SET processed = 1 WHERE id = '{{ $json.id }}';"
       },
       "id": "mark-posts-processed",
       "name": "Mark Posts as Processed",
@@ -239,7 +239,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO reddit_subreddits_monitored (id, name, active)\nSELECT (val->>'id')::integer, val->>'name', true\nFROM json_array_elements('{{ JSON.stringify($json.subreddits) }}'::json) AS val\nON CONFLICT (name) \nDO UPDATE SET active = true;"
+        "query": "=INSERT INTO s_reddit.subreddits_monitored (id, name, active)\nSELECT (val->>'id')::integer, val->>'name', true\nFROM json_array_elements('{{ JSON.stringify($json.subreddits) }}'::json) AS val\nON CONFLICT (name) \nDO UPDATE SET active = true;"
       },
       "id": "update-monitored-subreddits",
       "name": "Update Monitored Subreddits",

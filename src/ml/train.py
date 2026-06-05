@@ -9,7 +9,7 @@ def train_model(engine: Engine, symbol: str, lag_days: int):
     # 1. Fetch historical data from DB
     query = text("""
         SELECT price_timestamp, close_price, open_price, volume
-        FROM yahoo_finance_stock_prices
+        FROM s_yahoo_finance.stock_prices
         WHERE symbol = :symbol
         ORDER BY price_timestamp ASC
     """)
