@@ -5,6 +5,11 @@ import pytest
 import datetime
 import pandas as pd
 import numpy as np
+import warnings
+
+# Suppress deprecation warnings from third-party libraries
+warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Add src/ml to Python path so we can import the modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/ml')))
