@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
@@ -110,4 +110,42 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		('CodeLikeAGirl', 'https://codelikeagirl.substack.com/feed', TRUE),
 		('JimmyPang', 'https://jimmypang.substack.com/feed', TRUE)
 	ON CONFLICT (name) DO NOTHING;
+
+	CREATE TABLE IF NOT EXISTS linkedin_pages_monitored (
+		id SERIAL PRIMARY KEY,
+		urn VARCHAR(255) NOT NULL UNIQUE,
+		name VARCHAR(255),
+		type VARCHAR(50) NOT NULL, -- 'person' or 'organization'
+		feed_url VARCHAR(1024),
+		active BOOLEAN DEFAULT TRUE,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	ALTER TABLE linkedin_pages_monitored ADD COLUMN IF NOT EXISTS feed_url VARCHAR(1024);
+
+	CREATE TABLE IF NOT EXISTS linkedin_posts (
+		id VARCHAR(255) PRIMARY KEY,
+		page_db_id INTEGER REFERENCES linkedin_pages_monitored(id) ON DELETE CASCADE,
+		author_urn VARCHAR(255) NOT NULL,
+		content TEXT NOT NULL,
+		url VARCHAR(2048),
+		published_at TIMESTAMP WITH TIME ZONE,
+		processed INTEGER DEFAULT 0
+	);
+
+	CREATE TABLE IF NOT EXISTS linkedin_page_analytics (
+		id SERIAL PRIMARY KEY,
+		page_db_id INTEGER REFERENCES linkedin_pages_monitored(id) ON DELETE CASCADE,
+		followers_count INTEGER DEFAULT 0,
+		total_impressions INTEGER DEFAULT 0,
+		total_shares INTEGER DEFAULT 0,
+		total_likes INTEGER DEFAULT 0,
+		total_comments INTEGER DEFAULT 0,
+		recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	INSERT INTO linkedin_pages_monitored (urn, name, type, feed_url, active) VALUES 
+		('urn:li:person:mock_me', 'My Profile', 'person', 'https://rss.app/feeds/7eOCfnoIv3C6AVVl.xml', TRUE)
+	ON CONFLICT (urn) DO UPDATE SET feed_url = EXCLUDED.feed_url;
 EOSQL
+
