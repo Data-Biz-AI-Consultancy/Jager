@@ -34,11 +34,24 @@ def run_backtest(
     df = df.drop_duplicates(subset=['date'], keep='last').sort_values('date').reset_index(drop=True)
     
     total_records = len(df)
+    if total_records < 3:
+        raise ValueError(f"Not enough historical price data for {symbol} to run backtest. Minimum required: 3 records.")
+        
+    requested_params = {
+        "lag_days": lag_days,
+        "exclude_last_days": exclude_last_days,
+        "predict_days": predict_days
+    }
+    adjusted = False
+    
     if total_records < exclude_last_days + lag_days + 2:
-        raise ValueError(
-            f"Not enough data to run backtest. Total records: {total_records}. "
-            f"Required at least: exclude_last_days ({exclude_last_days}) + lag_days ({lag_days}) + 2."
-        )
+        adjusted = True
+        logger.warning(f"Insufficient records ({total_records}) for backtest parameters: exclude={exclude_last_days}, lag={lag_days}. Adjusting dynamically.")
+        exclude_last_days = max(1, min(exclude_last_days, total_records // 3))
+        remaining = total_records - exclude_last_days
+        lag_days = max(1, min(lag_days, remaining - 2))
+        predict_days = min(predict_days, exclude_last_days)
+        logger.warning(f"Adjusted parameters: exclude={exclude_last_days}, lag={lag_days}, predict={predict_days}")
         
     # 2. Split into Train Base and Validation
     # We train on data up to the last `exclude_last_days`
@@ -116,6 +129,15 @@ def run_backtest(
         "symbol": symbol,
         "train_records": len(df_train_clean),
         "r2_score": r2_score,
+        "parameter_adjustment": {
+            "adjusted": adjusted,
+            "requested": requested_params,
+            "applied": {
+                "lag_days": lag_days,
+                "exclude_last_days": exclude_last_days,
+                "predict_days": predict_days
+            }
+        },
         "metrics": {
             "mean_absolute_error": round(mae, 2),
             "root_mean_squared_error": round(rmse, 2),

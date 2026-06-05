@@ -64,6 +64,42 @@
         500,
         200
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ml:8000/backtest",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "symbol",
+              "value": "^GSPC"
+            },
+            {
+              "name": "lag_days",
+              "value": "5"
+            },
+            {
+              "name": "exclude_last_days",
+              "value": "14"
+            },
+            {
+              "name": "predict_days",
+              "value": "7"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-python-ml-backtest",
+      "name": "Call Python ML Backtest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        400
+      ]
     }
   ],
   "connections": {
@@ -72,6 +108,11 @@
         [
           {
             "node": "Call Python ML Predict",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call Python ML Backtest",
             "type": "main",
             "index": 0
           }
