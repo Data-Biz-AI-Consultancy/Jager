@@ -39,6 +39,16 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
 
+  ml:
+    build:
+      context: ./
+      dockerfile: src/ml/Dockerfile
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://jager:jager@db:5432/jager
+    depends_on:
+      - db
+
   caddy:
     image: caddy:alpine
     restart: unless-stopped

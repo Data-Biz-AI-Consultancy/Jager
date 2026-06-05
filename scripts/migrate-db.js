@@ -205,6 +205,23 @@ CREATE TABLE IF NOT EXISTS yahoo_finance_stock_prices (
   UNIQUE (symbol, price_timestamp)
 );
 
+CREATE SCHEMA IF NOT EXISTS prediction;
+
+CREATE TABLE IF NOT EXISTS prediction.stock_predictions (
+  id SERIAL PRIMARY KEY,
+  symbol VARCHAR(50) NOT NULL,
+  prediction_date DATE NOT NULL,
+  predicted_close_price NUMERIC NOT NULL,
+  actual_close_price NUMERIC,
+  trend VARCHAR(10),
+  confidence NUMERIC,
+  reasoning TEXT,
+  model_name VARCHAR(100) NOT NULL,
+  features JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (symbol, prediction_date, model_name)
+);
+
 
 
 
