@@ -119,6 +119,59 @@ CREATE TABLE IF NOT EXISTS eurostat_regional_crime_rates (
   UNIQUE (geo_code, year, offence_category, unit)
 );
 
+CREATE TABLE IF NOT EXISTS eurostat_inflation (
+  id SERIAL PRIMARY KEY,
+  geo_code VARCHAR(50) NOT NULL,
+  geo_name VARCHAR(255),
+  time VARCHAR(50) NOT NULL,
+  coicop_code VARCHAR(50) NOT NULL,
+  coicop_name VARCHAR(255),
+  unit VARCHAR(50),
+  value NUMERIC,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (geo_code, time, coicop_code, unit)
+);
+
+CREATE TABLE IF NOT EXISTS eurostat_quarterly_gdp (
+  id SERIAL PRIMARY KEY,
+  geo_code VARCHAR(50) NOT NULL,
+  geo_name VARCHAR(255),
+  time VARCHAR(50) NOT NULL,
+  na_item VARCHAR(50) NOT NULL,
+  unit VARCHAR(50),
+  s_adj VARCHAR(50),
+  value NUMERIC,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (geo_code, time, na_item, unit, s_adj)
+);
+
+CREATE TABLE IF NOT EXISTS eurostat_unemployment (
+  id SERIAL PRIMARY KEY,
+  geo_code VARCHAR(50) NOT NULL,
+  geo_name VARCHAR(255),
+  time VARCHAR(50) NOT NULL,
+  age VARCHAR(50),
+  sex VARCHAR(10),
+  unit VARCHAR(50),
+  s_adj VARCHAR(50),
+  value NUMERIC,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (geo_code, time, age, sex, unit, s_adj)
+);
+
+CREATE TABLE IF NOT EXISTS eurostat_house_price_index (
+  id SERIAL PRIMARY KEY,
+  geo_code VARCHAR(50) NOT NULL,
+  geo_name VARCHAR(255),
+  time VARCHAR(50) NOT NULL,
+  purchase VARCHAR(50),
+  unit VARCHAR(50),
+  value NUMERIC,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (geo_code, time, purchase, unit)
+);
+
+
 
 
 INSERT INTO reddit_subreddits_monitored (name, active) VALUES 
