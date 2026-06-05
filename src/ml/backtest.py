@@ -1,4 +1,3 @@
-import datetime
 import logging
 import numpy as np
 import pandas as pd
@@ -79,8 +78,6 @@ def run_backtest(
     recent_lags = [float(df_train_base.iloc[-1]['close_price'])] + [
         float(df_train_base.iloc[-1][f'lag_{i}']) for i in range(1, actual_lags)
     ]
-    
-    last_actual_price = float(df_train_base.iloc[-1]['close_price'])
     
     # The actual values we are comparing against are the first `predict_days` of the excluded dataset
     df_excluded = df.iloc[-exclude_last_days:].copy().reset_index(drop=True)
