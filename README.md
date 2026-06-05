@@ -34,6 +34,12 @@ To clone the production database to your local dev environment, run:
 node scripts/clone-db.js "postgresql://user:password@prod-host:5432/jager"
 ```
 
+> [!NOTE]
+> After cloning the database, it is recommended to restart the Docker containers so that N8N and other services hook onto the new databases properly:
+> ```bash
+> docker-compose down && docker-compose up -d
+> ```
+
 ---
 
 ## Release Pipeline

@@ -83,27 +83,45 @@ function cloneDatabase(dbName, prodUrl) {
   console.log(`Cloning Database: ${dbName}`);
   console.log('=========================================');
 
-  // Terminate existing connections
-  console.log(`Terminating existing connections to local database: ${dbName}...`);
+  const tempFile = `/tmp/${dbName}_prod_dump.sql`;
   try {
-    execSync(
-      `${dockerComposeCmd} exec -T db psql -U jager -d postgres -c ` +
-      `"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '${dbName}' AND pid <> pg_backend_pid();"`,
-      { stdio: 'ignore' }
-    );
-  } catch (e) {
-    // Ignore error if database has no connections or doesn't exist yet
+    // Run pg_dump first to ensure it succeeds before we drop/touch local databases
+    console.log(`Dumping from production URL to temporary file...`);
+    execSync(`${dockerComposeCmd} exec -T db pg_dump -d "${prodUrl}" --no-owner --no-privileges -f ${tempFile}`, { stdio: 'inherit' });
+
+    // Terminate existing connections
+    console.log(`Terminating existing connections to local database: ${dbName}...`);
+    try {
+      execSync(
+        `${dockerComposeCmd} exec -T db psql -U jager -d postgres -c ` +
+        `"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '${dbName}' AND pid <> pg_backend_pid();"`,
+        { stdio: 'ignore' }
+      );
+    } catch (e) {
+      // Ignore error if database has no connections or doesn't exist yet
+    }
+
+    // Drop and recreate local database
+    console.log(`Recreating local database: ${dbName}...`);
+    execSync(`${dockerComposeCmd} exec -T db psql -U jager -d postgres -c "DROP DATABASE IF EXISTS ${dbName};"`, { stdio: 'inherit' });
+    execSync(`${dockerComposeCmd} exec -T db psql -U jager -d postgres -c "CREATE DATABASE ${dbName};"`, { stdio: 'inherit' });
+    
+    // Restore from the temp file
+    console.log(`Restoring dump to local ${dbName}...`);
+    execSync(`${dockerComposeCmd} exec -T db psql -U jager -d "${dbName}" -f ${tempFile}`, { stdio: 'inherit' });
+    
+    console.log(`Successfully cloned ${dbName}!`);
+  } catch (error) {
+    console.error(`Error cloning database ${dbName}:`, error.message);
+    throw error;
+  } finally {
+    // Clean up temp file
+    try {
+      execSync(`${dockerComposeCmd} exec -T db rm -f ${tempFile}`, { stdio: 'ignore' });
+    } catch (e) {
+      // Ignore cleanup errors
+    }
   }
-
-  // Drop and recreate local database
-  console.log(`Recreating local database: ${dbName}...`);
-  execSync(`${dockerComposeCmd} exec -T db psql -U jager -d postgres -c "DROP DATABASE IF EXISTS ${dbName};"`, { stdio: 'inherit' });
-  execSync(`${dockerComposeCmd} exec -T db psql -U jager -d postgres -c "CREATE DATABASE ${dbName};"`, { stdio: 'inherit' });
-
-  console.log(`Dumping from production URL and restoring to local ${dbName}...`);
-  execSync(`${dockerComposeCmd} exec -T db pg_dump -d "${prodUrl}" --no-owner --no-privileges | ${dockerComposeCmd} exec -T db psql -U jager -d "${dbName}"`, { stdio: 'inherit' });
-
-  console.log(`Successfully cloned ${dbName}!`);
 }
 
 // Clone jager
