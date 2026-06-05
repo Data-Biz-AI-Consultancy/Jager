@@ -19,8 +19,8 @@ services:
       context: ./
       dockerfile: src/n8n/Dockerfile
     restart: always
-    expose:
-      - "5678"
+    ports:
+      - "5678:5678"
     environment:
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=db
@@ -36,7 +36,7 @@ services:
       - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
       - LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID}
       - LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET}
-      - WEBHOOK_URL=https://localhost/
+      - WEBHOOK_URL=http://localhost:5678/
     depends_on:
       - db
     volumes:
