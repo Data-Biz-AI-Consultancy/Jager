@@ -26,6 +26,20 @@ docker-compose up --build -d
 
 Access your local N8N instance at [http://localhost:5678](http://localhost:5678).
 
+### Cloning Production Database
+
+To clone the production database to your local dev environment, run:
+
+```bash
+node scripts/clone-db.js "postgresql://YOUR_PROD_USER:YOUR_PROD_PASSWORD@YOUR_PROD_HOST:5432/jager"
+```
+
+> [!NOTE]
+> After cloning the database, you should rebuild and restart the Docker containers so that N8N and other services hook onto the new databases properly:
+> ```bash
+> docker-compose up --build -d
+> ```
+
 ---
 
 ## Release Pipeline
