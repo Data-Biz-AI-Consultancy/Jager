@@ -168,6 +168,16 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		UNIQUE (geo_code, time, purchase, unit)
 	);
 
+	CREATE TABLE IF NOT EXISTS eurostat_fx_rates (
+		id SERIAL PRIMARY KEY,
+		base_currency VARCHAR(3) NOT NULL,
+		target_currency VARCHAR(3) NOT NULL,
+		rate NUMERIC NOT NULL,
+		rate_date DATE NOT NULL,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		UNIQUE (base_currency, target_currency, rate_date)
+	);
+
 
 
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('smallbusiness', TRUE) ON CONFLICT (name) DO NOTHING;
