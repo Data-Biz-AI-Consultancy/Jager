@@ -25,7 +25,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://ml:8000/predict",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/predict",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -53,7 +53,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://ml:8000/evaluate",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/evaluate",
         "options": {}
       },
       "id": "call-python-ml-evaluate",
@@ -68,7 +68,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://ml:8000/backtest",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/backtest",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
