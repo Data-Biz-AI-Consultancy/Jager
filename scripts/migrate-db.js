@@ -21,7 +21,13 @@ if (process.env.DATABASE_URL) {
 }
 
 const ddl = `
-CREATE TABLE IF NOT EXISTS reddit_subreddits_monitored (
+CREATE SCHEMA IF NOT EXISTS s_reddit;
+CREATE SCHEMA IF NOT EXISTS s_slack;
+CREATE SCHEMA IF NOT EXISTS s_substack;
+CREATE SCHEMA IF NOT EXISTS s_euro_stat;
+CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
+
+CREATE TABLE IF NOT EXISTS s_reddit.subreddits_monitored (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL UNIQUE,
   active BOOLEAN DEFAULT TRUE,
@@ -32,9 +38,9 @@ CREATE TABLE IF NOT EXISTS reddit_subreddits_monitored (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS reddit_posts (
+CREATE TABLE IF NOT EXISTS s_reddit.posts (
   id VARCHAR(255) PRIMARY KEY,
-  subreddit_id INTEGER REFERENCES reddit_subreddits_monitored(id) ON DELETE CASCADE,
+  subreddit_id INTEGER REFERENCES s_reddit.subreddits_monitored(id) ON DELETE CASCADE,
   author VARCHAR(255),
   title VARCHAR(1024),
   content TEXT NOT NULL,
@@ -44,7 +50,7 @@ CREATE TABLE IF NOT EXISTS reddit_posts (
   processed INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS reddit_comments (
+CREATE TABLE IF NOT EXISTS s_reddit.comments (
   id VARCHAR(255) PRIMARY KEY,
   post_id VARCHAR(255) NOT NULL,
   author VARCHAR(255),
@@ -53,7 +59,7 @@ CREATE TABLE IF NOT EXISTS reddit_comments (
   created_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE TABLE IF NOT EXISTS slack_workspaces_monitored (
+CREATE TABLE IF NOT EXISTS s_slack.workspaces_monitored (
   id SERIAL PRIMARY KEY,
   workspace_id VARCHAR(255) NOT NULL UNIQUE,
   workspace_name VARCHAR(255),
@@ -64,9 +70,9 @@ CREATE TABLE IF NOT EXISTS slack_workspaces_monitored (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS slack_channels_monitored (
+CREATE TABLE IF NOT EXISTS s_slack.channels_monitored (
   id SERIAL PRIMARY KEY,
-  workspace_id INTEGER REFERENCES slack_workspaces_monitored(id) ON DELETE CASCADE,
+  workspace_id INTEGER REFERENCES s_slack.workspaces_monitored(id) ON DELETE CASCADE,
   channel_id VARCHAR(255) NOT NULL,
   name VARCHAR(255),
   active BOOLEAN DEFAULT TRUE,
@@ -74,9 +80,9 @@ CREATE TABLE IF NOT EXISTS slack_channels_monitored (
   UNIQUE (workspace_id, channel_id)
 );
 
-CREATE TABLE IF NOT EXISTS slack_messages (
+CREATE TABLE IF NOT EXISTS s_slack.messages (
   id VARCHAR(255) PRIMARY KEY,
-  channel_db_id INTEGER REFERENCES slack_channels_monitored(id) ON DELETE CASCADE,
+  channel_db_id INTEGER REFERENCES s_slack.channels_monitored(id) ON DELETE CASCADE,
   author VARCHAR(255),
   content TEXT NOT NULL,
   url VARCHAR(2048),
@@ -84,7 +90,7 @@ CREATE TABLE IF NOT EXISTS slack_messages (
   processed INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS substack_feeds_monitored (
+CREATE TABLE IF NOT EXISTS s_substack.feeds_monitored (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL UNIQUE,
   feed_url VARCHAR(1024) NOT NULL UNIQUE,
@@ -92,9 +98,9 @@ CREATE TABLE IF NOT EXISTS substack_feeds_monitored (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS substack_posts (
+CREATE TABLE IF NOT EXISTS s_substack.posts (
   id VARCHAR(255) PRIMARY KEY,
-  feed_id INTEGER REFERENCES substack_feeds_monitored(id) ON DELETE CASCADE,
+  feed_id INTEGER REFERENCES s_substack.feeds_monitored(id) ON DELETE CASCADE,
   feed_name VARCHAR(255),
   author VARCHAR(255),
   title VARCHAR(1024),
@@ -104,10 +110,10 @@ CREATE TABLE IF NOT EXISTS substack_posts (
   processed INTEGER DEFAULT 0
 );
 
-ALTER TABLE substack_posts ADD COLUMN IF NOT EXISTS feed_name VARCHAR(255);
+ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS feed_name VARCHAR(255);
 
 
-CREATE TABLE IF NOT EXISTS eurostat_regional_gdp (
+CREATE TABLE IF NOT EXISTS s_euro_stat.regional_gdp (
   id SERIAL PRIMARY KEY,
   geo_code VARCHAR(50) NOT NULL,
   geo_name VARCHAR(255),
@@ -118,7 +124,7 @@ CREATE TABLE IF NOT EXISTS eurostat_regional_gdp (
   UNIQUE (geo_code, year, unit)
 );
 
-CREATE TABLE IF NOT EXISTS eurostat_regional_crime_rates (
+CREATE TABLE IF NOT EXISTS s_euro_stat.regional_crime_rates (
   id SERIAL PRIMARY KEY,
   geo_code VARCHAR(50) NOT NULL,
   geo_name VARCHAR(255),
@@ -130,7 +136,7 @@ CREATE TABLE IF NOT EXISTS eurostat_regional_crime_rates (
   UNIQUE (geo_code, year, offence_category, unit)
 );
 
-CREATE TABLE IF NOT EXISTS eurostat_inflation (
+CREATE TABLE IF NOT EXISTS s_euro_stat.inflation (
   id SERIAL PRIMARY KEY,
   geo_code VARCHAR(50) NOT NULL,
   geo_name VARCHAR(255),
@@ -143,7 +149,7 @@ CREATE TABLE IF NOT EXISTS eurostat_inflation (
   UNIQUE (geo_code, time, coicop_code, unit)
 );
 
-CREATE TABLE IF NOT EXISTS eurostat_quarterly_gdp (
+CREATE TABLE IF NOT EXISTS s_euro_stat.quarterly_gdp (
   id SERIAL PRIMARY KEY,
   geo_code VARCHAR(50) NOT NULL,
   geo_name VARCHAR(255),
@@ -156,7 +162,7 @@ CREATE TABLE IF NOT EXISTS eurostat_quarterly_gdp (
   UNIQUE (geo_code, time, na_item, unit, s_adj)
 );
 
-CREATE TABLE IF NOT EXISTS eurostat_unemployment (
+CREATE TABLE IF NOT EXISTS s_euro_stat.unemployment (
   id SERIAL PRIMARY KEY,
   geo_code VARCHAR(50) NOT NULL,
   geo_name VARCHAR(255),
@@ -170,7 +176,7 @@ CREATE TABLE IF NOT EXISTS eurostat_unemployment (
   UNIQUE (geo_code, time, age, sex, unit, s_adj)
 );
 
-CREATE TABLE IF NOT EXISTS eurostat_house_price_index (
+CREATE TABLE IF NOT EXISTS s_euro_stat.house_price_index (
   id SERIAL PRIMARY KEY,
   geo_code VARCHAR(50) NOT NULL,
   geo_name VARCHAR(255),
@@ -182,7 +188,7 @@ CREATE TABLE IF NOT EXISTS eurostat_house_price_index (
   UNIQUE (geo_code, time, purchase, unit)
 );
 
-CREATE TABLE IF NOT EXISTS eurostat_fx_rates (
+CREATE TABLE IF NOT EXISTS s_euro_stat.fx_rates (
   id SERIAL PRIMARY KEY,
   base_currency VARCHAR(3) NOT NULL,
   target_currency VARCHAR(3) NOT NULL,
@@ -192,7 +198,7 @@ CREATE TABLE IF NOT EXISTS eurostat_fx_rates (
   UNIQUE (base_currency, target_currency, rate_date)
 );
 
-CREATE TABLE IF NOT EXISTS yahoo_finance_stock_prices (
+CREATE TABLE IF NOT EXISTS s_yahoo_finance.stock_prices (
   id SERIAL PRIMARY KEY,
   symbol VARCHAR(50) NOT NULL,
   price_timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -234,11 +240,10 @@ CREATE TABLE IF NOT EXISTS training.trained_models (
   UNIQUE (symbol, model_name)
 );
 
+`;
 
-
-
-
-INSERT INTO reddit_subreddits_monitored (name, active) VALUES 
+const seeds = `
+INSERT INTO s_reddit.subreddits_monitored (name, active) VALUES 
 ('smallbusiness', TRUE),
 ('saas', TRUE),
 ('solopreneur', TRUE),
@@ -249,7 +254,7 @@ INSERT INTO reddit_subreddits_monitored (name, active) VALUES
 ('growmybusiness', TRUE)
 ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO substack_feeds_monitored (name, feed_url, active) 
+INSERT INTO s_substack.feeds_monitored (name, feed_url, active) 
 VALUES 
 ('SeattleDataGuy', 'https://seattledataguy.substack.com/feed', TRUE),
 ('Decision', 'https://decision.substack.com/feed', TRUE),
@@ -266,7 +271,73 @@ async function run() {
   await client.connect();
   console.log('Running application database migrations...');
   await client.query(ddl);
-  console.log('Application database migrations completed successfully.');
+
+  const migrations = [
+    // Parent Tables (Migrated first to resolve FK dependencies)
+    { oldTable: 'reddit_subreddits_monitored', newTable: 's_reddit.subreddits_monitored', hasSerial: true },
+    { oldTable: 'slack_workspaces_monitored', newTable: 's_slack.workspaces_monitored', hasSerial: true },
+    { oldTable: 'substack_feeds_monitored', newTable: 's_substack.feeds_monitored', hasSerial: true },
+
+    // Child/Dependent Tables
+    { oldTable: 'reddit_posts', newTable: 's_reddit.posts', hasSerial: false },
+    { oldTable: 'reddit_comments', newTable: 's_reddit.comments', hasSerial: false },
+    { oldTable: 'slack_channels_monitored', newTable: 's_slack.channels_monitored', hasSerial: true },
+    { oldTable: 'slack_messages', newTable: 's_slack.messages', hasSerial: false },
+    { oldTable: 'substack_posts', newTable: 's_substack.posts', hasSerial: false },
+
+    // Eurostat & Yahoo
+    { oldTable: 'eurostat_regional_gdp', newTable: 's_euro_stat.regional_gdp', hasSerial: true },
+    { oldTable: 'eurostat_regional_crime_rates', newTable: 's_euro_stat.regional_crime_rates', hasSerial: true },
+    { oldTable: 'eurostat_inflation', newTable: 's_euro_stat.inflation', hasSerial: true },
+    { oldTable: 'eurostat_quarterly_gdp', newTable: 's_euro_stat.quarterly_gdp', hasSerial: true },
+    { oldTable: 'eurostat_unemployment', newTable: 's_euro_stat.unemployment', hasSerial: true },
+    { oldTable: 'eurostat_house_price_index', newTable: 's_euro_stat.house_price_index', hasSerial: true },
+    { oldTable: 'eurostat_fx_rates', newTable: 's_euro_stat.fx_rates', hasSerial: true },
+    { oldTable: 'yahoo_finance_stock_prices', newTable: 's_yahoo_finance.stock_prices', hasSerial: true },
+  ];
+
+  console.log('Checking for legacy data to migrate from public schema...');
+  for (const m of migrations) {
+    const checkRes = await client.query(
+      `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)`,
+      [m.oldTable]
+    );
+    if (checkRes.rows[0].exists) {
+      // Find common columns
+      const [newSchema, newTableName] = m.newTable.split('.');
+      const colsRes = await client.query(
+        `SELECT column_name FROM information_schema.columns 
+         WHERE table_schema = 'public' AND table_name = $1
+         INTERSECT
+         SELECT column_name FROM information_schema.columns 
+         WHERE table_schema = $2 AND table_name = $3`,
+        [m.oldTable, newSchema, newTableName]
+      );
+      const commonCols = colsRes.rows.map(r => `"${r.column_name}"`).join(', ');
+
+      console.log(`Migrating data from public.${m.oldTable} to ${m.newTable} using columns: ${commonCols}...`);
+      
+      // Copy data
+      await client.query(`INSERT INTO ${m.newTable} (${commonCols}) SELECT ${commonCols} FROM public.${m.oldTable} ON CONFLICT DO NOTHING`);
+      
+      // Update serial sequence if needed
+      if (m.hasSerial) {
+        await client.query(
+          `SELECT setval(pg_get_serial_sequence($1, 'id'), coalesce(max(id), 1)) FROM ${m.newTable}`,
+          [m.newTable]
+        );
+      }
+      
+      // Drop old table
+      console.log(`Dropping legacy table public.${m.oldTable}...`);
+      await client.query(`DROP TABLE public.${m.oldTable} CASCADE`);
+    }
+  }
+
+  console.log('Seeding default feeds and subreddits...');
+  await client.query(seeds);
+
+  console.log('Application database migrations and data transfers completed successfully.');
   await client.end();
 }
 

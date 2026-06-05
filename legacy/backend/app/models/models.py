@@ -3,7 +3,8 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 
 class RedditSubredditMonitored(Base):
-    __tablename__ = "reddit_subreddits_monitored"
+    __tablename__ = "subreddits_monitored"
+    __table_args__ = {'schema': 's_reddit'}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False, unique=True)       # Subreddit name (e.g. 'smallbusiness')
@@ -18,10 +19,11 @@ class RedditSubredditMonitored(Base):
 
 
 class RedditPost(Base):
-    __tablename__ = "reddit_posts"
+    __tablename__ = "posts"
+    __table_args__ = {'schema': 's_reddit'}
 
     id = Column(String, primary_key=True)                    # Format: t3_abc123
-    subreddit_id = Column(Integer, ForeignKey("reddit_subreddits_monitored.id", ondelete="CASCADE"), nullable=False)
+    subreddit_id = Column(Integer, ForeignKey("s_reddit.subreddits_monitored.id", ondelete="CASCADE"), nullable=False)
     author = Column(String, nullable=True)
     title = Column(String, nullable=True)
     content = Column(Text, nullable=False)
@@ -36,7 +38,8 @@ class RedditPost(Base):
 
 
 class RedditComment(Base):
-    __tablename__ = "reddit_comments"
+    __tablename__ = "comments"
+    __table_args__ = {'schema': 's_reddit'}
 
     id = Column(String, primary_key=True)                    # Format: t1_xyz789
     post_id = Column(String, nullable=False)                 # Loaded by dlt, no DB-level foreign key to avoid race conditions
@@ -52,7 +55,7 @@ class Lead(Base):
     __tablename__ = "leads"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    post_id = Column(String, ForeignKey("reddit_posts.id", ondelete="CASCADE"), nullable=False)
+    post_id = Column(String, ForeignKey("s_reddit.posts.id", ondelete="CASCADE"), nullable=False)
     intent_score = Column(Float, nullable=True)              # Confidence score of relevance (0.0 to 1.0)
     pain_point = Column(Text, nullable=True)                 # Extracted core challenge
     budget = Column(String, nullable=True)                   # Budget details if mentioned

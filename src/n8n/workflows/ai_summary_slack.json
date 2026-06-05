@@ -25,7 +25,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  s.name AS subreddit_name,\n  s.active AS subreddit_active,\n  p.id AS post_id,\n  p.title AS post_title,\n  p.content AS post_content,\n  p.author AS post_author,\n  p.url AS post_url,\n  p.created_at AS post_created_at,\n  c.id AS comment_id,\n  c.author AS comment_author,\n  c.content AS comment_content,\n  c.created_at AS comment_created_at\nFROM reddit_subreddits_monitored s\nLEFT JOIN reddit_posts p ON p.subreddit_id = s.id AND p.created_at >= NOW() - INTERVAL '1 day'\nLEFT JOIN reddit_comments c ON c.post_id = p.id\nORDER BY s.name, p.created_at DESC, c.created_at DESC;"
+        "query": "SELECT \n  s.name AS subreddit_name,\n  s.active AS subreddit_active,\n  p.id AS post_id,\n  p.title AS post_title,\n  p.content AS post_content,\n  p.author AS post_author,\n  p.url AS post_url,\n  p.created_at AS post_created_at,\n  c.id AS comment_id,\n  c.author AS comment_author,\n  c.content AS comment_content,\n  c.created_at AS comment_created_at\nFROM s_reddit.subreddits_monitored s\nLEFT JOIN s_reddit.posts p ON p.subreddit_id = s.id AND p.created_at >= NOW() - INTERVAL '1 day'\nLEFT JOIN s_reddit.comments c ON c.post_id = p.id\nORDER BY s.name, p.created_at DESC, c.created_at DESC;"
       },
       "id": "get-latest-posts",
       "name": "Get Latest Posts",

@@ -105,7 +105,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO yahoo_finance_stock_prices (symbol, price_timestamp, open_price, high_price, low_price, close_price, volume)\nVALUES ('{{ $json.symbol }}', '{{ $json.price_timestamp }}', {{ $json.open_price !== null ? $json.open_price : 'NULL' }}, {{ $json.high_price !== null ? $json.high_price : 'NULL' }}, {{ $json.low_price !== null ? $json.low_price : 'NULL' }}, {{ $json.close_price !== null ? $json.close_price : 'NULL' }}, {{ $json.volume !== null ? $json.volume : 'NULL' }})\nON CONFLICT (symbol, price_timestamp)\nDO UPDATE SET \n  open_price = EXCLUDED.open_price,\n  high_price = EXCLUDED.high_price,\n  low_price = EXCLUDED.low_price,\n  close_price = EXCLUDED.close_price,\n  volume = EXCLUDED.volume;"
+        "query": "=INSERT INTO s_yahoo_finance.stock_prices (symbol, price_timestamp, open_price, high_price, low_price, close_price, volume)\nVALUES ('{{ $json.symbol }}', '{{ $json.price_timestamp }}', {{ $json.open_price !== null ? $json.open_price : 'NULL' }}, {{ $json.high_price !== null ? $json.high_price : 'NULL' }}, {{ $json.low_price !== null ? $json.low_price : 'NULL' }}, {{ $json.close_price !== null ? $json.close_price : 'NULL' }}, {{ $json.volume !== null ? $json.volume : 'NULL' }})\nON CONFLICT (symbol, price_timestamp)\nDO UPDATE SET \n  open_price = EXCLUDED.open_price,\n  high_price = EXCLUDED.high_price,\n  low_price = EXCLUDED.low_price,\n  close_price = EXCLUDED.close_price,\n  volume = EXCLUDED.volume;"
       },
       "id": "insert-database",
       "name": "Insert/Update Database",

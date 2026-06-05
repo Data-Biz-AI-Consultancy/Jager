@@ -84,7 +84,7 @@ def evaluate_predictions():
         # Check if we have an actual close price for this date
         check_query = text("""
             SELECT close_price
-            FROM yahoo_finance_stock_prices
+            FROM s_yahoo_finance.stock_prices
             WHERE symbol = :symbol AND price_timestamp::date = :pred_date
             ORDER BY price_timestamp DESC
             LIMIT 1
