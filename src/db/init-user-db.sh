@@ -116,9 +116,12 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		urn VARCHAR(255) NOT NULL UNIQUE,
 		name VARCHAR(255),
 		type VARCHAR(50) NOT NULL, -- 'person' or 'organization'
+		feed_url VARCHAR(1024),
 		active BOOLEAN DEFAULT TRUE,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
+
+	ALTER TABLE linkedin_pages_monitored ADD COLUMN IF NOT EXISTS feed_url VARCHAR(1024);
 
 	CREATE TABLE IF NOT EXISTS linkedin_posts (
 		id VARCHAR(255) PRIMARY KEY,
@@ -141,8 +144,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
 
-	INSERT INTO linkedin_pages_monitored (urn, name, type, active) VALUES 
-		('urn:li:person:mock_me', 'My Profile', 'person', TRUE)
-	ON CONFLICT (urn) DO NOTHING;
+	INSERT INTO linkedin_pages_monitored (urn, name, type, feed_url, active) VALUES 
+		('urn:li:person:mock_me', 'My Profile', 'person', 'https://rss.app/feeds/7eOCfnoIv3C6AVVl.xml', TRUE)
+	ON CONFLICT (urn) DO UPDATE SET feed_url = EXCLUDED.feed_url;
 EOSQL
 
