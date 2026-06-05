@@ -25,8 +25,7 @@
     {
       "parameters": {
         "url": "https://api.linkedin.com/v2/me",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "linkedInOAuth2Api",
+        "authentication": "oAuth2",
         "options": {}
       },
       "id": "get-linkedin-profile",
@@ -38,7 +37,7 @@
         300
       ],
       "credentials": {
-        "linkedInOAuth2Api": {
+        "oAuth2Api": {
           "id": "linkedin-oauth2",
           "name": "LinkedIn OAuth2 Credential"
         }
@@ -47,8 +46,7 @@
     {
       "parameters": {
         "url": "=https://api.linkedin.com/v2/ugcPosts?q=authors&authors=urn:li:person:{{ $json.id }}",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "linkedInOAuth2Api",
+        "authentication": "oAuth2",
         "options": {}
       },
       "id": "fetch-linkedin-posts",
@@ -60,7 +58,7 @@
         300
       ],
       "credentials": {
-        "linkedInOAuth2Api": {
+        "oAuth2Api": {
           "id": "linkedin-oauth2",
           "name": "LinkedIn OAuth2 Credential"
         }
