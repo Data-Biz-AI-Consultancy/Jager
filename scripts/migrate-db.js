@@ -240,10 +240,9 @@ CREATE TABLE IF NOT EXISTS training.trained_models (
   UNIQUE (symbol, model_name)
 );
 
+`;
 
-
-
-
+const seeds = `
 INSERT INTO s_reddit.subreddits_monitored (name, active) VALUES 
 ('smallbusiness', TRUE),
 ('saas', TRUE),
@@ -272,7 +271,73 @@ async function run() {
   await client.connect();
   console.log('Running application database migrations...');
   await client.query(ddl);
-  console.log('Application database migrations completed successfully.');
+
+  const migrations = [
+    // Parent Tables (Migrated first to resolve FK dependencies)
+    { oldTable: 'reddit_subreddits_monitored', newTable: 's_reddit.subreddits_monitored', hasSerial: true },
+    { oldTable: 'slack_workspaces_monitored', newTable: 's_slack.workspaces_monitored', hasSerial: true },
+    { oldTable: 'substack_feeds_monitored', newTable: 's_substack.feeds_monitored', hasSerial: true },
+
+    // Child/Dependent Tables
+    { oldTable: 'reddit_posts', newTable: 's_reddit.posts', hasSerial: false },
+    { oldTable: 'reddit_comments', newTable: 's_reddit.comments', hasSerial: false },
+    { oldTable: 'slack_channels_monitored', newTable: 's_slack.channels_monitored', hasSerial: true },
+    { oldTable: 'slack_messages', newTable: 's_slack.messages', hasSerial: false },
+    { oldTable: 'substack_posts', newTable: 's_substack.posts', hasSerial: false },
+
+    // Eurostat & Yahoo
+    { oldTable: 'eurostat_regional_gdp', newTable: 's_euro_stat.regional_gdp', hasSerial: true },
+    { oldTable: 'eurostat_regional_crime_rates', newTable: 's_euro_stat.regional_crime_rates', hasSerial: true },
+    { oldTable: 'eurostat_inflation', newTable: 's_euro_stat.inflation', hasSerial: true },
+    { oldTable: 'eurostat_quarterly_gdp', newTable: 's_euro_stat.quarterly_gdp', hasSerial: true },
+    { oldTable: 'eurostat_unemployment', newTable: 's_euro_stat.unemployment', hasSerial: true },
+    { oldTable: 'eurostat_house_price_index', newTable: 's_euro_stat.house_price_index', hasSerial: true },
+    { oldTable: 'eurostat_fx_rates', newTable: 's_euro_stat.fx_rates', hasSerial: true },
+    { oldTable: 'yahoo_finance_stock_prices', newTable: 's_yahoo_finance.stock_prices', hasSerial: true },
+  ];
+
+  console.log('Checking for legacy data to migrate from public schema...');
+  for (const m of migrations) {
+    const checkRes = await client.query(
+      `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)`,
+      [m.oldTable]
+    );
+    if (checkRes.rows[0].exists) {
+      // Find common columns
+      const [newSchema, newTableName] = m.newTable.split('.');
+      const colsRes = await client.query(
+        `SELECT column_name FROM information_schema.columns 
+         WHERE table_schema = 'public' AND table_name = $1
+         INTERSECT
+         SELECT column_name FROM information_schema.columns 
+         WHERE table_schema = $2 AND table_name = $3`,
+        [m.oldTable, newSchema, newTableName]
+      );
+      const commonCols = colsRes.rows.map(r => `"${r.column_name}"`).join(', ');
+
+      console.log(`Migrating data from public.${m.oldTable} to ${m.newTable} using columns: ${commonCols}...`);
+      
+      // Copy data
+      await client.query(`INSERT INTO ${m.newTable} (${commonCols}) SELECT ${commonCols} FROM public.${m.oldTable} ON CONFLICT DO NOTHING`);
+      
+      // Update serial sequence if needed
+      if (m.hasSerial) {
+        await client.query(
+          `SELECT setval(pg_get_serial_sequence($1, 'id'), coalesce(max(id), 1)) FROM ${m.newTable}`,
+          [m.newTable]
+        );
+      }
+      
+      // Drop old table
+      console.log(`Dropping legacy table public.${m.oldTable}...`);
+      await client.query(`DROP TABLE public.${m.oldTable} CASCADE`);
+    }
+  }
+
+  console.log('Seeding default feeds and subreddits...');
+  await client.query(seeds);
+
+  console.log('Application database migrations and data transfers completed successfully.');
   await client.end();
 }
 
