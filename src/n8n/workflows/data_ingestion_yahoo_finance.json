@@ -28,10 +28,13 @@
         "assignments": {
           "assignments": [
             {
-              "id": "param-symbol",
-              "name": "symbol",
-              "type": "string",
-              "value": "^GSPC"
+              "id": "param-symbols",
+              "name": "symbols",
+              "type": "array",
+              "value": [
+                "S&P500",
+                "DAX"
+              ]
             },
             {
               "id": "param-interval",
@@ -59,6 +62,20 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst symbols = data.symbols || [];\n\nconst tickerMap = {\n  'S&P500': '^GSPC',\n  'S&P 500': '^GSPC',\n  'DAX': '^GDAXI'\n};\n\nreturn symbols.map(sym => {\n  const resolvedSymbol = tickerMap[sym] || sym;\n  return {\n    json: {\n      symbol: resolvedSymbol,\n      displayName: sym,\n      interval: data.interval || '1h',\n      range: data.range || '5d'\n    }\n  };\n});"
+      },
+      "id": "generate-items",
+      "name": "Generate Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "url": "=https://query1.finance.yahoo.com/v8/finance/chart/{{ $json.symbol }}?interval={{ $json.interval }}&range={{ $json.range }}",
         "options": {}
       },
@@ -67,21 +84,21 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        400,
+        550,
         300
       ]
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const response = $input.first().json;\nif (!response || !response.chart || !response.chart.result || !response.chart.result[0]) {\n  return [];\n}\n\nconst result = response.chart.result[0];\nconst timestamps = result.timestamp || [];\nconst quotes = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};\n\nconst opens = quotes.open || [];\nconst highs = quotes.high || [];\nconst lows = quotes.low || [];\nconst closes = quotes.close || [];\nconst volumes = quotes.volume || [];\n\nconst parsedData = [];\n\nfor (let i = 0; i < timestamps.length; i++) {\n  // Only include if timestamp and at least close price is present\n  if (timestamps[i] && closes[i] !== null && closes[i] !== undefined) {\n    parsedData.push({\n      symbol: result.meta.symbol || '^GSPC',\n      price_timestamp: new Date(timestamps[i] * 1000).toISOString(),\n      open_price: opens[i] !== null ? opens[i] : null,\n      high_price: highs[i] !== null ? highs[i] : null,\n      low_price: lows[i] !== null ? lows[i] : null,\n      close_price: closes[i] !== null ? closes[i] : null,\n      volume: volumes[i] !== null ? volumes[i] : null\n    });\n  }\n}\n\nreturn parsedData;"
+        "jsCode": "const items = $input.all();\nconst parsedData = [];\n\nfor (const item of items) {\n  const response = item.json;\n  if (!response || !response.chart || !response.chart.result || !response.chart.result[0]) {\n    continue;\n  }\n\n  const result = response.chart.result[0];\n  const timestamps = result.timestamp || [];\n  const quotes = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};\n\n  const opens = quotes.open || [];\n  const highs = quotes.high || [];\n  const lows = quotes.low || [];\n  const closes = quotes.close || [];\n  const volumes = quotes.volume || [];\n\n  for (let i = 0; i < timestamps.length; i++) {\n    if (timestamps[i] && closes[i] !== null && closes[i] !== undefined) {\n      parsedData.push({\n        symbol: result.meta.symbol || 'UNKNOWN',\n        price_timestamp: new Date(timestamps[i] * 1000).toISOString(),\n        open_price: opens[i] !== null ? opens[i] : null,\n        high_price: highs[i] !== null ? highs[i] : null,\n        low_price: lows[i] !== null ? lows[i] : null,\n        close_price: closes[i] !== null ? closes[i] : null,\n        volume: volumes[i] !== null ? volumes[i] : null\n      });\n    }\n  }\n}\n\nreturn parsedData;"
       },
       "id": "parse-yahoo-finance",
       "name": "Parse Yahoo Finance",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        600,
+        700,
         300
       ]
     },
@@ -95,7 +112,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        800,
+        850,
         300
       ],
       "credentials": {
@@ -119,6 +136,17 @@
       ]
     },
     "Set Parameters": {
+      "main": [
+        [
+          {
+            "node": "Generate Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Items": {
       "main": [
         [
           {
