@@ -1,0 +1,188 @@
+{
+  "id": "eurostat-ingestion-workflow",
+  "name": "Data Ingestion - Eurostat (GDP & Crime)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "value": 7
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nama_10r_3gdp?format=json&lang=en&geo=DE&geo=DE300&unit=MIO_EUR",
+        "options": {}
+      },
+      "id": "fetch-gdp-api",
+      "name": "Fetch GDP API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/crim_gen_reg?format=json&lang=en&geo=DE&geo=DE300",
+        "options": {}
+      },
+      "id": "fetch-crime-api",
+      "name": "Fetch Crime API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst id = data.id;\nconst size = data.size;\nconst values = data.value || {};\nconst dimensions = data.dimension;\n\nconst results = [];\n\nconst freqKeys = Object.keys(dimensions.freq.category.index);\nconst unitKeys = Object.keys(dimensions.unit.category.index);\nconst geoKeys = Object.keys(dimensions.geo.category.index);\nconst timeKeys = Object.keys(dimensions.time.category.index);\n\nfor (const freq of freqKeys) {\n  const i_freq = dimensions.freq.category.index[freq];\n  for (const unit of unitKeys) {\n    const i_unit = dimensions.unit.category.index[unit];\n    for (const geo of geoKeys) {\n      const i_geo = dimensions.geo.category.index[geo];\n      const geoName = dimensions.geo.category.label[geo] || geo;\n      for (const time of timeKeys) {\n        const i_time = dimensions.time.category.index[time];\n        \n        const idx = i_freq * (size[1] * size[2] * size[3]) +\n                    i_unit * (size[2] * size[3]) +\n                    i_geo * size[3] +\n                    i_time;\n                    \n        const val = values[idx.toString()];\n        if (val !== undefined && val !== null) {\n          results.push({\n            geo_code: geo,\n            geo_name: geoName,\n            year: parseInt(time, 10),\n            gdp_value: val,\n            unit: unit\n          });\n        }\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-gdp-jsonstat",
+      "name": "Parse GDP JSON-stat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst id = data.id;\nconst size = data.size;\nconst values = data.value || {};\nconst dimensions = data.dimension;\n\nconst results = [];\n\nconst freqKeys = Object.keys(dimensions.freq.category.index);\nconst unitKeys = Object.keys(dimensions.unit.category.index);\nconst iccsKeys = Object.keys(dimensions.iccs.category.index);\nconst geoKeys = Object.keys(dimensions.geo.category.index);\nconst timeKeys = Object.keys(dimensions.time.category.index);\n\nfor (const freq of freqKeys) {\n  const i_freq = dimensions.freq.category.index[freq];\n  for (const unit of unitKeys) {\n    const i_unit = dimensions.unit.category.index[unit];\n    for (const iccs of iccsKeys) {\n      const i_iccs = dimensions.iccs.category.index[iccs];\n      const iccsLabel = dimensions.iccs.category.label[iccs] || iccs;\n      for (const geo of geoKeys) {\n        const i_geo = dimensions.geo.category.index[geo];\n        const geoName = dimensions.geo.category.label[geo] || geo;\n        for (const time of timeKeys) {\n          const i_time = dimensions.time.category.index[time];\n          \n          const idx = i_freq * (size[1] * size[2] * size[3] * size[4]) +\n                      i_unit * (size[2] * size[3] * size[4]) +\n                      i_iccs * (size[3] * size[4]) +\n                      i_geo * size[4] +\n                      i_time;\n                      \n          const val = values[idx.toString()];\n          if (val !== undefined && val !== null) {\n            results.push({\n              geo_code: geo,\n              geo_name: geoName,\n              year: parseInt(time, 10),\n              offence_category: iccsLabel,\n              crime_count: val,\n              unit: unit\n            });\n          }\n        }\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-crime-jsonstat",
+      "name": "Parse Crime JSON-stat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO eurostat_regional_gdp (geo_code, geo_name, year, gdp_value, unit)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', {{ $json.year }}, {{ $json.gdp_value }}, '{{ $json.unit }}')\nON CONFLICT (geo_code, year, unit)\nDO UPDATE SET gdp_value = EXCLUDED.gdp_value, geo_name = EXCLUDED.geo_name;"
+      },
+      "id": "insert-gdp",
+      "name": "Insert GDP",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO eurostat_regional_crime_rates (geo_code, geo_name, year, offence_category, crime_count, unit)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', {{ $json.year }}, '{{ $json.offence_category.replace(/'/g, \"''\") }}', {{ $json.crime_count }}, '{{ $json.unit }}')\nON CONFLICT (geo_code, year, offence_category, unit)\nDO UPDATE SET crime_count = EXCLUDED.crime_count, geo_name = EXCLUDED.geo_name;"
+      },
+      "id": "insert-crime",
+      "name": "Insert Crime",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch GDP API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Crime API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch GDP API": {
+      "main": [
+        [
+          {
+            "node": "Parse GDP JSON-stat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Crime API": {
+      "main": [
+        [
+          {
+            "node": "Parse Crime JSON-stat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse GDP JSON-stat": {
+      "main": [
+        [
+          {
+            "node": "Insert GDP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Crime JSON-stat": {
+      "main": [
+        [
+          {
+            "node": "Insert Crime",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

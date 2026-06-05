@@ -68,4 +68,4 @@ fi
 
 # Execute the default n8n entrypoint
 echo "Starting N8N..."
-exec /docker-entrypoint.sh
+exec /docker-entrypoint.sh "$@"

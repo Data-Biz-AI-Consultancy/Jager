@@ -1,0 +1,113 @@
+{
+  "id": "fx-ingestion-workflow",
+  "name": "Data Ingestion - FX Rates",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 12
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.frankfurter.app/latest?from=EUR&to=USD,HKD",
+        "options": {}
+      },
+      "id": "fetch-fx-api",
+      "name": "Fetch FX API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst date = data.date;\nconst usdRate = data.rates.USD;\nconst hkdRate = data.rates.HKD;\n\nreturn [\n  {\n    base_currency: 'USD',\n    target_currency: 'EUR',\n    rate: 1 / usdRate,\n    rate_date: date\n  },\n  {\n    base_currency: 'EUR',\n    target_currency: 'HKD',\n    rate: hkdRate,\n    rate_date: date\n  }\n];"
+      },
+      "id": "parse-fx",
+      "name": "Parse FX Rates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO frankfurter_fx_rates (base_currency, target_currency, rate, rate_date)\nVALUES ('{{ $json.base_currency }}', '{{ $json.target_currency }}', {{ $json.rate }}, '{{ $json.rate_date }}')\nON CONFLICT (base_currency, target_currency, rate_date)\nDO UPDATE SET rate = EXCLUDED.rate;"
+      },
+      "id": "insert-fx",
+      "name": "Insert FX Rates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch FX API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch FX API": {
+      "main": [
+        [
+          {
+            "node": "Parse FX Rates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse FX Rates": {
+      "main": [
+        [
+          {
+            "node": "Insert FX Rates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
