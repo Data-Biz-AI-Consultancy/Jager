@@ -1,6 +1,6 @@
 {
-  "id": "sp500-ingestion-workflow",
-  "name": "Data Ingestion - Yahoo Finance (S&P 500)",
+  "id": "yahoo-finance-ingestion-workflow",
+  "name": "Data Ingestion - Yahoo Finance",
   "nodes": [
     {
       "parameters": {
@@ -24,15 +24,50 @@
     },
     {
       "parameters": {
-        "url": "https://query1.finance.yahoo.com/v8/finance/chart/^GSPC?interval=1h&range=5d",
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "param-symbol",
+              "name": "symbol",
+              "type": "string",
+              "value": "^GSPC"
+            },
+            {
+              "id": "param-interval",
+              "name": "interval",
+              "type": "string",
+              "value": "1h"
+            },
+            {
+              "id": "param-range",
+              "name": "range",
+              "type": "string",
+              "value": "5d"
+            }
+          ]
+        }
+      },
+      "id": "set-parameters",
+      "name": "Set Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://query1.finance.yahoo.com/v8/finance/chart/{{ $json.symbol }}?interval={{ $json.interval }}&range={{ $json.range }}",
         "options": {}
       },
       "id": "fetch-yahoo-finance",
-      "name": "Fetch S&P 500",
+      "name": "Fetch Yahoo Finance",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        300,
+        400,
         300
       ]
     },
@@ -42,11 +77,11 @@
         "jsCode": "const response = $input.first().json;\nif (!response || !response.chart || !response.chart.result || !response.chart.result[0]) {\n  return [];\n}\n\nconst result = response.chart.result[0];\nconst timestamps = result.timestamp || [];\nconst quotes = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};\n\nconst opens = quotes.open || [];\nconst highs = quotes.high || [];\nconst lows = quotes.low || [];\nconst closes = quotes.close || [];\nconst volumes = quotes.volume || [];\n\nconst parsedData = [];\n\nfor (let i = 0; i < timestamps.length; i++) {\n  // Only include if timestamp and at least close price is present\n  if (timestamps[i] && closes[i] !== null && closes[i] !== undefined) {\n    parsedData.push({\n      symbol: result.meta.symbol || '^GSPC',\n      price_timestamp: new Date(timestamps[i] * 1000).toISOString(),\n      open_price: opens[i] !== null ? opens[i] : null,\n      high_price: highs[i] !== null ? highs[i] : null,\n      low_price: lows[i] !== null ? lows[i] : null,\n      close_price: closes[i] !== null ? closes[i] : null,\n      volume: volumes[i] !== null ? volumes[i] : null\n    });\n  }\n}\n\nreturn parsedData;"
       },
       "id": "parse-yahoo-finance",
-      "name": "Parse S&P 500",
+      "name": "Parse Yahoo Finance",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
+        600,
         300
       ]
     },
@@ -60,7 +95,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        700,
+        800,
         300
       ],
       "credentials": {
@@ -76,25 +111,36 @@
       "main": [
         [
           {
-            "node": "Fetch S&P 500",
+            "node": "Set Parameters",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch S&P 500": {
+    "Set Parameters": {
       "main": [
         [
           {
-            "node": "Parse S&P 500",
+            "node": "Fetch Yahoo Finance",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse S&P 500": {
+    "Fetch Yahoo Finance": {
+      "main": [
+        [
+          {
+            "node": "Parse Yahoo Finance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Yahoo Finance": {
       "main": [
         [
           {
