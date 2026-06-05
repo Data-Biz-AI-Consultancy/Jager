@@ -46,10 +46,10 @@ def predict_stock(req: PredictionRequest):
     with engine.connect() as conn:
         df = pd.read_sql(query, conn, params={"symbol": req.symbol})
         
-    if df.empty or len(df) < (req.lag_days + 5):
+    if df.empty or len(df) < 2:
         raise HTTPException(
             status_code=400, 
-            detail=f"Not enough historical price data for {req.symbol}. Required: at least {req.lag_days + 5} records."
+            detail=f"Not enough historical price data for {req.symbol}. Required: at least 2 records."
         )
     
     # Preprocess
@@ -58,21 +58,27 @@ def predict_stock(req: PredictionRequest):
     # Drop duplicates by date, keeping the last one
     df = df.drop_duplicates(subset=['date'], keep='last').sort_values('date').reset_index(drop=True)
     
+    # Dynamic adjustment of lag_days based on available unique dates
+    actual_lags = req.lag_days
+    if len(df) <= actual_lags:
+        actual_lags = max(1, len(df) - 2)
+        logger.warning(f"Insufficient data for requested lag_days={req.lag_days}. Dynamically reducing to {actual_lags}")
+        
     # 2. Build ML dataset using Lag Features
     # Create lag features for close_price
-    for i in range(1, req.lag_days + 1):
+    for i in range(1, actual_lags + 1):
         df[f'lag_{i}'] = df['close_price'].shift(i)
         
     df = df.dropna().reset_index(drop=True)
     
-    if len(df) < 5:
+    if len(df) < 1:
         raise HTTPException(
             status_code=400, 
             detail="Insufficient data after constructing lag features."
         )
     
     # Define features and target
-    feature_cols = [f'lag_{i}' for i in range(1, req.lag_days + 1)]
+    feature_cols = [f'lag_{i}' for i in range(1, actual_lags + 1)]
     X = df[feature_cols].values
     y = df['close_price'].values
     
@@ -81,7 +87,11 @@ def predict_stock(req: PredictionRequest):
     model.fit(X, y)
     
     # Calculate R-squared for logging / metadata
-    r2_score = float(model.score(X, y))
+    # Bounded R-squared calculation
+    if len(df) > len(feature_cols) + 1:
+        r2_score = float(model.score(X, y))
+    else:
+        r2_score = 1.0 # Perfect fit on small dataset
     logger.info(f"Model trained successfully. R^2 score: {r2_score:.4f}")
     
     # 4. Predict the next day's price
@@ -91,8 +101,7 @@ def predict_stock(req: PredictionRequest):
     last_date = most_recent_data['date']
     
     # Feature vector for next day prediction: [close(t), close(t-1), close(t-2), ...]
-    # Which corresponds to [lag_0, lag_1, lag_2, ...] relative to tomorrow
-    next_features = [last_actual_price] + [float(most_recent_data[f'lag_{i}']) for i in range(1, req.lag_days)]
+    next_features = [last_actual_price] + [float(most_recent_data[f'lag_{i}']) for i in range(1, actual_lags)]
     next_features_arr = np.array(next_features).reshape(1, -1)
     
     predicted_price = float(model.predict(next_features_arr)[0])
@@ -122,7 +131,7 @@ def predict_stock(req: PredictionRequest):
         "last_date": str(last_date)
     }
     
-    model_name = f"linear-regression-lag-{req.lag_days}"
+    model_name = f"linear-regression-lag-{actual_lags}"
     
     # 5. Save prediction to DB
     insert_query = text("""
