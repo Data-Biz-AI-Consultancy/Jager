@@ -222,6 +222,18 @@ CREATE TABLE IF NOT EXISTS prediction.stock_predictions (
   UNIQUE (symbol, prediction_date, model_name)
 );
 
+CREATE SCHEMA IF NOT EXISTS training;
+
+CREATE TABLE IF NOT EXISTS training.trained_models (
+  id SERIAL PRIMARY KEY,
+  symbol VARCHAR(50) NOT NULL,
+  model_name VARCHAR(100) NOT NULL,
+  model_data BYTEA NOT NULL,
+  r2_score NUMERIC,
+  trained_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (symbol, model_name)
+);
+
 
 
 

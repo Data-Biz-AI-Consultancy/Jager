@@ -208,6 +208,18 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		UNIQUE (symbol, prediction_date, model_name)
 	);
 
+	CREATE SCHEMA IF NOT EXISTS training;
+
+	CREATE TABLE IF NOT EXISTS training.trained_models (
+		id SERIAL PRIMARY KEY,
+		symbol VARCHAR(50) NOT NULL,
+		model_name VARCHAR(100) NOT NULL,
+		model_data BYTEA NOT NULL,
+		r2_score NUMERIC,
+		trained_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		UNIQUE (symbol, model_name)
+	);
+
 
 
 	INSERT INTO reddit_subreddits_monitored (name, active) VALUES ('smallbusiness', TRUE) ON CONFLICT (name) DO NOTHING;

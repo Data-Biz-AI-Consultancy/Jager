@@ -58,4 +58,29 @@ def train_model(engine: Engine, symbol: str, lag_days: int):
         r2_score = 1.0 # Perfect fit on small dataset
     logger.info(f"Model trained successfully. R^2 score: {r2_score:.4f}")
     
+    # 4. Serialize and save the model to PostgreSQL
+    import pickle
+    model_bytes = pickle.dumps(model)
+    model_name = f"linear-regression-lag-{actual_lags}"
+    
+    save_model_query = text("""
+        INSERT INTO training.trained_models (symbol, model_name, model_data, r2_score)
+        VALUES (:symbol, :model_name, :model_data, :r2_score)
+        ON CONFLICT (symbol, model_name)
+        DO UPDATE SET
+            model_data = EXCLUDED.model_data,
+            r2_score = EXCLUDED.r2_score,
+            trained_at = NOW();
+    """)
+    
+    with engine.begin() as conn:
+        conn.execute(save_model_query, {
+            "symbol": symbol,
+            "model_name": model_name,
+            "model_data": model_bytes,
+            "r2_score": r2_score
+        })
+        
+    logger.info(f"Saved trained model '{model_name}' for {symbol} to PostgreSQL.")
+    
     return model, df_clean, r2_score, actual_lags
