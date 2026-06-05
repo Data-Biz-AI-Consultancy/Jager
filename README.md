@@ -8,6 +8,15 @@ This repository has been streamlined to prioritize N8N workflows:
 - **`src/n8n/`**: Contains the primary N8N configuration, including the custom `Dockerfile` and the workflow JSON.
 - **`legacy/`**: Houses older backend, frontend, test files, and configurations kept for reference.
 
+### Database Schema (ODS Namespaces)
+We organize database tables into dedicated schemas following the `s_{{application_name}}` naming convention (with table prefixes removed):
+- `s_reddit`: subreddits monitored, posts, and comments.
+- `s_slack`: workspaces monitored, channels monitored, and messages.
+- `s_substack`: feeds monitored and posts.
+- `s_euro_stat`: regional GDP, crime rates, inflation, quarterly GDP, unemployment, HPI, and FX rates.
+- `s_yahoo_finance`: stock index prices.
+- `prediction` & `training`: prediction outputs and ML trained models.
+
 ---
 
 ## Getting Started
