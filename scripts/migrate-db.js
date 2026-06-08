@@ -24,6 +24,7 @@ const ddl = `
 CREATE SCHEMA IF NOT EXISTS s_reddit;
 CREATE SCHEMA IF NOT EXISTS s_slack;
 CREATE SCHEMA IF NOT EXISTS s_substack;
+CREATE SCHEMA IF NOT EXISTS s_meetup;
 CREATE SCHEMA IF NOT EXISTS s_euro_stat;
 CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
 
@@ -112,6 +113,24 @@ CREATE TABLE IF NOT EXISTS s_substack.posts (
 
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS feed_name VARCHAR(255);
 
+CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  search_url VARCHAR(1024) NOT NULL UNIQUE,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS s_meetup.search_results (
+  id VARCHAR(255) PRIMARY KEY,
+  search_id INTEGER REFERENCES s_meetup.searches_monitored(id) ON DELETE CASCADE,
+  search_name VARCHAR(255),
+  title VARCHAR(1024),
+  description TEXT NOT NULL,
+  url VARCHAR(2048),
+  published_at TIMESTAMP WITH TIME ZONE,
+  processed INTEGER DEFAULT 0
+);
 
 CREATE TABLE IF NOT EXISTS s_euro_stat.regional_gdp (
   id SERIAL PRIMARY KEY,
