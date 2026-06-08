@@ -1,6 +1,6 @@
 {
-  "id": "AiSummaryMeetup",
-  "name": "AI Summary Meetup",
+  "id": "AiSummaryEvents",
+  "name": "AI Summary Events",
   "nodes": [
     {
       "parameters": {
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "channel": "={{ $env.SLACK_READINGS_CHANNEL || 'Readings' }}",
+        "channel": "events",
         "text": "=🤖 *Weekly Meetup Summary Report* 🤖\n\n{{ $('Build Slack Message').first().json.response }}",
         "otherOptions": {}
       },
