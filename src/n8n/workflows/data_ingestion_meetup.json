@@ -53,23 +53,8 @@
     },
     {
       "parameters": {
-        "options": {},
-        "assignments": {
-          "assignments": [
-            {
-              "id": "searches-list-uuid",
-              "name": "searches",
-              "type": "array",
-              "value": [
-                {
-                  "id": 1,
-                  "name": "Business & Career",
-                  "search_url": "https://www.meetup.com/find/?categoryId=405&source=EVENTS"
-                }
-              ]
-            }
-          ]
-        }
+        "mode": "raw",
+        "jsonOutput": "{\n  \"searches\": [\n    {\n      \"id\": 1,\n      \"name\": \"Business & Career\",\n      \"search_url\": \"https://www.meetup.com/find/?categoryId=405&source=EVENTS\"\n    }\n  ]\n}"
       },
       "id": "get-active-searches",
       "name": "Get Active Searches",
