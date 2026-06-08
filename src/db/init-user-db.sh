@@ -99,18 +99,18 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 
 	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS feed_name VARCHAR(255);
 
-	CREATE TABLE IF NOT EXISTS s_meetup.feeds_monitored (
+	CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
 		id SERIAL PRIMARY KEY,
 		name VARCHAR(255) NOT NULL UNIQUE,
-		feed_url VARCHAR(1024) NOT NULL UNIQUE,
+		search_url VARCHAR(1024) NOT NULL UNIQUE,
 		active BOOLEAN DEFAULT TRUE,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
 
-	CREATE TABLE IF NOT EXISTS s_meetup.events (
+	CREATE TABLE IF NOT EXISTS s_meetup.search_results (
 		id VARCHAR(255) PRIMARY KEY,
-		feed_id INTEGER REFERENCES s_meetup.feeds_monitored(id) ON DELETE CASCADE,
-		feed_name VARCHAR(255),
+		search_id INTEGER REFERENCES s_meetup.searches_monitored(id) ON DELETE CASCADE,
+		search_name VARCHAR(255),
 		title VARCHAR(1024),
 		description TEXT NOT NULL,
 		url VARCHAR(2048),
