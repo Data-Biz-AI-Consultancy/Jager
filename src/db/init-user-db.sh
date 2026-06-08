@@ -8,6 +8,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE SCHEMA IF NOT EXISTS s_reddit;
 	CREATE SCHEMA IF NOT EXISTS s_slack;
 	CREATE SCHEMA IF NOT EXISTS s_substack;
+	CREATE SCHEMA IF NOT EXISTS s_meetup;
 	CREATE SCHEMA IF NOT EXISTS s_euro_stat;
 	CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
 
@@ -97,6 +98,26 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	);
 
 	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS feed_name VARCHAR(255);
+
+	CREATE TABLE IF NOT EXISTS s_meetup.feeds_monitored (
+		id SERIAL PRIMARY KEY,
+		name VARCHAR(255) NOT NULL UNIQUE,
+		feed_url VARCHAR(1024) NOT NULL UNIQUE,
+		active BOOLEAN DEFAULT TRUE,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS s_meetup.events (
+		id VARCHAR(255) PRIMARY KEY,
+		feed_id INTEGER REFERENCES s_meetup.feeds_monitored(id) ON DELETE CASCADE,
+		feed_name VARCHAR(255),
+		title VARCHAR(1024),
+		description TEXT NOT NULL,
+		url VARCHAR(2048),
+		published_at TIMESTAMP WITH TIME ZONE,
+		processed INTEGER DEFAULT 0
+	);
+
 
 
 	CREATE TABLE IF NOT EXISTS s_euro_stat.regional_gdp (
