@@ -116,7 +116,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_substack.feeds_monitored (id, name, feed_url, active)\nSELECT (val->>'id')::integer, val->>'name', val->>'feed_url', true\nFROM json_array_elements('{{ JSON.stringify($json.feeds) }}'::json) AS val\nON CONFLICT (name) \nDO UPDATE SET feed_url = EXCLUDED.feed_url, active = true;"
+        "query": "=UPDATE s_substack.feeds_monitored SET active = false;\nINSERT INTO s_substack.feeds_monitored (name, feed_url, active)\nSELECT val->>'name', val->>'feed_url', true\nFROM json_array_elements('{{ JSON.stringify($json.feeds) }}'::json) AS val\nON CONFLICT (name) \nDO UPDATE SET feed_url = EXCLUDED.feed_url, active = true;"
       },
       "id": "update-monitored-feeds",
       "name": "Update Monitored Feeds",
