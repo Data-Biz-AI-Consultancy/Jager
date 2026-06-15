@@ -27,6 +27,7 @@ CREATE SCHEMA IF NOT EXISTS s_substack;
 CREATE SCHEMA IF NOT EXISTS s_meetup;
 CREATE SCHEMA IF NOT EXISTS s_euro_stat;
 CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
+CREATE SCHEMA IF NOT EXISTS s_wordpress;
 
 CREATE TABLE IF NOT EXISTS s_reddit.subreddits_monitored (
   id SERIAL PRIMARY KEY,
@@ -112,6 +113,26 @@ CREATE TABLE IF NOT EXISTS s_substack.posts (
 );
 
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS feed_name VARCHAR(255);
+
+CREATE TABLE IF NOT EXISTS s_wordpress.feeds_monitored (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL UNIQUE,
+  feed_url VARCHAR(1024) NOT NULL UNIQUE,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS s_wordpress.posts (
+  id VARCHAR(255) PRIMARY KEY,
+  feed_id INTEGER REFERENCES s_wordpress.feeds_monitored(id) ON DELETE CASCADE,
+  feed_name VARCHAR(255),
+  author VARCHAR(255),
+  title VARCHAR(1024),
+  content TEXT NOT NULL,
+  url VARCHAR(2048),
+  published_at TIMESTAMP WITH TIME ZONE,
+  processed INTEGER DEFAULT 0
+);
 
 CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
   id SERIAL PRIMARY KEY,
@@ -285,6 +306,11 @@ VALUES
 ('nilukakavanagh', 'https://nilukakavanagh.substack.com/feed', TRUE),
 ('Datapreneur', 'https://nickvaliotti.substack.com/feed', TRUE)
 ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO s_wordpress.feeds_monitored (name, feed_url, active) 
+VALUES 
+('Towards Data Science', 'https://towardsdatascience.com/feed', TRUE)
+ON CONFLICT (name) DO NOTHING;
 `;
 
 async function run() {
@@ -298,6 +324,7 @@ async function run() {
     { oldTable: 'reddit_subreddits_monitored', newTable: 's_reddit.subreddits_monitored', hasSerial: true },
     { oldTable: 'slack_workspaces_monitored', newTable: 's_slack.workspaces_monitored', hasSerial: true },
     { oldTable: 'substack_feeds_monitored', newTable: 's_substack.feeds_monitored', hasSerial: true },
+    { oldTable: 'wordpress_feeds_monitored', newTable: 's_wordpress.feeds_monitored', hasSerial: true },
 
     // Child/Dependent Tables
     { oldTable: 'reddit_posts', newTable: 's_reddit.posts', hasSerial: false },
@@ -305,6 +332,7 @@ async function run() {
     { oldTable: 'slack_channels_monitored', newTable: 's_slack.channels_monitored', hasSerial: true },
     { oldTable: 'slack_messages', newTable: 's_slack.messages', hasSerial: false },
     { oldTable: 'substack_posts', newTable: 's_substack.posts', hasSerial: false },
+    { oldTable: 'wordpress_posts', newTable: 's_wordpress.posts', hasSerial: false },
 
     // Eurostat & Yahoo
     { oldTable: 'eurostat_regional_gdp', newTable: 's_euro_stat.regional_gdp', hasSerial: true },
