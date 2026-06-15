@@ -261,11 +261,13 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	INSERT INTO s_substack.feeds_monitored (name, feed_url, active) VALUES 
 		('SeattleDataGuy', 'https://seattledataguy.substack.com/feed', TRUE),
 		('Decision', 'https://decision.substack.com/feed', TRUE),
-		('TheGoodBoss', 'https://read.thegoodboss.com/feed', TRUE),
 		('EngLeadership', 'https://newsletter.eng-leadership.com/feed', TRUE),
 		('ThrivingInEngineering', 'https://thrivinginengineering.substack.com/feed', TRUE),
 		('CodeLikeAGirl', 'https://codelikeagirl.substack.com/feed', TRUE),
-		('JimmyPang', 'https://jimmypang.substack.com/feed', TRUE)
+		('Data Biz', 'https://jimmypang.substack.com/feed', TRUE),
+		('Benn', 'https://benn.substack.com/feed', TRUE),
+		('nilukakavanagh', 'https://nilukakavanagh.substack.com/feed', TRUE),
+		('Datapreneur', 'https://nickvaliotti.substack.com/feed', TRUE)
 	ON CONFLICT (name) DO NOTHING;
 EOSQL
 

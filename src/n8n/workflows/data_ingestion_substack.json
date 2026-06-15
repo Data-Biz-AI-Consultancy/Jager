@@ -73,28 +73,38 @@
                 },
                 {
                   "id": 3,
-                  "name": "TheGoodBoss",
-                  "feed_url": "https://read.thegoodboss.com/feed"
-                },
-                {
-                  "id": 4,
                   "name": "EngLeadership",
                   "feed_url": "https://newsletter.eng-leadership.com/feed"
                 },
                 {
-                  "id": 5,
+                  "id": 4,
                   "name": "ThrivingInEngineering",
                   "feed_url": "https://thrivinginengineering.substack.com/feed"
                 },
                 {
-                  "id": 6,
+                  "id": 5,
                   "name": "CodeLikeAGirl",
                   "feed_url": "https://codelikeagirl.substack.com/feed"
                 },
                 {
-                  "id": 7,
-                  "name": "JimmyPang",
+                  "id": 6,
+                  "name": "Data Biz",
                   "feed_url": "https://jimmypang.substack.com/feed"
+                },
+                {
+                  "id": 7,
+                  "name": "Benn",
+                  "feed_url": "https://benn.substack.com/feed"
+                },
+                {
+                  "id": 8,
+                  "name": "nilukakavanagh",
+                  "feed_url": "https://nilukakavanagh.substack.com/feed"
+                },
+                {
+                  "id": 9,
+                  "name": "Datapreneur",
+                  "feed_url": "https://nickvaliotti.substack.com/feed"
                 }
               ]
             }
