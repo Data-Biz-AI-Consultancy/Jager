@@ -35,6 +35,7 @@ services:
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
       - SLACK_APP_TOKEN=${SLACK_APP_TOKEN}
       - ML_SERVICE_URL=${ML_SERVICE_URL:-http://ml:8000}
+      - N8N_PROXY_HOPS=1
     depends_on:
       - db
     volumes:

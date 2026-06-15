@@ -48,65 +48,20 @@
       "typeVersion": 3.4,
       "position": [
         250,
-        150
+        300
       ]
     },
     {
       "parameters": {
-        "options": {},
-        "assignments": {
-          "assignments": [
-            {
-              "id": "feeds-list-uuid",
-              "name": "feeds",
-              "type": "array",
-              "value": [
-                {
-                  "id": 1,
-                  "name": "SeattleDataGuy",
-                  "feed_url": "https://seattledataguy.substack.com/feed"
-                },
-                {
-                  "id": 2,
-                  "name": "Decision",
-                  "feed_url": "https://decision.substack.com/feed"
-                },
-                {
-                  "id": 3,
-                  "name": "TheGoodBoss",
-                  "feed_url": "https://read.thegoodboss.com/feed"
-                },
-                {
-                  "id": 4,
-                  "name": "EngLeadership",
-                  "feed_url": "https://newsletter.eng-leadership.com/feed"
-                },
-                {
-                  "id": 5,
-                  "name": "ThrivingInEngineering",
-                  "feed_url": "https://thrivinginengineering.substack.com/feed"
-                },
-                {
-                  "id": 6,
-                  "name": "CodeLikeAGirl",
-                  "feed_url": "https://codelikeagirl.substack.com/feed"
-                },
-                {
-                  "id": 7,
-                  "name": "JimmyPang",
-                  "feed_url": "https://jimmypang.substack.com/feed"
-                }
-              ]
-            }
-          ]
-        }
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{\n  json: {\n    feeds: [\n      {\n        \"id\": 1,\n        \"name\": \"SeattleDataGuy\",\n        \"feed_url\": \"https://seattledataguy.substack.com/feed\"\n      },\n      {\n        \"id\": 2,\n        \"name\": \"Decision\",\n        \"feed_url\": \"https://decision.substack.com/feed\"\n      },\n      {\n        \"id\": 3,\n        \"name\": \"EngLeadership\",\n        \"feed_url\": \"https://newsletter.eng-leadership.com/feed\"\n      },\n      {\n        \"id\": 4,\n        \"name\": \"ThrivingInEngineering\",\n        \"feed_url\": \"https://thrivinginengineering.substack.com/feed\"\n      },\n      {\n        \"id\": 5,\n        \"name\": \"CodeLikeAGirl\",\n        \"feed_url\": \"https://codelikeagirl.substack.com/feed\"\n      },\n      {\n        \"id\": 6,\n        \"name\": \"Data Biz\",\n        \"feed_url\": \"https://jimmypang.substack.com/feed\"\n      },\n      {\n        \"id\": 7,\n        \"name\": \"Benn\",\n        \"feed_url\": \"https://benn.substack.com/feed\"\n      },\n      {\n        \"id\": 8,\n        \"name\": \"nilukakavanagh\",\n        \"feed_url\": \"https://nilukakavanagh.substack.com/feed\"\n      },\n      {\n        \"id\": 9,\n        \"name\": \"Datapreneur\",\n        \"feed_url\": \"https://nickvaliotti.substack.com/feed\"\n      }\n    ]\n  }\n}];"
       },
       "id": "get-active-feeds",
       "name": "Get Active Feeds",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        250,
+        400,
         300
       ]
     },
@@ -120,7 +75,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        450,
+        550,
         300
       ]
     },
@@ -134,7 +89,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        650,
+        700,
         300
       ]
     },
@@ -168,7 +123,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        450,
+        550,
         150
       ],
       "credentials": {
