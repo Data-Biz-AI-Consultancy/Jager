@@ -5,10 +5,14 @@ const fs = require('fs');
 
 function usage() {
   console.log(`
-Usage: node scripts/clone-db.js <PROD_DATABASE_URL>
+Usage: node scripts/clone-db.js <PROD_DATABASE_URL> [options]
+
+Options:
+  --skip-n8n, --jager-only    Only clone the 'jager' database, skip 'n8n' database
+  --skip-jager, --n8n-only    Only clone the 'n8n' database, skip 'jager' database
 
 Example:
-  node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager"
+  node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --skip-n8n
 `);
   process.exit(1);
 }
@@ -17,7 +21,10 @@ Example:
 const args = process.argv.slice(2);
 const connectionString = args.find(a => a.startsWith('postgres://') || a.startsWith('postgresql://') || a.includes('@'));
 
-if (!connectionString && args.includes('-h') || args.includes('--help')) {
+const skipN8N = args.includes('--skip-n8n') || args.includes('--jager-only');
+const skipJager = args.includes('--skip-jager') || args.includes('--n8n-only');
+
+if ((!connectionString && args.includes('-h')) || args.includes('--help')) {
   usage();
 }
 
@@ -110,6 +117,17 @@ function cloneDatabase(dbName, prodUrl) {
     console.log(`Restoring dump to local ${dbName}...`);
     execSync(`${dockerComposeCmd} exec -T db psql -U jager -d "${dbName}" -f ${tempFile}`, { stdio: 'inherit' });
     
+    if (dbName === 'n8n') {
+      console.log(`Sanitizing cloned n8n database: deactivating workflows and removing production credentials...`);
+      try {
+        execSync(`${dockerComposeCmd} exec -T db psql -U jager -d n8n -c "UPDATE workflow_entity SET active = false;"`, { stdio: 'inherit' });
+        execSync(`${dockerComposeCmd} exec -T db psql -U jager -d n8n -c "TRUNCATE credentials_entity CASCADE;"`, { stdio: 'inherit' });
+        console.log(`Successfully sanitized n8n database!`);
+      } catch (err) {
+        console.error(`Warning: Failed to sanitize n8n database:`, err.message);
+      }
+    }
+
     console.log(`Successfully cloned ${dbName}!`);
   } catch (error) {
     console.error(`Error cloning database ${dbName}:`, error.message);
@@ -125,17 +143,36 @@ function cloneDatabase(dbName, prodUrl) {
 }
 
 // Clone jager
-if (PROD_JAGER_URL) {
-  cloneDatabase('jager', PROD_JAGER_URL);
+if (!skipJager) {
+  if (PROD_JAGER_URL) {
+    cloneDatabase('jager', PROD_JAGER_URL);
+  } else {
+    console.log("Production URL for 'jager' database not provided.");
+  }
 } else {
-  console.log("Production URL for 'jager' database not provided.");
+  console.log("Skipping 'jager' database clone.");
 }
 
 // Clone n8n
-if (PROD_N8N_URL) {
-  cloneDatabase('n8n', PROD_N8N_URL);
+if (!skipN8N) {
+  if (PROD_N8N_URL) {
+    cloneDatabase('n8n', PROD_N8N_URL);
+  } else {
+    console.log("Production URL for 'n8n' database not provided. Skipping 'n8n' cloning.");
+  }
 } else {
-  console.log("Production URL for 'n8n' database not provided. Skipping 'n8n' cloning.");
+  console.log("Skipping 'n8n' database clone.");
+}
+
+// Restart n8n container if we cloned n8n database, or if we want to ensure fresh connections
+if (!skipN8N) {
+  console.log('Restarting n8n container to apply changes and re-import credentials...');
+  try {
+    execSync(`${dockerComposeCmd} restart n8n`, { stdio: 'inherit' });
+    console.log('n8n container restarted successfully.');
+  } catch (e) {
+    console.error('Failed to restart n8n container:', e.message);
+  }
 }
 
 console.log('Database clone process completed.');
