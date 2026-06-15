@@ -85,7 +85,7 @@ async function run() {
     if (tableExists) {
       try {
         const res = await client.query(
-          'SELECT name, nodes, connections, settings FROM workflow_entity WHERE id = $1',
+          'SELECT name, nodes, connections, settings, "updatedAt" FROM workflow_entity WHERE id = $1',
           [workflowId]
         );
 
@@ -100,7 +100,16 @@ async function run() {
             console.log(`Workflow "${localWorkflow.name}" (${workflowId}) already exists in database and is up-to-date. Skipping import.`);
             shouldImport = false;
           } else {
-            console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local changes. Importing.`);
+            const dbUpdatedAt = dbWorkflow.updatedAt ? new Date(dbWorkflow.updatedAt) : new Date(0);
+            const fileStats = fs.statSync(filePath);
+            const fileMtime = new Date(fileStats.mtime);
+
+            if (fileMtime > dbUpdatedAt) {
+              console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local changes and Git file is newer (File: ${fileMtime.toISOString()} > DB: ${dbUpdatedAt.toISOString()}). Importing.`);
+            } else {
+              console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local differences but database version is newer (DB: ${dbUpdatedAt.toISOString()} >= File: ${fileMtime.toISOString()}). Skipping import to preserve newer changes.`);
+              shouldImport = false;
+            }
           }
         } else {
           console.log(`Workflow "${localWorkflow.name}" (${workflowId}) does not exist in database. Importing.`);

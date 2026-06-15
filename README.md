@@ -33,7 +33,7 @@ Spin up the N8N instance along with the Postgres database:
 docker-compose up --build -d
 ```
 
-Access your local N8N instance at [http://localhost:5678](http://localhost:5678).
+Access your local N8N instance at [http://localhost](http://localhost).
 
 ### Cloning Production Database
 
