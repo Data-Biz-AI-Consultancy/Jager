@@ -1103,6 +1103,100 @@
             "name": "postgres Credential"
           }
         }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=INSTANT_REPOSTS",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {
+            "pagination": {
+              "pagination": {
+                "paginationMode": "updateAParameterInEachRequest",
+                "parameters": {
+                  "parameters": [
+                    {
+                      "name": "start",
+                      "value": "={{ $pageCount * 100 }}"
+                    },
+                    {
+                      "name": "count",
+                      "value": "100"
+                    }
+                  ]
+                },
+                "paginationCompleteWhen": "other",
+                "completeExpression": "={{ (Array.isArray($response.body) ? $response.body.length === 0 : (!$response.body.elements || $response.body.elements.length === 0)) }}"
+              }
+            },
+            "response": {
+              "response": {
+                "neverError": true
+              }
+            }
+          }
+        },
+        "id": "fetch-linkedin-instant-reposts",
+        "name": "Fetch LinkedIn Instant Reposts",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          2450
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const repost of element.snapshotData) {\n        const link = repost.Link || repost.link || repost['Original Post URL'] || '';\n        const date_str = repost.Date || repost.date || repost['Reposted At'] || '';\n        const author = repost.Author || repost.author || repost['Original Author'] || '';\n        const commentary = repost.Commentary || repost.commentary || repost.Message || repost.message || '';\n\n        let original_post_id = 'unknown';\n        if (link) {\n          const decodedLink = decodeURIComponent(link);\n          const urnMatch = decodedLink.match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n          if (urnMatch) {\n            original_post_id = urnMatch[1];\n          }\n        }\n\n        let reposted_at = new Date().toISOString();\n        if (date_str) {\n          reposted_at = new Date(date_str).toISOString();\n        }\n\n        const id = `repost_${original_post_id}_${reposted_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          original_post_id,\n          original_author: author,\n          repost_commentary: commentary,\n          reposted_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-instant-reposts",
+        "name": "Parse LinkedIn Instant Reposts",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          2450
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.instant_reposts (id, original_post_id, original_author, repost_commentary, reposted_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.original_post_id }}',\n  '{{ $json.original_author.replace(/'/g, \"''\") }}',\n  {{ $json.repost_commentary ? \"'\" + $json.repost_commentary.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.reposted_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id)\nDO UPDATE SET\n  repost_commentary = EXCLUDED.repost_commentary,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+        },
+        "id": "insert-instant-reposts",
+        "name": "Insert/Upsert Instant Reposts",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          2450
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
       }
     ],
     "connections": {
@@ -1176,6 +1270,11 @@
             },
             {
               "node": "Fetch LinkedIn All Messages",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Fetch LinkedIn Instant Reposts",
               "type": "main",
               "index": 0
             }
@@ -1484,6 +1583,28 @@
           [
             {
               "node": "Insert/Upsert All Messages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Instant Reposts": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Instant Reposts",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Instant Reposts": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Instant Reposts",
               "type": "main",
               "index": 0
             }
