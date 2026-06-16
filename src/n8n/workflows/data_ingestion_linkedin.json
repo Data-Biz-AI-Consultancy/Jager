@@ -105,718 +105,909 @@
           "id": "postgres-db",
           "name": "postgres Credential"
         }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=ALL_COMMENTS",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-comments",
+        "name": "Fetch LinkedIn Comments",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          500
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=ALL_LIKES",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-likes",
+        "name": "Fetch LinkedIn Likes",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          650
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const action of element.snapshotData) {\n        const Link = action.Link || '';\n        const DateVal = action.Date || '';\n        const Message = action.Message || '';\n\n        let post_id = 'unknown';\n        if (Link) {\n          const decodedLink = decodeURIComponent(Link);\n          const urnMatch = decodedLink.match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n          if (urnMatch) {\n            post_id = urnMatch[1];\n          }\n        }\n\n        const id = `${post_id}_comment_${DateVal.replace(/[^a-zA-Z0-9]/g, '_')}`;\n        let published_at = new Date().toISOString();\n        if (DateVal) {\n          published_at = new Date(DateVal.replace(' ', 'T') + 'Z').toISOString();\n        }\n\n        results.push({\n          id,\n          post_id,\n          author: 'me',\n          content: Message,\n          published_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-comments",
+        "name": "Parse LinkedIn Comments",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          500
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const action of element.snapshotData) {\n        const Link = action.Link || '';\n        const DateVal = action.Date || '';\n\n        let post_id = 'unknown';\n        if (Link) {\n          const decodedLink = decodeURIComponent(Link);\n          const urnMatch = decodedLink.match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n          if (urnMatch) {\n            post_id = urnMatch[1];\n          }\n        }\n\n        const id = `${post_id}_like_${DateVal.replace(/[^a-zA-Z0-9]/g, '_')}`;\n        let published_at = new Date().toISOString();\n        if (DateVal) {\n          published_at = new Date(DateVal.replace(' ', 'T') + 'Z').toISOString();\n        }\n\n        results.push({\n          id,\n          post_id,\n          author: 'me',\n          published_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-likes",
+        "name": "Parse LinkedIn Likes",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          650
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.all_comments (id, post_id, author, content, published_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  content = EXCLUDED.content, \n  author = EXCLUDED.author,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+        },
+        "id": "insert-comments",
+        "name": "Insert/Upsert Comments",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          500,
+          500
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.all_likes (id, post_id, author, published_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  author = EXCLUDED.author,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+        },
+        "id": "insert-likes",
+        "name": "Insert/Upsert Likes",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          500,
+          650
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=INVITATIONS",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-invitations",
+        "name": "Fetch LinkedIn Invitations",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          800
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const invite of element.snapshotData) {\n        const to_name = invite.To || '';\n        const from_name = invite.From || '';\n        const direction = invite.Direction || '';\n        const inviter_profile_url = invite.inviterProfileUrl || '';\n        const invitee_profile_url = invite.inviteeProfileUrl || '';\n        const message = invite.Message || '';\n        const sent_at_str = invite[\"Sent At\"] || '';\n\n        let sent_at = new Date().toISOString();\n        if (sent_at_str) {\n          sent_at = new Date(sent_at_str).toISOString();\n        }\n\n        const targetProfile = direction === 'OUTGOING' ? invitee_profile_url : inviter_profile_url;\n        const profileSlug = targetProfile ? targetProfile.split('/in/')[1] || targetProfile : 'unknown';\n        const id = `${direction.toLowerCase()}_${profileSlug.replace(/[^a-zA-Z0-9]/g, '_')}_${sent_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          to_name,\n          from_name,\n          direction,\n          inviter_profile_url,\n          invitee_profile_url,\n          message,\n          sent_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-invitations",
+        "name": "Parse LinkedIn Invitations",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          800
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.invitations (id, to_name, from_name, direction, inviter_profile_url, invitee_profile_url, message, sent_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.to_name.replace(/'/g, \"''\") }}',\n  '{{ $json.from_name.replace(/'/g, \"''\") }}',\n  '{{ $json.direction }}',\n  '{{ $json.inviter_profile_url }}',\n  '{{ $json.invitee_profile_url }}',\n  {{ $json.message ? \"'\" + $json.message.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.sent_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET message = EXCLUDED.message\nRETURNING id;"
+        },
+        "id": "insert-invitations",
+        "name": "Insert/Upsert Invitations",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          800
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=INBOX",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-messages",
+        "name": "Fetch LinkedIn Messages",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          950
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const msg of element.snapshotData) {\n        const conversation_id = msg[\"CONVERSATION ID\"] || '';\n        const date_str = msg[\"DATE\"] || '';\n        const sender_profile_url = msg[\"SENDER PROFILE URL\"] || '';\n        const recipient_profile_urls = msg[\"RECIPIENT PROFILE URLS\"] || '';\n        const sender_name = msg[\"FROM\"] || '';\n        const recipient_name = msg[\"TO\"] || '';\n        const subject = msg[\"SUBJECT\"] || '';\n        const content = msg[\"CONTENT\"] || '';\n        const folder = msg[\"FOLDER\"] || '';\n\n        let sent_at = new Date().toISOString();\n        if (date_str) {\n          sent_at = new Date(date_str).toISOString();\n        }\n\n        const senderSlug = sender_profile_url ? sender_profile_url.split('/in/')[1] || sender_profile_url : 'unknown';\n        const id = `${conversation_id}_${sent_at.replace(/[^a-zA-Z0-9]/g, '_')}_${senderSlug.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          conversation_id,\n          sender_name,\n          recipient_name,\n          sender_profile_url,\n          recipient_profile_urls,\n          subject,\n          content,\n          folder,\n          sent_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-messages",
+        "name": "Parse LinkedIn Messages",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          950
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.messages (id, conversation_id, sender_name, recipient_name, sender_profile_url, recipient_profile_urls, subject, content, folder, sent_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.conversation_id }}',\n  '{{ $json.sender_name.replace(/'/g, \"''\") }}',\n  '{{ $json.recipient_name.replace(/'/g, \"''\") }}',\n  '{{ $json.sender_profile_url }}',\n  '{{ $json.recipient_profile_urls }}',\n  '{{ $json.subject.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.folder }}',\n  '{{ $json.sent_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET content = EXCLUDED.content\nRETURNING id;"
+        },
+        "id": "insert-messages",
+        "name": "Insert/Upsert Messages",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          950
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=CONNECTIONS",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-connections",
+        "name": "Fetch LinkedIn Connections",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          1100
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const conn of element.snapshotData) {\n        const first_name = conn[\"First Name\"] || '';\n        const last_name = conn[\"Last Name\"] || '';\n        const company = conn[\"Company\"] || '';\n        const position = conn[\"Position\"] || '';\n        const email_address = conn[\"Email Address\"] || '';\n        const url = conn[\"URL\"] || '';\n        const connected_on_str = conn[\"Connected On\"] || '';\n\n        let connected_at = new Date().toISOString();\n        if (connected_on_str) {\n          connected_at = new Date(connected_on_str).toISOString();\n        }\n\n        const profileSlug = url ? url.split('/in/')[1] || url : 'unknown';\n        const id = `${profileSlug.replace(/[^a-zA-Z0-9]/g, '_')}_connection_${connected_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          first_name,\n          last_name,\n          profile_url: url,\n          email_address,\n          company,\n          position,\n          connected_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-connections",
+        "name": "Parse LinkedIn Connections",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          1100
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.connections (id, first_name, last_name, profile_url, email_address, company, position, connected_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.first_name.replace(/'/g, \"''\") }}',\n  '{{ $json.last_name.replace(/'/g, \"''\") }}',\n  '{{ $json.profile_url }}',\n  {{ $json.email_address ? \"'\" + $json.email_address.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.company.replace(/'/g, \"''\") }}',\n  '{{ $json.position.replace(/'/g, \"''\") }}',\n  '{{ $json.connected_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  position = EXCLUDED.position, \n  company = EXCLUDED.company,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+        },
+        "id": "insert-connections",
+        "name": "Insert/Upsert Connections",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          1100
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=MEMBER_FOLLOWING",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-following",
+        "name": "Fetch LinkedIn Following",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          1250
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const conn of element.snapshotData) {\n        const url = conn.URL || conn.Url || conn[\"Profile URL\"] || conn[\"Url\"] || '';\n        const followed_at_str = conn[\"Followed On\"] || conn.Date || conn[\"Followed Date\"] || conn[\"Followed At\"] || '';\n        const entity_name = conn.Organization || conn[\"Organization Name\"] || conn[\"Company Name\"] || (conn[\"First Name\"] || conn[\"Last Name\"] ? (conn[\"First Name\"] + ' ' + conn[\"Last Name\"]).trim() : '') || conn.Name || '';\n        const type = conn.Type || (conn.Organization || conn[\"Organization Name\"] || conn[\"Company Name\"] ? 'Organization' : 'Member');\n\n        let followed_at = new Date().toISOString();\n        if (followed_at_str) {\n          followed_at = new Date(followed_at_str).toISOString();\n        }\n\n        const profileSlug = url ? url.split('/in/')[1] || url.split('/company/')[1] || url : 'unknown';\n        const id = `${profileSlug.replace(/[^a-zA-Z0-9]/g, '_')}_following_${followed_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          entity_name,\n          profile_url: url,\n          type,\n          followed_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-following",
+        "name": "Parse LinkedIn Following",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          1250
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.following (id, entity_name, profile_url, type, followed_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.entity_name.replace(/'/g, \"''\") }}',\n  '{{ $json.profile_url }}',\n  '{{ $json.type }}',\n  '{{ $json.followed_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  entity_name = EXCLUDED.entity_name,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+        },
+        "id": "insert-following",
+        "name": "Insert/Upsert Following",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          1250
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=SEARCHES",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-searches",
+        "name": "Fetch LinkedIn Searches",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          1400
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const search of element.snapshotData) {\n        const query_text = search[\"Search Query\"] || search.Query || search[\"Query String\"] || search.Text || '';\n        const searched_at_str = search[\"Search Date\"] || search.Date || search.Timestamp || search[\"Time\"] || '';\n\n        let searched_at = new Date().toISOString();\n        if (searched_at_str) {\n          searched_at = new Date(searched_at_str).toISOString();\n        }\n\n        const querySlug = query_text.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);\n        const id = `search_${searched_at.replace(/[^a-zA-Z0-9]/g, '_')}_${querySlug}`;\n\n        results.push({\n          id,\n          query_text,\n          searched_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-searches",
+        "name": "Parse LinkedIn Searches",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          1400
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.searches (id, query_text, searched_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.query_text.replace(/'/g, \"''\") }}',\n  '{{ $json.searched_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+        },
+        "id": "insert-searches",
+        "name": "Insert/Upsert Searches",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          1400
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberChangeLogs?q=memberAndApplication",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-changelog-comments",
+        "name": "Fetch LinkedIn Changelog Comments",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          1550
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberChangeLogs?q=memberAndApplication",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-changelog-likes",
+        "name": "Fetch LinkedIn Changelog Likes",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          1700
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.resourceName === 'socialActions/comments') {\n      const activity = element.activity || {};\n      const message = activity.message || {};\n      const content = message.text || '';\n      \n      let post_id = 'unknown';\n      if (activity.object) {\n        post_id = activity.object;\n      } else if (element.resourceUri) {\n        const match = element.resourceUri.match(/\\/socialActions\\/(urn:li:[a-zA-Z0-9_]+:[0-9]+)\\/comments/);\n        if (match) {\n          post_id = match[1];\n        }\n      }\n\n      const id = element.resourceId || element.id || `${post_id}_comment_${element.capturedAt}`;\n      const author = element.actor || activity.actor || 'me';\n      \n      const published_at_ms = (activity.created && activity.created.time) || element.capturedAt || element.processedAt;\n      const published_at = published_at_ms ? new Date(published_at_ms).toISOString() : new Date().toISOString();\n\n      results.push({\n        id: id.toString(),\n        post_id,\n        author,\n        content,\n        published_at,\n        processed: 0\n      });\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-changelog-comments",
+        "name": "Parse LinkedIn Changelog Comments",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          1550
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.resourceName === 'socialActions/likes') {\n      const activity = element.activity || {};\n      \n      let post_id = 'unknown';\n      if (activity.object) {\n        post_id = activity.object;\n      } else if (element.resourceId) {\n        post_id = element.resourceId;\n      } else if (element.resourceUri) {\n        const match = element.resourceUri.match(/\\/socialActions\\/(urn:li:[a-zA-Z0-9_]+:[0-9]+)\\/likes/);\n        if (match) {\n          post_id = match[1];\n        }\n      }\n\n      const author = element.actor || activity.actor || 'me';\n      const id = element.id || element.activityId || `${post_id}_like_${author}`;\n      \n      const published_at_ms = (activity.created && activity.created.time) || element.capturedAt || element.processedAt;\n      const published_at = published_at_ms ? new Date(published_at_ms).toISOString() : new Date().toISOString();\n\n      results.push({\n        id: id.toString(),\n        post_id,\n        author,\n        published_at,\n        processed: 0\n      });\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-changelog-likes",
+        "name": "Parse LinkedIn Changelog Likes",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          1700
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.social_action_comments (id, post_id, author, content, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET content = EXCLUDED.content, author = EXCLUDED.author\nRETURNING id;"
+        },
+        "id": "insert-changelog-comments",
+        "name": "Insert/Upsert Changelog Comments",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          1550
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.social_action_likes (id, post_id, author, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET author = EXCLUDED.author\nRETURNING id;"
+        },
+        "id": "insert-changelog-likes",
+        "name": "Insert/Upsert Changelog Likes",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          1700
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
       }
-    },
-    {
-      "parameters": {
-        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=ALL_COMMENTS",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+    ],
+    "connections": {
+      "Schedule Trigger": {
+        "main": [
+          [
             {
-              "name": "X-RestLi-Protocol-Version",
-              "value": "2.0.0"
+              "node": "Fetch LinkedIn Posts",
+              "type": "main",
+              "index": 0
             },
             {
-              "name": "LinkedIn-Version",
-              "value": "202312"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "fetch-linkedin-comments",
-      "name": "Fetch LinkedIn Comments",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        300,
-        500
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "linkedin-member-data-portability-api",
-          "name": "LinkedIn Member Data Portability API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=ALL_LIKES",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-RestLi-Protocol-Version",
-              "value": "2.0.0"
+              "node": "Fetch LinkedIn Comments",
+              "type": "main",
+              "index": 0
             },
             {
-              "name": "LinkedIn-Version",
-              "value": "202312"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "fetch-linkedin-likes",
-      "name": "Fetch LinkedIn Likes",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        300,
-        650
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "linkedin-member-data-portability-api",
-          "name": "LinkedIn Member Data Portability API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const action of element.snapshotData) {\n        const Link = action.Link || '';\n        const DateVal = action.Date || '';\n        const Message = action.Message || '';\n\n        let post_id = 'unknown';\n        if (Link) {\n          const decodedLink = decodeURIComponent(Link);\n          const urnMatch = decodedLink.match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n          if (urnMatch) {\n            post_id = urnMatch[1];\n          }\n        }\n\n        const id = `${post_id}_comment_${DateVal.replace(/[^a-zA-Z0-9]/g, '_')}`;\n        let published_at = new Date().toISOString();\n        if (DateVal) {\n          published_at = new Date(DateVal.replace(' ', 'T') + 'Z').toISOString();\n        }\n\n        results.push({\n          id,\n          post_id,\n          author: 'me',\n          content: Message,\n          published_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
-      },
-      "id": "parse-linkedin-comments",
-      "name": "Parse LinkedIn Comments",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        500,
-        500
-      ]
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const action of element.snapshotData) {\n        const Link = action.Link || '';\n        const DateVal = action.Date || '';\n\n        let post_id = 'unknown';\n        if (Link) {\n          const decodedLink = decodeURIComponent(Link);\n          const urnMatch = decodedLink.match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n          if (urnMatch) {\n            post_id = urnMatch[1];\n          }\n        }\n\n        const id = `${post_id}_like_${DateVal.replace(/[^a-zA-Z0-9]/g, '_')}`;\n        let published_at = new Date().toISOString();\n        if (DateVal) {\n          published_at = new Date(DateVal.replace(' ', 'T') + 'Z').toISOString();\n        }\n\n        results.push({\n          id,\n          post_id,\n          author: 'me',\n          published_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
-      },
-      "id": "parse-linkedin-likes",
-      "name": "Parse LinkedIn Likes",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        500,
-        650
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.social_action_comments (id, post_id, author, content, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET content = EXCLUDED.content, author = EXCLUDED.author\nRETURNING id;"
-      },
-      "id": "insert-comments",
-      "name": "Insert/Upsert Comments",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        700,
-        500
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.social_action_likes (id, post_id, author, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET author = EXCLUDED.author\nRETURNING id;"
-      },
-      "id": "insert-likes",
-      "name": "Insert/Upsert Likes",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        700,
-        650
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=INVITATIONS",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-RestLi-Protocol-Version",
-              "value": "2.0.0"
+              "node": "Fetch LinkedIn Likes",
+              "type": "main",
+              "index": 0
             },
             {
-              "name": "LinkedIn-Version",
-              "value": "202312"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "fetch-linkedin-invitations",
-      "name": "Fetch LinkedIn Invitations",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        300,
-        800
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "linkedin-member-data-portability-api",
-          "name": "LinkedIn Member Data Portability API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const invite of element.snapshotData) {\n        const to_name = invite.To || '';\n        const from_name = invite.From || '';\n        const direction = invite.Direction || '';\n        const inviter_profile_url = invite.inviterProfileUrl || '';\n        const invitee_profile_url = invite.inviteeProfileUrl || '';\n        const message = invite.Message || '';\n        const sent_at_str = invite[\"Sent At\"] || '';\n\n        let sent_at = new Date().toISOString();\n        if (sent_at_str) {\n          sent_at = new Date(sent_at_str).toISOString();\n        }\n\n        const targetProfile = direction === 'OUTGOING' ? invitee_profile_url : inviter_profile_url;\n        const profileSlug = targetProfile ? targetProfile.split('/in/')[1] || targetProfile : 'unknown';\n        const id = `${direction.toLowerCase()}_${profileSlug.replace(/[^a-zA-Z0-9]/g, '_')}_${sent_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          to_name,\n          from_name,\n          direction,\n          inviter_profile_url,\n          invitee_profile_url,\n          message,\n          sent_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
-      },
-      "id": "parse-linkedin-invitations",
-      "name": "Parse LinkedIn Invitations",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        500,
-        800
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.invitations (id, to_name, from_name, direction, inviter_profile_url, invitee_profile_url, message, sent_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.to_name.replace(/'/g, \"''\") }}',\n  '{{ $json.from_name.replace(/'/g, \"''\") }}',\n  '{{ $json.direction }}',\n  '{{ $json.inviter_profile_url }}',\n  '{{ $json.invitee_profile_url }}',\n  {{ $json.message ? \"'\" + $json.message.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.sent_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET message = EXCLUDED.message\nRETURNING id;"
-      },
-      "id": "insert-invitations",
-      "name": "Insert/Upsert Invitations",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        700,
-        800
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=INBOX",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-RestLi-Protocol-Version",
-              "value": "2.0.0"
+              "node": "Fetch LinkedIn Invitations",
+              "type": "main",
+              "index": 0
             },
             {
-              "name": "LinkedIn-Version",
-              "value": "202312"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "fetch-linkedin-messages",
-      "name": "Fetch LinkedIn Messages",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        300,
-        950
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "linkedin-member-data-portability-api",
-          "name": "LinkedIn Member Data Portability API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const msg of element.snapshotData) {\n        const conversation_id = msg[\"CONVERSATION ID\"] || '';\n        const date_str = msg[\"DATE\"] || '';\n        const sender_profile_url = msg[\"SENDER PROFILE URL\"] || '';\n        const recipient_profile_urls = msg[\"RECIPIENT PROFILE URLS\"] || '';\n        const sender_name = msg[\"FROM\"] || '';\n        const recipient_name = msg[\"TO\"] || '';\n        const subject = msg[\"SUBJECT\"] || '';\n        const content = msg[\"CONTENT\"] || '';\n        const folder = msg[\"FOLDER\"] || '';\n\n        let sent_at = new Date().toISOString();\n        if (date_str) {\n          sent_at = new Date(date_str).toISOString();\n        }\n\n        const senderSlug = sender_profile_url ? sender_profile_url.split('/in/')[1] || sender_profile_url : 'unknown';\n        const id = `${conversation_id}_${sent_at.replace(/[^a-zA-Z0-9]/g, '_')}_${senderSlug.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          conversation_id,\n          sender_name,\n          recipient_name,\n          sender_profile_url,\n          recipient_profile_urls,\n          subject,\n          content,\n          folder,\n          sent_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
-      },
-      "id": "parse-linkedin-messages",
-      "name": "Parse LinkedIn Messages",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        500,
-        950
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.messages (id, conversation_id, sender_name, recipient_name, sender_profile_url, recipient_profile_urls, subject, content, folder, sent_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.conversation_id }}',\n  '{{ $json.sender_name.replace(/'/g, \"''\") }}',\n  '{{ $json.recipient_name.replace(/'/g, \"''\") }}',\n  '{{ $json.sender_profile_url }}',\n  '{{ $json.recipient_profile_urls }}',\n  '{{ $json.subject.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.folder }}',\n  '{{ $json.sent_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET content = EXCLUDED.content\nRETURNING id;"
-      },
-      "id": "insert-messages",
-      "name": "Insert/Upsert Messages",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        700,
-        950
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=CONNECTIONS",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-RestLi-Protocol-Version",
-              "value": "2.0.0"
+              "node": "Fetch LinkedIn Messages",
+              "type": "main",
+              "index": 0
             },
             {
-              "name": "LinkedIn-Version",
-              "value": "202312"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "fetch-linkedin-connections",
-      "name": "Fetch LinkedIn Connections",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        300,
-        1100
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "linkedin-member-data-portability-api",
-          "name": "LinkedIn Member Data Portability API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const conn of element.snapshotData) {\n        const first_name = conn[\"First Name\"] || '';\n        const last_name = conn[\"Last Name\"] || '';\n        const company = conn[\"Company\"] || '';\n        const position = conn[\"Position\"] || '';\n        const email_address = conn[\"Email Address\"] || '';\n        const url = conn[\"URL\"] || '';\n        const connected_on_str = conn[\"Connected On\"] || '';\n\n        let connected_at = new Date().toISOString();\n        if (connected_on_str) {\n          connected_at = new Date(connected_on_str).toISOString();\n        }\n\n        const profileSlug = url ? url.split('/in/')[1] || url : 'unknown';\n        const id = `${profileSlug.replace(/[^a-zA-Z0-9]/g, '_')}_connection_${connected_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          first_name,\n          last_name,\n          profile_url: url,\n          email_address,\n          company,\n          position,\n          connected_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
-      },
-      "id": "parse-linkedin-connections",
-      "name": "Parse LinkedIn Connections",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        500,
-        1100
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.connections (id, first_name, last_name, profile_url, email_address, company, position, connected_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.first_name.replace(/'/g, \"''\") }}',\n  '{{ $json.last_name.replace(/'/g, \"''\") }}',\n  '{{ $json.profile_url }}',\n  {{ $json.email_address ? \"'\" + $json.email_address.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.company.replace(/'/g, \"''\") }}',\n  '{{ $json.position.replace(/'/g, \"''\") }}',\n  '{{ $json.connected_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  position = EXCLUDED.position, \n  company = EXCLUDED.company,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
-      },
-      "id": "insert-connections",
-      "name": "Insert/Upsert Connections",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        700,
-        1100
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=MEMBER_FOLLOWING",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-RestLi-Protocol-Version",
-              "value": "2.0.0"
+              "node": "Fetch LinkedIn Connections",
+              "type": "main",
+              "index": 0
             },
             {
-              "name": "LinkedIn-Version",
-              "value": "202312"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "fetch-linkedin-following",
-      "name": "Fetch LinkedIn Following",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        300,
-        1250
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "linkedin-member-data-portability-api",
-          "name": "LinkedIn Member Data Portability API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const conn of element.snapshotData) {\n        const url = conn.URL || conn.Url || conn[\"Profile URL\"] || conn[\"Url\"] || '';\n        const followed_at_str = conn[\"Followed On\"] || conn.Date || conn[\"Followed Date\"] || conn[\"Followed At\"] || '';\n        const entity_name = conn.Organization || conn[\"Organization Name\"] || conn[\"Company Name\"] || (conn[\"First Name\"] || conn[\"Last Name\"] ? (conn[\"First Name\"] + ' ' + conn[\"Last Name\"]).trim() : '') || conn.Name || '';\n        const type = conn.Type || (conn.Organization || conn[\"Organization Name\"] || conn[\"Company Name\"] ? 'Organization' : 'Member');\n\n        let followed_at = new Date().toISOString();\n        if (followed_at_str) {\n          followed_at = new Date(followed_at_str).toISOString();\n        }\n\n        const profileSlug = url ? url.split('/in/')[1] || url.split('/company/')[1] || url : 'unknown';\n        const id = `${profileSlug.replace(/[^a-zA-Z0-9]/g, '_')}_following_${followed_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          entity_name,\n          profile_url: url,\n          type,\n          followed_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
-      },
-      "id": "parse-linkedin-following",
-      "name": "Parse LinkedIn Following",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        500,
-        1250
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.following (id, entity_name, profile_url, type, followed_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.entity_name.replace(/'/g, \"''\") }}',\n  '{{ $json.profile_url }}',\n  '{{ $json.type }}',\n  '{{ $json.followed_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  entity_name = EXCLUDED.entity_name,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
-      },
-      "id": "insert-following",
-      "name": "Insert/Upsert Following",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        700,
-        1250
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=SEARCHES",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-RestLi-Protocol-Version",
-              "value": "2.0.0"
+              "node": "Fetch LinkedIn Following",
+              "type": "main",
+              "index": 0
             },
             {
-              "name": "LinkedIn-Version",
-              "value": "202312"
+              "node": "Fetch LinkedIn Searches",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Fetch LinkedIn Changelog Comments",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Fetch LinkedIn Changelog Likes",
+              "type": "main",
+              "index": 0
             }
           ]
-        },
-        "options": {}
+        ]
       },
-      "id": "fetch-linkedin-searches",
-      "name": "Fetch LinkedIn Searches",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        300,
-        1400
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "linkedin-member-data-portability-api",
-          "name": "LinkedIn Member Data Portability API"
-        }
+      "Fetch LinkedIn Posts": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Posts",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Posts": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert UGC Posts",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Comments": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Comments",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Likes": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Likes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Invitations": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Invitations",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Messages": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Messages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Comments": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Comments",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Likes": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Likes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Invitations": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Invitations",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Messages": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Messages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Connections": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Connections",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Connections": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Connections",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Following": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Following",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Following": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Following",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Searches": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Searches",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Searches": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Searches",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Changelog Comments": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Changelog Comments",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Changelog Comments": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Changelog Comments",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Changelog Likes": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Changelog Likes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Changelog Likes": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Changelog Likes",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
       }
     },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const search of element.snapshotData) {\n        const query_text = search[\"Search Query\"] || search.Query || search[\"Query String\"] || search.Text || '';\n        const searched_at_str = search[\"Search Date\"] || search.Date || search.Timestamp || search[\"Time\"] || '';\n\n        let searched_at = new Date().toISOString();\n        if (searched_at_str) {\n          searched_at = new Date(searched_at_str).toISOString();\n        }\n\n        const querySlug = query_text.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);\n        const id = `search_${searched_at.replace(/[^a-zA-Z0-9]/g, '_')}_${querySlug}`;\n\n        results.push({\n          id,\n          query_text,\n          searched_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
-      },
-      "id": "parse-linkedin-searches",
-      "name": "Parse LinkedIn Searches",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        500,
-        1400
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.searches (id, query_text, searched_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.query_text.replace(/'/g, \"''\") }}',\n  '{{ $json.searched_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
-      },
-      "id": "insert-searches",
-      "name": "Insert/Upsert Searches",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        700,
-        1400
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
+    "active": false,
+    "settings": {
+      "executionOrder": "v1"
     }
-  ],
-  "connections": {
-    "Schedule Trigger": {
-      "main": [
-        [
-          {
-            "node": "Fetch LinkedIn Posts",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch LinkedIn Comments",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch LinkedIn Likes",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch LinkedIn Invitations",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch LinkedIn Messages",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch LinkedIn Connections",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch LinkedIn Following",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch LinkedIn Searches",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch LinkedIn Posts": {
-      "main": [
-        [
-          {
-            "node": "Parse LinkedIn Posts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LinkedIn Posts": {
-      "main": [
-        [
-          {
-            "node": "Insert/Upsert UGC Posts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch LinkedIn Comments": {
-      "main": [
-        [
-          {
-            "node": "Parse LinkedIn Comments",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch LinkedIn Likes": {
-      "main": [
-        [
-          {
-            "node": "Parse LinkedIn Likes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch LinkedIn Invitations": {
-      "main": [
-        [
-          {
-            "node": "Parse LinkedIn Invitations",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch LinkedIn Messages": {
-      "main": [
-        [
-          {
-            "node": "Parse LinkedIn Messages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LinkedIn Comments": {
-      "main": [
-        [
-          {
-            "node": "Insert/Upsert Comments",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LinkedIn Likes": {
-      "main": [
-        [
-          {
-            "node": "Insert/Upsert Likes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LinkedIn Invitations": {
-      "main": [
-        [
-          {
-            "node": "Insert/Upsert Invitations",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LinkedIn Messages": {
-      "main": [
-        [
-          {
-            "node": "Insert/Upsert Messages",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch LinkedIn Connections": {
-      "main": [
-        [
-          {
-            "node": "Parse LinkedIn Connections",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LinkedIn Connections": {
-      "main": [
-        [
-          {
-            "node": "Insert/Upsert Connections",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch LinkedIn Following": {
-      "main": [
-        [
-          {
-            "node": "Parse LinkedIn Following",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LinkedIn Following": {
-      "main": [
-        [
-          {
-            "node": "Insert/Upsert Following",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch LinkedIn Searches": {
-      "main": [
-        [
-          {
-            "node": "Parse LinkedIn Searches",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LinkedIn Searches": {
-      "main": [
-        [
-          {
-            "node": "Insert/Upsert Searches",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "active": false,
-  "settings": {
-    "executionOrder": "v1"
   }
-}

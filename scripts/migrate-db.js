@@ -163,6 +163,25 @@ CREATE TABLE IF NOT EXISTS s_linkedin.social_action_comments (
   processed INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS s_linkedin.all_comments (
+  id VARCHAR(255) PRIMARY KEY,
+  post_id VARCHAR(255) NOT NULL,
+  author VARCHAR(255),
+  content TEXT,
+  published_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  processed INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS s_linkedin.all_likes (
+  id VARCHAR(255) PRIMARY KEY,
+  post_id VARCHAR(255) NOT NULL,
+  author VARCHAR(255),
+  published_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  processed INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS s_linkedin.invitations (
   id VARCHAR(255) PRIMARY KEY,
   to_name VARCHAR(255),
