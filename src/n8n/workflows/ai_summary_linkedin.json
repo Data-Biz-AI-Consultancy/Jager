@@ -25,7 +25,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  p.id AS post_id,\n  p.content AS post_content,\n  p.url AS post_url,\n  p.published_at AS post_published_at,\n  (SELECT COUNT(*) FROM s_linkedin.all_likes l WHERE l.post_id = p.id) AS likes_count,\n  c.id AS comment_id,\n  c.author AS comment_author,\n  c.content AS comment_content,\n  c.published_at AS comment_published_at\nFROM s_linkedin.ugc_posts p\nLEFT JOIN s_linkedin.all_comments c ON c.post_id = p.id\nWHERE p.published_at >= NOW() - INTERVAL '7 days'\nORDER BY p.published_at DESC, c.published_at DESC;"
+        "query": "SELECT id AS post_id, content AS post_content, url AS post_url, published_at AS post_published_at\nFROM s_linkedin.ugc_posts\nWHERE published_at >= NOW() - INTERVAL '7 days'\nORDER BY published_at DESC;"
       },
       "id": "get-latest-posts",
       "name": "Get Latest Posts",
@@ -33,7 +33,7 @@
       "typeVersion": 2.5,
       "position": [
         300,
-        300
+        50
       ],
       "credentials": {
         "postgres": {
@@ -44,15 +44,185 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const rows = $input.all();\nif (rows.length === 0 || !rows[0].json.post_id) {\n  return [{ json: { text: 'No recent LinkedIn posts found.', post_ids: [], ref_map: {} } }];\n}\n\nconst posts = {};\nconst postIds = new Set();\n\nrows.forEach(row => {\n  const data = row.json;\n  const pId = data.post_id;\n  if (!pId) return;\n\n  postIds.add(pId);\n  if (!posts[pId]) {\n    posts[pId] = {\n      content: data.post_content,\n      url: data.post_url,\n      published_at: data.post_published_at,\n      likes_count: data.likes_count || 0,\n      comments: []\n    };\n  }\n\n  if (data.comment_id) {\n    if (!posts[pId].comments.some(c => c.id === data.comment_id)) {\n      posts[pId].comments.push({\n        id: data.comment_id,\n        author: data.comment_author,\n        content: data.comment_content,\n        published_at: data.comment_published_at\n      });\n    }\n  }\n});\n\nconst refMap = {};\nlet refCounter = 1;\n\nlet text = 'LinkedIn posts to analyze (each has an id number):\\n\\n';\n\nObject.entries(posts).forEach(([pId, post]) => {\n  const refId = refCounter++;\n  const snippet = (post.content || '').substring(0, 40).replace(/\\n/g, ' ') || 'LinkedIn Post';\n  refMap[String(refId)] = { title: snippet, url: post.url || '' };\n\n  text += `  id:${refId} | Published: ${post.published_at} | Likes: ${post.likes_count}\\n`;\n  text += `  Content: ${post.content || 'No content'}\\n`;\n  if (post.comments.length > 0) {\n    text += `  Comments:\\n`;\n    post.comments.forEach(comment => {\n      text += `    - by ${comment.author}: ${comment.content}\\n`;\n    });\n  }\n  text += '\\n';\n});\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/giusy.md', 'utf8');\n} catch (e) {\n  persona = 'Warm, brilliant AI Marketing Director named Giusy.';\n}\n\nreturn [{ json: { text, post_ids: Array.from(postIds), ref_map: refMap, giusy_persona: persona } }];"
+        "operation": "executeQuery",
+        "query": "SELECT post_id, author AS like_author, published_at AS like_published_at\nFROM s_linkedin.social_action_likes\nWHERE published_at >= NOW() - INTERVAL '7 days'\nORDER BY published_at DESC;"
       },
-      "id": "format-posts-for-llm",
-      "name": "Format Posts for LLM",
+      "id": "get-post-likes",
+      "name": "Get Post Likes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT post_id, author AS comment_author, content AS comment_content, published_at AS comment_published_at\nFROM s_linkedin.social_action_comments\nWHERE published_at >= NOW() - INTERVAL '7 days'\nORDER BY published_at DESC;"
+      },
+      "id": "get-post-comments",
+      "name": "Get Post Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        250
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT sender_name, recipient_name, content, sent_at\nFROM s_linkedin.messages\nWHERE sent_at >= NOW() - INTERVAL '7 days'\nORDER BY sent_at DESC;"
+      },
+      "id": "get-recent-messages",
+      "name": "Get Recent Messages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        350
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT from_name, to_name, message, direction, sent_at\nFROM s_linkedin.all_invitations\nWHERE sent_at >= NOW() - INTERVAL '7 days'\nORDER BY sent_at DESC;"
+      },
+      "id": "get-recent-invitations",
+      "name": "Get Recent Invitations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        450
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 'comment' AS type, post_id, content, published_at\nFROM s_linkedin.all_comments\nWHERE published_at >= NOW() - INTERVAL '7 days'\nUNION ALL\nSELECT 'like' AS type, post_id, NULL AS content, published_at\nFROM s_linkedin.all_likes\nWHERE published_at >= NOW() - INTERVAL '7 days'\nORDER BY published_at DESC;"
+      },
+      "id": "get-our-outbound-activity",
+      "name": "Get Our Outbound Activity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        550
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "outputBranch": "input1"
+      },
+      "id": "merge-1",
+      "name": "Merge 1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "outputBranch": "input1"
+      },
+      "id": "merge-2",
+      "name": "Merge 2",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        650,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "outputBranch": "input1"
+      },
+      "id": "merge-3",
+      "name": "Merge 3",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        800,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "outputBranch": "input1"
+      },
+      "id": "merge-4",
+      "name": "Merge 4",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        950,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "outputBranch": "input1"
+      },
+      "id": "merge-5",
+      "name": "Merge 5",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        1100,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const postsRows = $('Get Latest Posts').all();\nconst likesRows = $('Get Post Likes').all();\nconst commentsRows = $('Get Post Comments').all();\nconst messagesRows = $('Get Recent Messages').all();\nconst invitationsRows = $('Get Recent Invitations').all();\nconst outboundRows = $('Get Our Outbound Activity').all();\n\nlet text = 'LINKEDIN ACTIVITY & PERFORMANCE REPORT FOR DON JIMMY\\n\\n';\nlet refMap = {};\nlet refCounter = 1;\n\n// 1. Map comments and likes to posts\nconst posts = {};\npostsRows.forEach(row => {\n  const p = row.json;\n  if (!p.post_id) return;\n  posts[p.post_id] = {\n    content: p.post_content,\n    url: p.post_url,\n    published_at: p.post_published_at,\n    likes_count: 0,\n    comments: []\n  };\n});\n\nlikesRows.forEach(row => {\n  const l = row.json;\n  if (posts[l.post_id]) {\n    posts[l.post_id].likes_count++;\n  }\n});\n\ncommentsRows.forEach(row => {\n  const c = row.json;\n  if (posts[c.post_id]) {\n    posts[c.post_id].comments.push({\n      author: c.comment_author,\n      content: c.comment_content,\n      published_at: c.comment_published_at\n    });\n  }\n});\n\n// 2. Format Posts & Comments Received\ntext += '=== LATEST PUBLISHED POSTS & INBOUND ENGAGEMENT ===\\n';\nif (Object.keys(posts).length === 0) {\n  text += 'No posts published in the last 7 days.\\n\\n';\n} else {\n  Object.entries(posts).forEach(([pId, post]) => {\n    const refId = refCounter++;\n    const snippet = (post.content || '').substring(0, 40).replace(/\\n/g, ' ') || 'LinkedIn Post';\n    refMap[String(refId)] = { title: snippet, url: post.url || '' };\n\n    text += `[Post #${refId}] | Likes Received: ${post.likes_count} | Published: ${post.published_at}\\n`;\n    text += `Content: ${post.content || 'No content'}\\n`;\n    if (post.comments.length > 0) {\n      text += `Comments Received:\\n`;\n      post.comments.forEach(comment => {\n        text += `  - by ${comment.author}: ${comment.content}\\n`;\n      });\n    }\n    text += '\\n';\n  });\n}\n\n// 3. Format Outbound Activity\ntext += '=== OUTBOUND ENGAGEMENT (My Likes & Comments on LinkedIn) ===\\n';\nif (outboundRows.length === 0 || !outboundRows[0].json.type) {\n  text += 'No outbound likes or comments in the last 7 days.\\n\\n';\n} else {\n  outboundRows.forEach(row => {\n    const act = row.json;\n    if (act.type === 'comment') {\n      text += `- Commented on post (ID: ${act.post_id}) at ${act.published_at}: \"${act.content}\"\\n`;\n    } else {\n      text += `- Liked post (ID: ${act.post_id}) at ${act.published_at}\\n`;\n    }\n  });\n  text += '\\n';\n}\n\n// 4. Format Messages\ntext += '=== DIRECT MESSAGES (Last 7 Days) ===\\n';\nif (messagesRows.length === 0 || !messagesRows[0].json.sender_name) {\n  text += 'No new inbox messages.\\n\\n';\n} else {\n  messagesRows.forEach(row => {\n    const msg = row.json;\n    text += `From: ${msg.sender_name} | To: ${msg.recipient_name} | Sent: ${msg.sent_at}\\n`;\n    text += `Message: ${msg.content || 'No content'}\\n\\n`;\n  });\n}\n\n// 5. Format Connection Requests\ntext += '=== CONNECTION INVITATIONS (Last 7 Days) ===\\n';\nif (invitationsRows.length === 0 || !invitationsRows[0].json.from_name) {\n  text += 'No new connection requests.\\n\\n';\n} else {\n  invitationsRows.forEach(row => {\n    const invite = row.json;\n    text += `Direction: ${invite.direction} | From: ${invite.from_name} | To: ${invite.to_name} | Sent: ${invite.sent_at}\\n`;\n    if (invite.message) {\n      text += `Personal Note: ${invite.message}\\n`;\n    }\n    text += '\\n';\n  });\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/giusy.md', 'utf8');\n} catch (e) {\n  persona = 'Warm, brilliant AI Marketing Director named Giusy.';\n}\n\nreturn [{ json: { text, ref_map: refMap, giusy_persona: persona } }];"
+      },
+      "id": "format-data-for-llm",
+      "name": "Format Data for LLM",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
+        1300,
         300
       ]
     },
@@ -66,7 +236,7 @@
         "messages": {
           "values": [
             {
-              "content": "=### LANGUAGE RULE ###\nWrite everything in ENGLISH. One Italian greeting at the start (e.g. Buongiorno Don Jimmy 💡) and one Italian sign-off at the end (e.g. Buon lavoro). All content in between: ENGLISH.\n\n### YOUR PERSONA ###\nYou are Giusy, Don Jimmy's brilliant AI Marketing Director and Brand Strategist. Creative, sharp, highly communicative, and growth-oriented. Use Unicode emojis directly.\n\n### YOUR TASK ###\nCritique the LinkedIn posts and their engagement below. Focus on analyzing their potential to generate impressions, catch attention, and spark community discussion. Return a JSON object with this exact structure — no extra text, no markdown fences, just raw JSON:\n\n{\n  \"greeting\": \"One short warm Italian greeting line for Don Jimmy\",\n  \"performance_critique\": [\n    {\n      \"post_id\": 1,\n      \"resonance_score\": \"High/Medium/Low based on engagement indicators (likes/comments)\",\n      \"positives\": \"What worked well in this post (e.g. hook, formatting, subject matter)\",\n      \"critique\": \"Specific, direct advice on how this post could have been improved to capture more impressions or comments (e.g., improve the first 2 lines, better formatting, missing call to action)\",\n      \"key_theme\": \"The core topic that resonated or missed the mark\"\n    }\n  ],\n  \"community_engagement_actions\": [\n    {\n      \"post_id\": 1,\n      \"commenter\": \"Name of the key commenter or 'General Community'\",\n      \"actionable_reply\": \"Specific recommendation on how to reply or continue the conversation to spark more discussion, boost the algorithm, and gather more impressions\"\n    }\n  ],\n  \"strategic_recommendations\": [\n    \"One sentence tactical suggestion for future LinkedIn writing (e.g., optimal post length, visual style, formatting templates, or hook structures based on what got comments)\"\n  ],\n  \"signoff\": \"One short warm Italian sign-off line\"\n}\n\nRules:\n- \"performance_critique\" must evaluate every post in the data.\n- Output only valid JSON. No explanation, no markdown, no code fences.\n\n### LINKEDIN DATA ###\n{{ $json.text }}"
+              "content": "=### LANGUAGE RULE ###\nWrite everything in ENGLISH. One Italian greeting at the start (e.g. Buongiorno Don Jimmy 💡) and one Italian sign-off at the end (e.g. Buon lavoro). All content in between: ENGLISH.\n\n### YOUR PERSONA ###\nYou are Giusy, Don Jimmy's brilliant AI Marketing Director and Brand Strategist. Creative, sharp, highly communicative, and growth-oriented. Use Unicode emojis directly.\n\n### YOUR TASK ###\nAnalyze the LinkedIn performance (inbound posts & comments received, outbound comments/likes made, messages, and connection requests) below. Provide a marketing critique to maximize impressions, engagement, and conversion. Return a JSON object with this exact structure — no extra text, no markdown fences, just raw JSON:\n\n{\n  \"greeting\": \"One short warm Italian greeting line for Don Jimmy\",\n  \"performance_critique\": [\n    {\n      \"post_id\": 1,\n      \"resonance_score\": \"High/Medium/Low based on engagement indicators (likes/comments)\",\n      \"positives\": \"What worked well in this post (e.g. hook, formatting, subject matter)\",\n      \"critique\": \"Specific, direct advice on how this post could have been improved to capture more impressions or comments (e.g., improve the first 2 lines, better formatting, missing call to action)\",\n      \"key_theme\": \"The core topic that resonated or missed the mark\"\n    }\n  ],\n  \"outbound_critique\": \"One sentence evaluating our own commenting and liking activity (e.g. whether we are engaging with the right posts, quality of our comments to drive profile views/impressions).\",\n  \"inbox_insights\": [\n    \"One sentence analysis of recent direct messages and who they are from, indicating if they are a high-value lead or need follow-up.\"\n  ],\n  \"community_engagement_actions\": [\n    {\n      \"type\": \"Comment Reply / Message Follow-up / Invitation Acceptance\",\n      \"target\": \"Name of the person (commenter, sender, or inviter)\",\n      \"actionable_reply\": \"Specific suggested text/draft or action for Don Jimmy to reply to keep the thread alive or follow up on a lead.\"\n    }\n  ],\n  \"strategic_recommendations\": [\n    \"One sentence tactical suggestion for future LinkedIn writing (e.g., optimal post length, visual style, formatting templates, or hook structures based on what got comments)\"\n  ],\n  \"signoff\": \"One short warm Italian sign-off line\"\n}\n\nRules:\n- Output only valid JSON. No explanation, no markdown, no code fences.\n\n### LINKEDIN DATA ###\n{{ $json.text }}"
             }
           ]
         },
@@ -79,8 +249,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        700,
-        83
+        1500,
+        300
       ],
       "credentials": {
         "ollamaApi": {
@@ -92,14 +262,14 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nconst refMap = $('Format Posts for LLM').first().json.ref_map || {};\n\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\njsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  try {\n    const cleanedStr = jsonStr.replace(/,\\s*([}\\]])/g, '$1');\n    parsed = JSON.parse(cleanedStr);\n  } catch (err) {\n    return [{ json: { response: raw } }];\n  }\n}\n\nconst greeting = parsed.greeting || '';\nconst signoff = parsed.signoff || '';\nconst performanceCritique = Array.isArray(parsed.performance_critique) ? parsed.performance_critique : [];\nconst communityActions = Array.isArray(parsed.community_engagement_actions) ? parsed.community_engagement_actions : [];\nconst strategicRecommendations = Array.isArray(parsed.strategic_recommendations) ? parsed.strategic_recommendations : [];\n\nlet msg = '';\nif (greeting) msg += `${greeting}\\n\\n`;\nmsg += '📊 *LinkedIn Content Performance & Resonance Critique* 📊\\n\\n';\n\nif (performanceCritique.length > 0) {\n  msg += '*Post-by-Post Feedback*:\\n';\n  performanceCritique.forEach(c => {\n    const ref = refMap[String(c.post_id)];\n    const linkStr = ref && ref.url ? `<${ref.url}|${ref.title}...>` : `Post #${c.post_id}`;\n    msg += `• *${linkStr}* | Resonance: *${c.resonance_score || 'N/A'}*\\n`;\n    msg += `  - *What worked*: ${c.positives || 'None'}\\n`;\n    msg += `  - *Critique*: ${c.critique || 'None'}\\n`;\n  });\n  msg += '\\n';\n}\n\nif (communityActions.length > 0) {\n  msg += '*Community Engagement Plays*:\\n';\n  communityActions.forEach(action => {\n    const ref = refMap[String(action.post_id)];\n    const linkStr = ref && ref.url ? `<${ref.url}|Post>` : `Post #${action.post_id}`;\n    msg += `• On *${linkStr}*, reply to *${action.commenter || 'Community'}*:\\n`;\n    msg += `  > \"${action.actionable_reply}\"\\n`;\n  });\n  msg += '\\n';\n}\n\nif (strategicRecommendations.length > 0) {\n  msg += '*Strategic Writing Directives*:\\n';\n  strategicRecommendations.forEach(rec => {\n    msg += `• ${rec}\\n`;\n  });\n  msg += '\\n';\n}\n\nif (signoff) msg += `${signoff}`;\n\nreturn [{ json: { response: msg.trim() } }];"
+        "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nconst refMap = $('Format Data for LLM').first().json.ref_map || {};\n\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\njsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  try {\n    const cleanedStr = jsonStr.replace(/,\\s*([}\\]])/g, '$1');\n    parsed = JSON.parse(cleanedStr);\n  } catch (err) {\n    return [{ json: { response: raw } }];\n  }\n}\n\nconst greeting = parsed.greeting || '';\nconst signoff = parsed.signoff || '';\nconst performanceCritique = Array.isArray(parsed.performance_critique) ? parsed.performance_critique : [];\nconst outboundCritique = parsed.outbound_critique || '';\nconst inboxInsights = Array.isArray(parsed.inbox_insights) ? parsed.inbox_insights : [];\nconst communityActions = Array.isArray(parsed.community_engagement_actions) ? parsed.community_engagement_actions : [];\nconst strategicRecommendations = Array.isArray(parsed.strategic_recommendations) ? parsed.strategic_recommendations : [];\n\nlet msg = '';\nif (greeting) msg += `${greeting}\\n\\n`;\nmsg += '📊 *LinkedIn Content Performance & Resonance Critique* 📊\\n\\n';\n\nif (performanceCritique.length > 0) {\n  msg += '*Inbound Post-by-Post Feedback*:\\n';\n  performanceCritique.forEach(c => {\n    const ref = refMap[String(c.post_id)];\n    const linkStr = ref && ref.url ? `<${ref.url}|${ref.title}...>` : `Post #${c.post_id}`;\n    msg += `• *${linkStr}* | Resonance: *${c.resonance_score || 'N/A'}*\\n`;\n    msg += `  - *What worked*: ${c.positives || 'None'}\\n`;\n    msg += `  - *Critique*: ${c.critique || 'None'}\\n`;\n  });\n  msg += '\\n';\n}\n\nif (outboundCritique) {\n  msg += '*Outbound Activity Critique*:\\n';\n  msg += `• ${outboundCritique}\\n\\n`;\n}\n\nif (inboxInsights.length > 0) {\n  msg += '*Inbox & Leads Analysis*:\\n';\n  inboxInsights.forEach(insight => {\n    msg += `• ${insight}\\n`;\n  });\n  msg += '\\n';\n}\n\nif (communityActions.length > 0) {\n  msg += '*Community & Lead Actions*:\\n';\n  communityActions.forEach(action => {\n    msg += `• *${action.type || 'Action'}* with *${action.target || 'Community'}*:\\n`;\n    msg += `  > \"${action.actionable_reply}\"\\n`;\n  });\n  msg += '\\n';\n}\n\nif (strategicRecommendations.length > 0) {\n  msg += '*Strategic Writing Directives*:\\n';\n  strategicRecommendations.forEach(rec => {\n    msg += `• ${rec}\\n`;\n  });\n  msg += '\\n';\n}\n\nif (signoff) msg += `${signoff}`;\n\nreturn [{ json: { response: msg.trim() } }];"
       },
       "id": "build-slack-message",
       "name": "Build Slack Message",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
+        1700,
         300
       ]
     },
@@ -114,7 +284,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        1100,
+        1900,
         300
       ],
       "credentials": {
@@ -133,6 +303,31 @@
             "node": "Get Latest Posts",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Get Post Likes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Post Comments",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Messages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Invitations",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Our Outbound Activity",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -141,47 +336,157 @@
       "main": [
         [
           {
-            "node": "Format Posts for LLM",
+            "node": "merge-1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Posts for LLM": {
+    "Get Post Likes": {
       "main": [
         [
           {
-            "node": "Summarize via Ollama Cloud",
+            "node": "merge-1",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
     },
-    "Summarize via Ollama Cloud": {
+    "merge-1": {
       "main": [
         [
           {
-            "node": "Build Slack Message",
+            "node": "merge-2",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Slack Message": {
+    "Get Post Comments": {
       "main": [
         [
           {
-            "node": "Post to Slack",
+            "node": "merge-2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge-2": {
+      "main": [
+        [
+          {
+            "node": "merge-3",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Post to Slack": {
+    "Get Recent Messages": {
+      "main": [
+        [
+          {
+            "node": "merge-3",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge-3": {
+      "main": [
+        [
+          {
+            "node": "merge-4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Invitations": {
+      "main": [
+        [
+          {
+            "node": "merge-4",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge-4": {
+      "main": [
+        [
+          {
+            "node": "merge-5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Our Outbound Activity": {
+      "main": [
+        [
+          {
+            "node": "merge-5",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge-5": {
+      "main": [
+        [
+          {
+            "node": "format-data-for-llm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format-data-for-llm": {
+      "main": [
+        [
+          {
+            "node": "summarize-via-ollama-cloud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "summarize-via-ollama-cloud": {
+      "main": [
+        [
+          {
+            "node": "build-slack-message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "build-slack-message": {
+      "main": [
+        [
+          {
+            "node": "post-to-slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "post-to-slack": {
       "main": [
         []
       ]
