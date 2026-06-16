@@ -24,7 +24,7 @@
     },
     {
       "parameters": {
-        "url": "https://api.linkedin.com/rest/memberSnapshotData",
+        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=MEMBER_SHARE_INFO&count=100",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -37,23 +37,6 @@
             {
               "name": "LinkedIn-Version",
               "value": "202312"
-            }
-          ]
-        },
-        "sendQueryInput": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "q",
-              "value": "criteria"
-            },
-            {
-              "name": "domain",
-              "value": "MEMBER_SHARE_INFO"
-            },
-            {
-              "name": "count",
-              "value": "100"
             }
           ]
         },
