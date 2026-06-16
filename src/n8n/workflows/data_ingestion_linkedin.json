@@ -1,11 +1,11 @@
 {
   "id": "linkedin-ingestion-workflow",
   "name": "Data Ingestion - LinkedIn",
-  "description": "Ingests personal LinkedIn data including UGC posts, comments, likes, connection invitations, inbox messages, and connections/contacts into PostgreSQL s_linkedin schema. Ref: https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05",
+  "description": "Ingests personal LinkedIn data including UGC posts, comments, likes, connection invitations, inbox messages, connections/contacts, followed entities, and search history into PostgreSQL s_linkedin schema. Ref: https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05",
   "nodes": [
     {
       "parameters": {
-        "content": "### LinkedIn Data Ingestion\n\nThis workflow runs periodically to fetch personal LinkedIn Member Data Portability API exports:\n- **UGC Posts**: Shared posts and articles authored by you.\n- **Comments**: Comments made on posts.\n- **Likes**: Reactions (likes, empathy, praise, etc.) on posts.\n- **Invitations**: Incoming and outgoing connection requests.\n- **Messages**: Conversation inbox history.\n- **Connections**: Personal connection and contact history.\n\n### Official Documentation:\n- [LinkedIn Member Data Portability](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05)\n- [Member Changelog API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-changelog-api?view=li-dma-data-portability-2026-05&tabs=http)\n- [Member Snapshot API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-snapshot-api?view=li-dma-data-portability-2026-05&tabs=http)",
+        "content": "### LinkedIn Data Ingestion\n\nThis workflow runs periodically to fetch personal LinkedIn Member Data Portability API exports:\n- **UGC Posts**: Shared posts and articles authored by you.\n- **Comments**: Comments made on posts.\n- **Likes**: Reactions (likes, empathy, praise, etc.) on posts.\n- **Invitations**: Incoming and outgoing connection requests.\n- **Messages**: Conversation inbox history.\n- **Connections**: Personal connection and contact history.\n- **Following**: Entities, pages, and members followed.\n- **Searches**: History of search queries on the platform.\n\n### Official Documentation:\n- [LinkedIn Member Data Portability](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05)\n- [Member Changelog API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-changelog-api?view=li-dma-data-portability-2026-05&tabs=http)\n- [Member Snapshot API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-snapshot-api?view=li-dma-data-portability-2026-05&tabs=http)",
         "height": 340,
         "width": 420
       },
@@ -451,6 +451,144 @@
           "name": "postgres Credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=MEMBER_FOLLOWING",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RestLi-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202312"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-linkedin-following",
+      "name": "Fetch LinkedIn Following",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        1250
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "linkedin-member-data-portability-api",
+          "name": "LinkedIn Member Data Portability API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const conn of element.snapshotData) {\n        const url = conn.URL || conn.Url || conn[\"Profile URL\"] || conn[\"Url\"] || '';\n        const followed_at_str = conn[\"Followed On\"] || conn.Date || conn[\"Followed Date\"] || conn[\"Followed At\"] || '';\n        const entity_name = conn.Organization || conn[\"Organization Name\"] || conn[\"Company Name\"] || (conn[\"First Name\"] || conn[\"Last Name\"] ? (conn[\"First Name\"] + ' ' + conn[\"Last Name\"]).trim() : '') || conn.Name || '';\n        const type = conn.Type || (conn.Organization || conn[\"Organization Name\"] || conn[\"Company Name\"] ? 'Organization' : 'Member');\n\n        let followed_at = new Date().toISOString();\n        if (followed_at_str) {\n          followed_at = new Date(followed_at_str).toISOString();\n        }\n\n        const profileSlug = url ? url.split('/in/')[1] || url.split('/company/')[1] || url : 'unknown';\n        const id = `${profileSlug.replace(/[^a-zA-Z0-9]/g, '_')}_following_${followed_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          entity_name,\n          profile_url: url,\n          type,\n          followed_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-linkedin-following",
+      "name": "Parse LinkedIn Following",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        1250
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_linkedin.following (id, entity_name, profile_url, type, followed_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.entity_name.replace(/'/g, \"''\") }}',\n  '{{ $json.profile_url }}',\n  '{{ $json.type }}',\n  '{{ $json.followed_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  entity_name = EXCLUDED.entity_name,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+      },
+      "id": "insert-following",
+      "name": "Insert/Upsert Following",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        1250
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=SEARCHES",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RestLi-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202312"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-linkedin-searches",
+      "name": "Fetch LinkedIn Searches",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        1400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "linkedin-member-data-portability-api",
+          "name": "LinkedIn Member Data Portability API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const search of element.snapshotData) {\n        const query_text = search[\"Search Query\"] || search.Query || search[\"Query String\"] || search.Text || '';\n        const searched_at_str = search[\"Search Date\"] || search.Date || search.Timestamp || search[\"Time\"] || '';\n\n        let searched_at = new Date().toISOString();\n        if (searched_at_str) {\n          searched_at = new Date(searched_at_str).toISOString();\n        }\n\n        const querySlug = query_text.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);\n        const id = `search_${searched_at.replace(/[^a-zA-Z0-9]/g, '_')}_${querySlug}`;\n\n        results.push({\n          id,\n          query_text,\n          searched_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-linkedin-searches",
+      "name": "Parse LinkedIn Searches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        1400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_linkedin.searches (id, query_text, searched_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.query_text.replace(/'/g, \"''\") }}',\n  '{{ $json.searched_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+      },
+      "id": "insert-searches",
+      "name": "Insert/Upsert Searches",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        1400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     }
   ],
   "connections": {
@@ -484,6 +622,16 @@
           },
           {
             "node": "Fetch LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch LinkedIn Following",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch LinkedIn Searches",
             "type": "main",
             "index": 0
           }
@@ -616,6 +764,50 @@
         [
           {
             "node": "Insert/Upsert Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch LinkedIn Following": {
+      "main": [
+        [
+          {
+            "node": "Parse LinkedIn Following",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LinkedIn Following": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Following",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch LinkedIn Searches": {
+      "main": [
+        [
+          {
+            "node": "Parse LinkedIn Searches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LinkedIn Searches": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Searches",
             "type": "main",
             "index": 0
           }
