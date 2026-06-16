@@ -1,0 +1,36 @@
+{
+  "display_information": {
+    "name": "Giusy",
+    "description": "AI Marketing Director & Brand Strategist for personal brand and LinkedIn performance insights.",
+    "background_color": "#1f6958",
+    "long_description": "Giusy is a dedicated assistant that analyzes LinkedIn content, comments, and engagement to deliver strategic marketing recommendations, content ideas, and community management actions."
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Giusy",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "chat:write.public",
+        "channels:history",
+        "groups:history",
+        "channels:read",
+        "groups:read"
+      ]
+    },
+    "pkce_enabled": false
+  },
+  "settings": {
+    "interactivity": {
+      "is_enabled": true
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false,
+    "is_mcp_enabled": false
+  }
+}
