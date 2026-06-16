@@ -291,6 +291,16 @@ CREATE TABLE IF NOT EXISTS s_linkedin.job_seeker_preferences (
   processed INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS s_linkedin.instant_reposts (
+  id VARCHAR(255) PRIMARY KEY,
+  original_post_id VARCHAR(255),
+  original_author VARCHAR(255),
+  repost_commentary TEXT,
+  reposted_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  processed INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL UNIQUE,
