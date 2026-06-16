@@ -149,6 +149,25 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		processed INTEGER DEFAULT 0
 	);
 
+	CREATE TABLE IF NOT EXISTS s_linkedin.all_comments (
+		id VARCHAR(255) PRIMARY KEY,
+		post_id VARCHAR(255) NOT NULL,
+		author VARCHAR(255),
+		content TEXT,
+		published_at TIMESTAMP WITH TIME ZONE,
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		processed INTEGER DEFAULT 0
+	);
+
+	CREATE TABLE IF NOT EXISTS s_linkedin.all_likes (
+		id VARCHAR(255) PRIMARY KEY,
+		post_id VARCHAR(255) NOT NULL,
+		author VARCHAR(255),
+		published_at TIMESTAMP WITH TIME ZONE,
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		processed INTEGER DEFAULT 0
+	);
+
 	CREATE TABLE IF NOT EXISTS s_linkedin.invitations (
 		id VARCHAR(255) PRIMARY KEY,
 		to_name VARCHAR(255),
@@ -202,14 +221,6 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		id VARCHAR(255) PRIMARY KEY,
 		query_text TEXT,
 		searched_at TIMESTAMP WITH TIME ZONE,
-		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-		processed INTEGER DEFAULT 0
-	);
-
-	CREATE TABLE IF NOT EXISTS s_linkedin.inferences (
-		id VARCHAR(255) PRIMARY KEY,
-		inference_name VARCHAR(255),
-		inference_value TEXT,
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		processed INTEGER DEFAULT 0
 	);

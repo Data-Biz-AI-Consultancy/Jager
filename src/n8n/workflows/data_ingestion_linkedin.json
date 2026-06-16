@@ -1,11 +1,11 @@
 {
   "id": "linkedin-ingestion-workflow",
   "name": "Data Ingestion - LinkedIn",
-  "description": "Ingests personal LinkedIn data including UGC posts, comments, likes, connection invitations, inbox messages, connections/contacts, followed entities, search history, and algorithmic inferences into PostgreSQL s_linkedin schema. Ref: https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05",
+  "description": "Ingests personal LinkedIn data including UGC posts, comments, likes, connection invitations, inbox messages, connections/contacts, followed entities, and search history into PostgreSQL s_linkedin schema. Ref: https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05",
   "nodes": [
     {
       "parameters": {
-        "content": "### LinkedIn Data Ingestion\n\nThis workflow runs periodically to fetch personal LinkedIn Member Data Portability API exports:\n- **UGC Posts**: Shared posts and articles authored by you.\n- **Comments**: Comments made on posts.\n- **Likes**: Reactions (likes, empathy, praise, etc.) on posts.\n- **Invitations**: Incoming and outgoing connection requests.\n- **Messages**: Conversation inbox history.\n- **Connections**: Personal connection and contact history.\n- **Following**: Entities, pages, and members followed.\n- **Searches**: History of search queries on the platform.\n- **Inferences**: Algorithmic categorizations and professional profile inferences.\n\n### Official Documentation:\n- [LinkedIn Member Data Portability](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05)\n- [Member Changelog API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-changelog-api?view=li-dma-data-portability-2026-05&tabs=http)\n- [Member Snapshot API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-snapshot-api?view=li-dma-data-portability-2026-05&tabs=http)",
+        "content": "### LinkedIn Data Ingestion\n\nThis workflow runs periodically to fetch personal LinkedIn Member Data Portability API exports:\n- **UGC Posts**: Shared posts and articles authored by you.\n- **Comments**: Comments made on posts.\n- **Likes**: Reactions (likes, empathy, praise, etc.) on posts.\n- **Invitations**: Incoming and outgoing connection requests.\n- **Messages**: Conversation inbox history.\n- **Connections**: Personal connection and contact history.\n- **Following**: Entities, pages, and members followed.\n- **Searches**: History of search queries on the platform.\n\n### Official Documentation:\n- [LinkedIn Member Data Portability](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05)\n- [Member Changelog API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-changelog-api?view=li-dma-data-portability-2026-05&tabs=http)\n- [Member Snapshot API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-snapshot-api?view=li-dma-data-portability-2026-05&tabs=http)",
         "height": 340,
         "width": 420
       },
@@ -208,14 +208,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.social_action_comments (id, post_id, author, content, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET content = EXCLUDED.content, author = EXCLUDED.author\nRETURNING id;"
+        "query": "=INSERT INTO s_linkedin.all_comments (id, post_id, author, content, published_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  content = EXCLUDED.content, \n  author = EXCLUDED.author,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
       },
       "id": "insert-comments",
       "name": "Insert/Upsert Comments",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        700,
+        500,
         500
       ],
       "credentials": {
@@ -228,14 +228,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.social_action_likes (id, post_id, author, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET author = EXCLUDED.author\nRETURNING id;"
+        "query": "=INSERT INTO s_linkedin.all_likes (id, post_id, author, published_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  author = EXCLUDED.author,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
       },
       "id": "insert-likes",
       "name": "Insert/Upsert Likes",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        700,
+        500,
         650
       ],
       "credentials": {
@@ -589,75 +589,6 @@
           "name": "postgres Credential"
         }
       }
-    },
-    {
-      "parameters": {
-        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=INFERENCE_TAKEOUT",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-RestLi-Protocol-Version",
-              "value": "2.0.0"
-            },
-            {
-              "name": "LinkedIn-Version",
-              "value": "202312"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "fetch-linkedin-inferences",
-      "name": "Fetch LinkedIn Inferences",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        300,
-        1550
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "linkedin-member-data-portability-api",
-          "name": "LinkedIn Member Data Portability API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const conn of element.snapshotData) {\n        const inference_name = conn[\"Inference Name\"] || conn.Name || conn.Category || conn.Inference || '';\n        const inference_value = conn[\"Inference Value\"] || conn.Value || conn.Description || '';\n\n        if (!inference_name) continue;\n\n        const id = `inference_${inference_name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          inference_name,\n          inference_value,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
-      },
-      "id": "parse-linkedin-inferences",
-      "name": "Parse LinkedIn Inferences",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        500,
-        1550
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.inferences (id, inference_name, inference_value, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.inference_name.replace(/'/g, \"''\") }}',\n  '{{ $json.inference_value.replace(/'/g, \"''\") }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  inference_value = EXCLUDED.inference_value,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
-      },
-      "id": "insert-inferences",
-      "name": "Insert/Upsert Inferences",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        700,
-        1550
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
     }
   ],
   "connections": {
@@ -701,11 +632,6 @@
           },
           {
             "node": "Fetch LinkedIn Searches",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Fetch LinkedIn Inferences",
             "type": "main",
             "index": 0
           }
@@ -882,28 +808,6 @@
         [
           {
             "node": "Insert/Upsert Searches",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch LinkedIn Inferences": {
-      "main": [
-        [
-          {
-            "node": "Parse LinkedIn Inferences",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse LinkedIn Inferences": {
-      "main": [
-        [
-          {
-            "node": "Insert/Upsert Inferences",
             "type": "main",
             "index": 0
           }
