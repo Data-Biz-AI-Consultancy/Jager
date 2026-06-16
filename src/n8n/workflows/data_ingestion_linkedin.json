@@ -1197,6 +1197,100 @@
             "name": "postgres Credential"
           }
         }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=ACCOUNT_HISTORY",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {
+            "pagination": {
+              "pagination": {
+                "paginationMode": "updateAParameterInEachRequest",
+                "parameters": {
+                  "parameters": [
+                    {
+                      "name": "start",
+                      "value": "={{ $pageCount * 100 }}"
+                    },
+                    {
+                      "name": "count",
+                      "value": "100"
+                    }
+                  ]
+                },
+                "paginationCompleteWhen": "other",
+                "completeExpression": "={{ (Array.isArray($response.body) ? $response.body.length === 0 : (!$response.body.elements || $response.body.elements.length === 0)) }}"
+              }
+            },
+            "response": {
+              "response": {
+                "neverError": true
+              }
+            }
+          }
+        },
+        "id": "fetch-linkedin-account-history",
+        "name": "Fetch LinkedIn Account History",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          2600
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const event of element.snapshotData) {\n        const event_type = event['Event Type'] || event.eventType || event.event_type || event.Action || event.action || event.Status || event.status || 'UNKNOWN';\n        const date_str = event['Date'] || event.date || event['Changed At'] || event.changedAt || event.timestamp || '';\n\n        let changed_at = new Date().toISOString();\n        if (date_str) {\n          changed_at = new Date(date_str).toISOString();\n        }\n\n        const id = `acct_hist_${event_type.replace(/[^a-zA-Z0-9]/g, '_')}_${changed_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          event_type,\n          changed_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-account-history",
+        "name": "Parse LinkedIn Account History",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          2600
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.account_history (id, event_type, changed_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.event_type }}',\n  '{{ $json.changed_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id)\nDO UPDATE SET\n  event_type = EXCLUDED.event_type,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+        },
+        "id": "insert-account-history",
+        "name": "Insert/Upsert Account History",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          2600
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
       }
     ],
     "connections": {
@@ -1275,6 +1369,11 @@
             },
             {
               "node": "Fetch LinkedIn Instant Reposts",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Fetch LinkedIn Account History",
               "type": "main",
               "index": 0
             }
@@ -1605,6 +1704,28 @@
           [
             {
               "node": "Insert/Upsert Instant Reposts",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Account History": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Account History",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Account History": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Account History",
               "type": "main",
               "index": 0
             }

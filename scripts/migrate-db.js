@@ -301,6 +301,14 @@ CREATE TABLE IF NOT EXISTS s_linkedin.instant_reposts (
   processed INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS s_linkedin.account_history (
+  id VARCHAR(255) PRIMARY KEY,
+  event_type VARCHAR(255),
+  changed_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  processed INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL UNIQUE,
