@@ -149,6 +149,18 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		processed INTEGER DEFAULT 0
 	);
 
+	CREATE TABLE IF NOT EXISTS s_linkedin.invitations (
+		id VARCHAR(255) PRIMARY KEY,
+		to_name VARCHAR(255),
+		from_name VARCHAR(255),
+		direction VARCHAR(50),
+		inviter_profile_url VARCHAR(2048),
+		invitee_profile_url VARCHAR(2048),
+		message TEXT,
+		sent_at TIMESTAMP WITH TIME ZONE,
+		processed INTEGER DEFAULT 0
+	);
+
 	CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
 		id SERIAL PRIMARY KEY,
 		name VARCHAR(255) NOT NULL UNIQUE,
