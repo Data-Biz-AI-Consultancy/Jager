@@ -93,7 +93,7 @@
     },
     {
       "parameters": {
-        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=SOCIAL_ACTIONS",
+        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=ALL_COMMENTS",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -111,8 +111,8 @@
         },
         "options": {}
       },
-      "id": "fetch-linkedin-social-actions",
-      "name": "Fetch LinkedIn Social Actions",
+      "id": "fetch-linkedin-comments",
+      "name": "Fetch LinkedIn Comments",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -128,8 +128,43 @@
     },
     {
       "parameters": {
+        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=ALL_LIKES",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RestLi-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202312"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-linkedin-likes",
+      "name": "Fetch LinkedIn Likes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        650
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "linkedin-member-data-portability-api",
+          "name": "LinkedIn Member Data Portability API"
+        }
+      }
+    },
+    {
+      "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    // 1. Handle Member Snapshot Data structure\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const action of element.snapshotData) {\n        const resourceName = action.resourceName || '';\n        const resourceUri = action.resourceUri || '';\n        const activity = action.activity || {};\n        \n        let action_type = '';\n        let post_id = '';\n        let id = action.resourceId || action.id || '';\n        let content = '';\n        \n        if (resourceName.includes('comments') || resourceUri.includes('comments')) {\n          action_type = 'comment';\n          content = (activity.message && activity.message.text) || '';\n          post_id = activity.object || '';\n          if (!post_id && resourceUri) {\n            const postMatch = resourceUri.match(/\\/socialActions\\/([^/]+)/);\n            if (postMatch) post_id = postMatch[1];\n          }\n        } else if (resourceName.includes('likes') || resourceUri.includes('likes')) {\n          action_type = 'like';\n          post_id = activity.object || '';\n          if (!post_id && resourceUri) {\n            const postMatch = resourceUri.match(/\\/socialActions\\/([^/]+)/);\n            if (postMatch) post_id = postMatch[1];\n          }\n          if (!id) {\n            id = `${post_id}_like_${activity.actor || 'me'}`;\n          }\n        } else {\n          continue;\n        }\n\n        if (post_id) {\n          const urnMatch = decodeURIComponent(post_id).match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n          if (urnMatch) post_id = urnMatch[1];\n        }\n\n        const published_at_ms = (activity.created && activity.created.time) || action.processedAt || action.capturedAt;\n        const published_at = published_at_ms ? new Date(published_at_ms).toISOString() : new Date().toISOString();\n        const author = activity.actor || action.actor || 'me';\n\n        results.push({\n          id: id.toString(),\n          post_id: post_id || 'unknown',\n          action_type,\n          author,\n          content,\n          published_at,\n          processed: 0\n        });\n      }\n      continue;\n    }\n\n    // 2. Direct/Changelog structure\n    const resourceName = element.resourceName || '';\n    const resourceUri = element.resourceUri || '';\n    const activity = element.activity || {};\n    \n    let action_type = '';\n    let post_id = '';\n    let id = element.resourceId || element.id || '';\n    let content = '';\n    \n    if (resourceName.includes('comments') || resourceUri.includes('comments')) {\n      action_type = 'comment';\n      content = (activity.message && activity.message.text) || '';\n      post_id = activity.object || '';\n      if (!post_id && resourceUri) {\n        const postMatch = resourceUri.match(/\\/socialActions\\/([^/]+)/);\n        if (postMatch) post_id = postMatch[1];\n      }\n    } else if (resourceName.includes('likes') || resourceUri.includes('likes')) {\n      action_type = 'like';\n      post_id = activity.object || '';\n      if (!post_id && resourceUri) {\n        const postMatch = resourceUri.match(/\\/socialActions\\/([^/]+)/);\n        if (postMatch) post_id = postMatch[1];\n      }\n      if (!id) {\n        id = `${post_id}_like_${activity.actor || 'me'}`;\n      }\n    } else {\n      continue;\n    }\n\n    if (post_id) {\n      const urnMatch = decodeURIComponent(post_id).match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n      if (urnMatch) post_id = urnMatch[1];\n    }\n\n    const published_at_ms = (activity.created && activity.created.time) || element.processedAt || element.capturedAt;\n    const published_at = published_at_ms ? new Date(published_at_ms).toISOString() : new Date().toISOString();\n    const author = activity.actor || element.actor || 'me';\n\n    results.push({\n      id: id.toString(),\n      post_id: post_id || 'unknown',\n      action_type,\n      author,\n      content,\n      published_at,\n      processed: 0\n    });\n  }\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const action of element.snapshotData) {\n        const Link = action.Link || '';\n        const DateVal = action.Date || '';\n        const Message = action.Message || '';\n\n        let post_id = 'unknown';\n        if (Link) {\n          const decodedLink = decodeURIComponent(Link);\n          const urnMatch = decodedLink.match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n          if (urnMatch) {\n            post_id = urnMatch[1];\n          }\n        }\n\n        let action_type = '';\n        let id = '';\n        let content = null;\n\n        if (action.hasOwnProperty('Message') || Message) {\n          action_type = 'comment';\n          content = Message;\n          id = `${post_id}_comment_${DateVal.replace(/[^a-zA-Z0-9]/g, '_')}`;\n        } else {\n          action_type = 'like';\n          id = `${post_id}_like_${DateVal.replace(/[^a-zA-Z0-9]/g, '_')}`;\n        }\n\n        let published_at = new Date().toISOString();\n        if (DateVal) {\n          published_at = new Date(DateVal.replace(' ', 'T') + 'Z').toISOString();\n        }\n\n        results.push({\n          id,\n          post_id,\n          action_type,\n          author: 'me',\n          content,\n          published_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
       },
       "id": "parse-linkedin-social-actions",
       "name": "Parse LinkedIn Social Actions",
@@ -137,7 +172,7 @@
       "typeVersion": 2,
       "position": [
         500,
-        500
+        575
       ]
     },
     {
@@ -151,7 +186,7 @@
       "typeVersion": 2.5,
       "position": [
         700,
-        500
+        575
       ],
       "credentials": {
         "postgres": {
@@ -171,7 +206,12 @@
             "index": 0
           },
           {
-            "node": "Fetch LinkedIn Social Actions",
+            "node": "Fetch LinkedIn Comments",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch LinkedIn Likes",
             "type": "main",
             "index": 0
           }
@@ -200,7 +240,18 @@
         ]
       ]
     },
-    "Fetch LinkedIn Social Actions": {
+    "Fetch LinkedIn Comments": {
+      "main": [
+        [
+          {
+            "node": "Parse LinkedIn Social Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch LinkedIn Likes": {
       "main": [
         [
           {
