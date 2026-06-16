@@ -796,6 +796,144 @@
             "name": "postgres Credential"
           }
         }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=JOB_APPLICATIONS",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-job-applications",
+        "name": "Fetch LinkedIn Job Applications",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          2000
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const app of element.snapshotData) {\n        const company = app[\"Company Name\"] || app.Company || '';\n        const title = app[\"Job Title\"] || app.Title || app.JobTitle || '';\n        const date_str = app.Date || app[\"Application Date\"] || '';\n        const status = app.Status || app[\"Application Status\"] || 'APPLIED';\n        const job_url = app[\"Job Link\"] || app.Link || app.Url || app.JobUrl || '';\n\n        let application_date = new Date().toISOString();\n        if (date_str) {\n          application_date = new Date(date_str).toISOString();\n        }\n\n        const companySlug = company.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);\n        const titleSlug = title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);\n        const id = `job_app_${application_date.replace(/[^a-zA-Z0-9]/g, '_')}_${companySlug}_${titleSlug}`;\n\n        results.push({\n          id,\n          company_name: company,\n          job_title: title,\n          application_date,\n          status,\n          job_url,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-job-applications",
+        "name": "Parse LinkedIn Job Applications",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          2000
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.job_applications (id, company_name, job_title, application_date, status, job_url, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.company_name.replace(/'/g, \"''\") }}',\n  '{{ $json.job_title.replace(/'/g, \"''\") }}',\n  '{{ $json.application_date }}',\n  '{{ $json.status }}',\n  '{{ $json.job_url }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  status = EXCLUDED.status, \n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+        },
+        "id": "insert-job-applications",
+        "name": "Insert/Upsert Job Applications",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          2000
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=JOB_SEEKER_PREFERENCES",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "fetch-linkedin-job-seeker-preferences",
+        "name": "Fetch LinkedIn Job Seeker Preferences",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          2150
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const pref of element.snapshotData) {\n        const dream_companies = pref[\"Dream Companies\"] || pref.DreamCompanies || '';\n        const job_titles = pref[\"Job Titles\"] || pref.JobTitles || '';\n        const locations = pref.Locations || pref[\"Preferred Locations\"] || '';\n        const job_types = pref[\"Job Types\"] || pref.JobTypes || '';\n        const industries = pref.Industries || pref[\"Preferred Industries\"] || '';\n        const company_sizes = pref[\"Company Sizes\"] || pref.CompanySizes || '';\n        const activity_level = pref[\"Activity Level\"] || pref.ActivityLevel || pref[\"Job Search Status\"] || '';\n\n        const date_str = pref.Date || pref[\"Updated At\"] || '';\n        let updated_at = new Date().toISOString();\n        if (date_str) {\n          updated_at = new Date(date_str).toISOString();\n        }\n\n        const id = `pref_${updated_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          dream_companies: Array.isArray(dream_companies) ? dream_companies.join(', ') : dream_companies.toString(),\n          job_titles: Array.isArray(job_titles) ? job_titles.join(', ') : job_titles.toString(),\n          locations: Array.isArray(locations) ? locations.join(', ') : locations.toString(),\n          job_types: Array.isArray(job_types) ? job_types.join(', ') : job_types.toString(),\n          industries: Array.isArray(industries) ? industries.join(', ') : industries.toString(),\n          company_sizes: Array.isArray(company_sizes) ? company_sizes.join(', ') : company_sizes.toString(),\n          activity_level: activity_level.toString(),\n          updated_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-job-seeker-preferences",
+        "name": "Parse LinkedIn Job Seeker Preferences",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          2150
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.job_seeker_preferences (id, dream_companies, job_titles, locations, job_types, industries, company_sizes, activity_level, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.dream_companies.replace(/'/g, \"''\") }}',\n  '{{ $json.job_titles.replace(/'/g, \"''\") }}',\n  '{{ $json.locations.replace(/'/g, \"''\") }}',\n  '{{ $json.job_types.replace(/'/g, \"''\") }}',\n  '{{ $json.industries.replace(/'/g, \"''\") }}',\n  '{{ $json.company_sizes.replace(/'/g, \"''\") }}',\n  '{{ $json.activity_level.replace(/'/g, \"''\") }}',\n  '{{ $json.updated_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  dream_companies = EXCLUDED.dream_companies,\n  job_titles = EXCLUDED.job_titles,\n  locations = EXCLUDED.locations,\n  job_types = EXCLUDED.job_types,\n  industries = EXCLUDED.industries,\n  company_sizes = EXCLUDED.company_sizes,\n  activity_level = EXCLUDED.activity_level,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+        },
+        "id": "insert-job-seeker-preferences",
+        "name": "Insert/Upsert Job Seeker Preferences",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          2150
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
       }
     ],
     "connections": {
@@ -854,6 +992,16 @@
             },
             {
               "node": "Fetch LinkedIn All Invitations",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Fetch LinkedIn Job Applications",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Fetch LinkedIn Job Seeker Preferences",
               "type": "main",
               "index": 0
             }
@@ -1096,6 +1244,50 @@
           [
             {
               "node": "Insert/Upsert All Invitations",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Job Applications": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Job Applications",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Job Applications": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Job Applications",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn Job Seeker Preferences": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn Job Seeker Preferences",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn Job Seeker Preferences": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert Job Seeker Preferences",
               "type": "main",
               "index": 0
             }

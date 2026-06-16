@@ -238,6 +238,30 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		processed INTEGER DEFAULT 0
 	);
 
+	CREATE TABLE IF NOT EXISTS s_linkedin.job_applications (
+		id VARCHAR(255) PRIMARY KEY,
+		company_name VARCHAR(255),
+		job_title VARCHAR(255),
+		application_date TIMESTAMP WITH TIME ZONE,
+		status VARCHAR(100),
+		job_url VARCHAR(2048),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		processed INTEGER DEFAULT 0
+	);
+
+	CREATE TABLE IF NOT EXISTS s_linkedin.job_seeker_preferences (
+		id VARCHAR(255) PRIMARY KEY,
+		dream_companies TEXT,
+		job_titles TEXT,
+		locations TEXT,
+		job_types TEXT,
+		industries TEXT,
+		company_sizes TEXT,
+		activity_level VARCHAR(255),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		processed INTEGER DEFAULT 0
+	);
+
 	CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
 		id SERIAL PRIMARY KEY,
 		name VARCHAR(255) NOT NULL UNIQUE,
