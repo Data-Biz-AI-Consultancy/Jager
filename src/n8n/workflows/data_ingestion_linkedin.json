@@ -1009,6 +1009,100 @@
             "name": "postgres Credential"
           }
         }
+      },
+      {
+        "parameters": {
+          "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=INBOX",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "X-RestLi-Protocol-Version",
+                "value": "2.0.0"
+              },
+              {
+                "name": "LinkedIn-Version",
+                "value": "202312"
+              }
+            ]
+          },
+          "options": {
+            "pagination": {
+              "pagination": {
+                "paginationMode": "updateAParameterInEachRequest",
+                "parameters": {
+                  "parameters": [
+                    {
+                      "name": "start",
+                      "value": "={{ $pageCount * 100 }}"
+                    },
+                    {
+                      "name": "count",
+                      "value": "100"
+                    }
+                  ]
+                },
+                "paginationCompleteWhen": "other",
+                "completeExpression": "={{ (Array.isArray($response.body) ? $response.body.length === 0 : (!$response.body.elements || $response.body.elements.length === 0)) }}"
+              }
+            },
+            "response": {
+              "response": {
+                "neverError": true
+              }
+            }
+          }
+        },
+        "id": "fetch-linkedin-all-messages",
+        "name": "Fetch LinkedIn All Messages",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          300,
+          2300
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "linkedin-member-data-portability-api",
+            "name": "LinkedIn Member Data Portability API"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "runOnceForAllItems",
+          "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const msg of element.snapshotData) {\n        const conversation_id = msg[\"CONVERSATION ID\"] || '';\n        const date_str = msg[\"DATE\"] || '';\n        const sender_profile_url = msg[\"SENDER PROFILE URL\"] || '';\n        const recipient_profile_urls = msg[\"RECIPIENT PROFILE URLS\"] || '';\n        const sender_name = msg[\"FROM\"] || '';\n        const recipient_name = msg[\"TO\"] || '';\n        const subject = msg[\"SUBJECT\"] || '';\n        const content = msg[\"CONTENT\"] || '';\n        const folder = msg[\"FOLDER\"] || '';\n\n        let sent_at = new Date().toISOString();\n        if (date_str) {\n          sent_at = new Date(date_str).toISOString();\n        }\n\n        const senderSlug = sender_profile_url ? sender_profile_url.split('/in/')[1] || sender_profile_url : 'unknown';\n        const id = `${conversation_id}_${sent_at.replace(/[^a-zA-Z0-9]/g, '_')}_${senderSlug.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          conversation_id,\n          sender_name,\n          recipient_name,\n          sender_profile_url,\n          recipient_profile_urls,\n          subject,\n          content,\n          folder,\n          sent_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        },
+        "id": "parse-linkedin-all-messages",
+        "name": "Parse LinkedIn All Messages",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          500,
+          2300
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "=INSERT INTO s_linkedin.all_messages (id, conversation_id, sender_name, recipient_name, sender_profile_url, recipient_profile_urls, subject, content, folder, sent_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.conversation_id }}',\n  '{{ $json.sender_name.replace(/'/g, \"''\") }}',\n  '{{ $json.recipient_name.replace(/'/g, \"''\") }}',\n  '{{ $json.sender_profile_url }}',\n  '{{ $json.recipient_profile_urls }}',\n  '{{ $json.subject.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.folder }}',\n  '{{ $json.sent_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  content = EXCLUDED.content,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+        },
+        "id": "insert-all-messages",
+        "name": "Insert/Upsert All Messages",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.5,
+        "position": [
+          700,
+          2300
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "postgres-db",
+            "name": "postgres Credential"
+          }
+        }
       }
     ],
     "connections": {
@@ -1077,6 +1171,11 @@
             },
             {
               "node": "Fetch LinkedIn Job Seeker Preferences",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Fetch LinkedIn All Messages",
               "type": "main",
               "index": 0
             }
@@ -1363,6 +1462,28 @@
           [
             {
               "node": "Insert/Upsert Job Seeker Preferences",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch LinkedIn All Messages": {
+        "main": [
+          [
+            {
+              "node": "Parse LinkedIn All Messages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse LinkedIn All Messages": {
+        "main": [
+          [
+            {
+              "node": "Insert/Upsert All Messages",
               "type": "main",
               "index": 0
             }
