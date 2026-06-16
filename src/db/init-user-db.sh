@@ -12,6 +12,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE SCHEMA IF NOT EXISTS s_euro_stat;
 	CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
 	CREATE SCHEMA IF NOT EXISTS s_wordpress;
+	CREATE SCHEMA IF NOT EXISTS s_linkedin;
 
 	CREATE TABLE IF NOT EXISTS s_reddit.subreddits_monitored (
 		id SERIAL PRIMARY KEY,
@@ -115,6 +116,15 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		author VARCHAR(255),
 		title VARCHAR(1024),
 		content TEXT NOT NULL,
+		url VARCHAR(2048),
+		published_at TIMESTAMP WITH TIME ZONE,
+		processed INTEGER DEFAULT 0
+	);
+
+	CREATE TABLE IF NOT EXISTS s_linkedin.ugc_posts (
+		id VARCHAR(255) PRIMARY KEY,
+		author VARCHAR(255),
+		content TEXT,
 		url VARCHAR(2048),
 		published_at TIMESTAMP WITH TIME ZONE,
 		processed INTEGER DEFAULT 0
