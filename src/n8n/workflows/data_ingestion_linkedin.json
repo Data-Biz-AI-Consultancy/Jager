@@ -746,7 +746,32 @@
               }
             ]
           },
-          "options": {}
+          "options": {
+            "pagination": {
+              "pagination": {
+                "paginationMode": "updateAParameterInEachRequest",
+                "parameters": {
+                  "parameters": [
+                    {
+                      "name": "start",
+                      "value": "={{ $pageCount * 100 }}"
+                    },
+                    {
+                      "name": "count",
+                      "value": "100"
+                    }
+                  ]
+                },
+                "paginationCompleteWhen": "other",
+                "completeExpression": "={{ (Array.isArray($response.body) ? $response.body.length === 0 : (!$response.body.elements || $response.body.elements.length === 0)) }}"
+              }
+            },
+            "response": {
+              "response": {
+                "neverError": true
+              }
+            }
+          }
         },
         "id": "fetch-linkedin-all-invitations",
         "name": "Fetch LinkedIn All Invitations",
@@ -815,7 +840,32 @@
               }
             ]
           },
-          "options": {}
+          "options": {
+            "pagination": {
+              "pagination": {
+                "paginationMode": "updateAParameterInEachRequest",
+                "parameters": {
+                  "parameters": [
+                    {
+                      "name": "start",
+                      "value": "={{ $pageCount * 100 }}"
+                    },
+                    {
+                      "name": "count",
+                      "value": "100"
+                    }
+                  ]
+                },
+                "paginationCompleteWhen": "other",
+                "completeExpression": "={{ (Array.isArray($response.body) ? $response.body.length === 0 : (!$response.body.elements || $response.body.elements.length === 0)) }}"
+              }
+            },
+            "response": {
+              "response": {
+                "neverError": true
+              }
+            }
+          }
         },
         "id": "fetch-linkedin-job-applications",
         "name": "Fetch LinkedIn Job Applications",
@@ -884,7 +934,32 @@
               }
             ]
           },
-          "options": {}
+          "options": {
+            "pagination": {
+              "pagination": {
+                "paginationMode": "updateAParameterInEachRequest",
+                "parameters": {
+                  "parameters": [
+                    {
+                      "name": "start",
+                      "value": "={{ $pageCount * 100 }}"
+                    },
+                    {
+                      "name": "count",
+                      "value": "100"
+                    }
+                  ]
+                },
+                "paginationCompleteWhen": "other",
+                "completeExpression": "={{ (Array.isArray($response.body) ? $response.body.length === 0 : (!$response.body.elements || $response.body.elements.length === 0)) }}"
+              }
+            },
+            "response": {
+              "response": {
+                "neverError": true
+              }
+            }
+          }
         },
         "id": "fetch-linkedin-job-seeker-preferences",
         "name": "Fetch LinkedIn Job Seeker Preferences",
