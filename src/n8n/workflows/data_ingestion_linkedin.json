@@ -1,11 +1,11 @@
 {
   "id": "linkedin-ingestion-workflow",
   "name": "Data Ingestion - LinkedIn",
-  "description": "Ingests personal LinkedIn data including UGC posts, comments, likes, connection invitations, and inbox messages into PostgreSQL s_linkedin schema. Ref: https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05",
+  "description": "Ingests personal LinkedIn data including UGC posts, comments, likes, connection invitations, inbox messages, and connections/contacts into PostgreSQL s_linkedin schema. Ref: https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05",
   "nodes": [
     {
       "parameters": {
-        "content": "### LinkedIn Data Ingestion\n\nThis workflow runs periodically to fetch personal LinkedIn Member Data Portability API exports:\n- **UGC Posts**: Shared posts and articles authored by you.\n- **Comments**: Comments made on posts.\n- **Likes**: Reactions (likes, empathy, praise, etc.) on posts.\n- **Invitations**: Incoming and outgoing connection requests.\n- **Messages**: Conversation inbox history.\n\n### Official Documentation:\n- [LinkedIn Member Data Portability](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05)\n- [Member Changelog API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-changelog-api?view=li-dma-data-portability-2026-05&tabs=http)\n- [Member Snapshot API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-snapshot-api?view=li-dma-data-portability-2026-05&tabs=http)",
+        "content": "### LinkedIn Data Ingestion\n\nThis workflow runs periodically to fetch personal LinkedIn Member Data Portability API exports:\n- **UGC Posts**: Shared posts and articles authored by you.\n- **Comments**: Comments made on posts.\n- **Likes**: Reactions (likes, empathy, praise, etc.) on posts.\n- **Invitations**: Incoming and outgoing connection requests.\n- **Messages**: Conversation inbox history.\n- **Connections**: Personal connection and contact history.\n\n### Official Documentation:\n- [LinkedIn Member Data Portability](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05)\n- [Member Changelog API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-changelog-api?view=li-dma-data-portability-2026-05&tabs=http)\n- [Member Snapshot API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-snapshot-api?view=li-dma-data-portability-2026-05&tabs=http)",
         "height": 340,
         "width": 420
       },
@@ -382,6 +382,75 @@
           "name": "postgres Credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=CONNECTIONS",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RestLi-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202312"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-linkedin-connections",
+      "name": "Fetch LinkedIn Connections",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        1100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "linkedin-member-data-portability-api",
+          "name": "LinkedIn Member Data Portability API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const conn of element.snapshotData) {\n        const first_name = conn[\"First Name\"] || '';\n        const last_name = conn[\"Last Name\"] || '';\n        const company = conn[\"Company\"] || '';\n        const position = conn[\"Position\"] || '';\n        const email_address = conn[\"Email Address\"] || '';\n        const url = conn[\"URL\"] || '';\n        const connected_on_str = conn[\"Connected On\"] || '';\n\n        let connected_at = new Date().toISOString();\n        if (connected_on_str) {\n          connected_at = new Date(connected_on_str).toISOString();\n        }\n\n        const profileSlug = url ? url.split('/in/')[1] || url : 'unknown';\n        const id = `${profileSlug.replace(/[^a-zA-Z0-9]/g, '_')}_connection_${connected_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          first_name,\n          last_name,\n          profile_url: url,\n          email_address,\n          company,\n          position,\n          connected_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-linkedin-connections",
+      "name": "Parse LinkedIn Connections",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_linkedin.connections (id, first_name, last_name, profile_url, email_address, company, position, connected_at, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.first_name.replace(/'/g, \"''\") }}',\n  '{{ $json.last_name.replace(/'/g, \"''\") }}',\n  '{{ $json.profile_url }}',\n  {{ $json.email_address ? \"'\" + $json.email_address.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.company.replace(/'/g, \"''\") }}',\n  '{{ $json.position.replace(/'/g, \"''\") }}',\n  '{{ $json.connected_at }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  position = EXCLUDED.position, \n  company = EXCLUDED.company,\n  updated_at = EXCLUDED.updated_at\nRETURNING id;"
+      },
+      "id": "insert-connections",
+      "name": "Insert/Upsert Connections",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        1100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     }
   ],
   "connections": {
@@ -410,6 +479,11 @@
           },
           {
             "node": "Fetch LinkedIn Messages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch LinkedIn Connections",
             "type": "main",
             "index": 0
           }
@@ -520,6 +594,28 @@
         [
           {
             "node": "Insert/Upsert Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch LinkedIn Connections": {
+      "main": [
+        [
+          {
+            "node": "Parse LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LinkedIn Connections": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Connections",
             "type": "main",
             "index": 0
           }

@@ -189,6 +189,19 @@ CREATE TABLE IF NOT EXISTS s_linkedin.messages (
   processed INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS s_linkedin.connections (
+  id VARCHAR(255) PRIMARY KEY,
+  first_name VARCHAR(255),
+  last_name VARCHAR(255),
+  profile_url VARCHAR(2048),
+  email_address VARCHAR(255),
+  company VARCHAR(255),
+  position VARCHAR(255),
+  connected_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  processed INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL UNIQUE,
