@@ -42,6 +42,12 @@ services:
       - db
     volumes:
       - n8n_data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5678/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
 
   ml:
     build:
@@ -64,7 +70,8 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - n8n
+      n8n:
+        condition: service_healthy
 
 volumes:
   pgdata:
