@@ -194,6 +194,19 @@ CREATE TABLE IF NOT EXISTS s_linkedin.invitations (
   processed INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS s_linkedin.all_invitations (
+  id VARCHAR(255) PRIMARY KEY,
+  to_name VARCHAR(255),
+  from_name VARCHAR(255),
+  direction VARCHAR(50),
+  inviter_profile_url VARCHAR(2048),
+  invitee_profile_url VARCHAR(2048),
+  message TEXT,
+  sent_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  processed INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS s_linkedin.messages (
   id VARCHAR(255) PRIMARY KEY,
   conversation_id VARCHAR(255) NOT NULL,
