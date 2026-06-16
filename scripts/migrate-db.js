@@ -221,6 +221,21 @@ CREATE TABLE IF NOT EXISTS s_linkedin.messages (
   processed INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS s_linkedin.all_messages (
+  id VARCHAR(255) PRIMARY KEY,
+  conversation_id VARCHAR(255) NOT NULL,
+  sender_name VARCHAR(255),
+  recipient_name VARCHAR(255),
+  sender_profile_url VARCHAR(2048),
+  recipient_profile_urls VARCHAR(2048),
+  subject VARCHAR(1024),
+  content TEXT,
+  folder VARCHAR(50),
+  sent_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  processed INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS s_linkedin.connections (
   id VARCHAR(255) PRIMARY KEY,
   first_name VARCHAR(255),
