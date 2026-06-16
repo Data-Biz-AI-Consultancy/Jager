@@ -222,3 +222,4 @@ data/
 # N8N Credentials
 credentials.json
 
+scratch/

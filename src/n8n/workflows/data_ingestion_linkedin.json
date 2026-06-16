@@ -1,0 +1,151 @@
+{
+  "id": "linkedin-ingestion-workflow",
+  "name": "Data Ingestion - LinkedIn",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 12
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/rest/memberSnapshotData",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RestLi-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202312"
+            }
+          ]
+        },
+        "sendQueryInput": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "criteria"
+            },
+            {
+              "name": "domain",
+              "value": "MEMBER_SHARE_INFO"
+            },
+            {
+              "name": "count",
+              "value": "100"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-linkedin-posts",
+      "name": "Fetch LinkedIn Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "linkedin-member-data-portability-api",
+          "name": "LinkedIn Member Data Portability API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    // Check for resourceName (ugcPosts or share)\n    if (element.resourceName === 'ugcPosts' || element.resourceName === 'shares') {\n      const id = element.resourceId || element.id || '';\n      if (!id) continue;\n\n      const activity = element.activity || {};\n      const author = activity.author || element.actor || '';\n\n      let content = '';\n      if (activity.specificContent && activity.specificContent['com.linkedin.ugc.ShareContent']) {\n        const shareContent = activity.specificContent['com.linkedin.ugc.ShareContent'];\n        if (shareContent.shareCommentary) {\n          content = shareContent.shareCommentary.text || '';\n        }\n      } else if (activity.specificContent && activity.specificContent['com.linkedin.share.ShareContent']) {\n        const shareContent = activity.specificContent['com.linkedin.share.ShareContent'];\n        if (shareContent.shareCommentary) {\n          content = shareContent.shareCommentary.text || '';\n        }\n      }\n\n      const published_at_ms = (activity.created && activity.created.time) || activity.firstPublishedAt || element.processedAt || element.capturedAt;\n      const published_at = published_at_ms ? new Date(published_at_ms).toISOString() : new Date().toISOString();\n      const url = element.resourceUri ? `https://www.linkedin.com${element.resourceUri}` : '';\n\n      results.push({\n        id: id.toString(),\n        author,\n        content,\n        url,\n        published_at,\n        processed: 0\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-linkedin-posts",
+      "name": "Parse LinkedIn Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_linkedin.ugc_posts (id, author, content, url, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET content = EXCLUDED.content, author = EXCLUDED.author\nRETURNING id;"
+      },
+      "id": "insert-posts",
+      "name": "Insert/Upsert UGC Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch LinkedIn Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch LinkedIn Posts": {
+      "main": [
+        [
+          {
+            "node": "Parse LinkedIn Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LinkedIn Posts": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert UGC Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
