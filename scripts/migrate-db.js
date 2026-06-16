@@ -175,6 +175,20 @@ CREATE TABLE IF NOT EXISTS s_linkedin.invitations (
   processed INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS s_linkedin.messages (
+  id VARCHAR(255) PRIMARY KEY,
+  conversation_id VARCHAR(255) NOT NULL,
+  sender_name VARCHAR(255),
+  recipient_name VARCHAR(255),
+  sender_profile_url VARCHAR(2048),
+  recipient_profile_urls VARCHAR(2048),
+  subject VARCHAR(1024),
+  content TEXT,
+  folder VARCHAR(50),
+  sent_at TIMESTAMP WITH TIME ZONE,
+  processed INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL UNIQUE,
