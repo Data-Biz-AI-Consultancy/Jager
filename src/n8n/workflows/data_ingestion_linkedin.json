@@ -228,6 +228,75 @@
           "name": "postgres Credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=INVITATIONS",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RestLi-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202312"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-linkedin-invitations",
+      "name": "Fetch LinkedIn Invitations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        800
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "linkedin-member-data-portability-api",
+          "name": "LinkedIn Member Data Portability API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const invite of element.snapshotData) {\n        const to_name = invite.To || '';\n        const from_name = invite.From || '';\n        const direction = invite.Direction || '';\n        const inviter_profile_url = invite.inviterProfileUrl || '';\n        const invitee_profile_url = invite.inviteeProfileUrl || '';\n        const message = invite.Message || '';\n        const sent_at_str = invite[\"Sent At\"] || '';\n\n        let sent_at = new Date().toISOString();\n        if (sent_at_str) {\n          sent_at = new Date(sent_at_str).toISOString();\n        }\n\n        const targetProfile = direction === 'OUTGOING' ? invitee_profile_url : inviter_profile_url;\n        const profileSlug = targetProfile ? targetProfile.split('/in/')[1] || targetProfile : 'unknown';\n        const id = `${direction.toLowerCase()}_${profileSlug.replace(/[^a-zA-Z0-9]/g, '_')}_${sent_at.replace(/[^a-zA-Z0-9]/g, '_')}`;\n\n        results.push({\n          id,\n          to_name,\n          from_name,\n          direction,\n          inviter_profile_url,\n          invitee_profile_url,\n          message,\n          sent_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-linkedin-invitations",
+      "name": "Parse LinkedIn Invitations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_linkedin.invitations (id, to_name, from_name, direction, inviter_profile_url, invitee_profile_url, message, sent_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.to_name.replace(/'/g, \"''\") }}',\n  '{{ $json.from_name.replace(/'/g, \"''\") }}',\n  '{{ $json.direction }}',\n  '{{ $json.inviter_profile_url }}',\n  '{{ $json.invitee_profile_url }}',\n  {{ $json.message ? \"'\" + $json.message.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.sent_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET message = EXCLUDED.message\nRETURNING id;"
+      },
+      "id": "insert-invitations",
+      "name": "Insert/Upsert Invitations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        800
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     }
   ],
   "connections": {
@@ -246,6 +315,11 @@
           },
           {
             "node": "Fetch LinkedIn Likes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch LinkedIn Invitations",
             "type": "main",
             "index": 0
           }
@@ -296,6 +370,17 @@
         ]
       ]
     },
+    "Fetch LinkedIn Invitations": {
+      "main": [
+        [
+          {
+            "node": "Parse LinkedIn Invitations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Parse LinkedIn Comments": {
       "main": [
         [
@@ -312,6 +397,17 @@
         [
           {
             "node": "Insert/Upsert Likes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LinkedIn Invitations": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Invitations",
             "type": "main",
             "index": 0
           }
