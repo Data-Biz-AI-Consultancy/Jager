@@ -130,6 +130,16 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		processed INTEGER DEFAULT 0
 	);
 
+	CREATE TABLE IF NOT EXISTS s_linkedin.social_actions (
+		id VARCHAR(255) PRIMARY KEY,
+		post_id VARCHAR(255) NOT NULL,
+		action_type VARCHAR(50) NOT NULL,
+		author VARCHAR(255),
+		content TEXT,
+		published_at TIMESTAMP WITH TIME ZONE,
+		processed INTEGER DEFAULT 0
+	);
+
 	CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
 		id SERIAL PRIMARY KEY,
 		name VARCHAR(255) NOT NULL UNIQUE,
