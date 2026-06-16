@@ -164,29 +164,63 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const action of element.snapshotData) {\n        const Link = action.Link || '';\n        const DateVal = action.Date || '';\n        const Message = action.Message || '';\n\n        let post_id = 'unknown';\n        if (Link) {\n          const decodedLink = decodeURIComponent(Link);\n          const urnMatch = decodedLink.match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n          if (urnMatch) {\n            post_id = urnMatch[1];\n          }\n        }\n\n        let action_type = '';\n        let id = '';\n        let content = null;\n\n        if (action.hasOwnProperty('Message') || Message) {\n          action_type = 'comment';\n          content = Message;\n          id = `${post_id}_comment_${DateVal.replace(/[^a-zA-Z0-9]/g, '_')}`;\n        } else {\n          action_type = 'like';\n          id = `${post_id}_like_${DateVal.replace(/[^a-zA-Z0-9]/g, '_')}`;\n        }\n\n        let published_at = new Date().toISOString();\n        if (DateVal) {\n          published_at = new Date(DateVal.replace(' ', 'T') + 'Z').toISOString();\n        }\n\n        results.push({\n          id,\n          post_id,\n          action_type,\n          author: 'me',\n          content,\n          published_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const action of element.snapshotData) {\n        const Link = action.Link || '';\n        const DateVal = action.Date || '';\n        const Message = action.Message || '';\n\n        let post_id = 'unknown';\n        if (Link) {\n          const decodedLink = decodeURIComponent(Link);\n          const urnMatch = decodedLink.match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n          if (urnMatch) {\n            post_id = urnMatch[1];\n          }\n        }\n\n        const id = `${post_id}_comment_${DateVal.replace(/[^a-zA-Z0-9]/g, '_')}`;\n        let published_at = new Date().toISOString();\n        if (DateVal) {\n          published_at = new Date(DateVal.replace(' ', 'T') + 'Z').toISOString();\n        }\n\n        results.push({\n          id,\n          post_id,\n          author: 'me',\n          content: Message,\n          published_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
       },
-      "id": "parse-linkedin-social-actions",
-      "name": "Parse LinkedIn Social Actions",
+      "id": "parse-linkedin-comments",
+      "name": "Parse LinkedIn Comments",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         500,
-        575
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.snapshotData && Array.isArray(element.snapshotData)) {\n      for (const action of element.snapshotData) {\n        const Link = action.Link || '';\n        const DateVal = action.Date || '';\n\n        let post_id = 'unknown';\n        if (Link) {\n          const decodedLink = decodeURIComponent(Link);\n          const urnMatch = decodedLink.match(/(urn:li:[a-zA-Z0-9_]+:[0-9]+)/);\n          if (urnMatch) {\n            post_id = urnMatch[1];\n          }\n        }\n\n        const id = `${post_id}_like_${DateVal.replace(/[^a-zA-Z0-9]/g, '_')}`;\n        let published_at = new Date().toISOString();\n        if (DateVal) {\n          published_at = new Date(DateVal.replace(' ', 'T') + 'Z').toISOString();\n        }\n\n        results.push({\n          id,\n          post_id,\n          author: 'me',\n          published_at,\n          processed: 0\n        });\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-linkedin-likes",
+      "name": "Parse LinkedIn Likes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        650
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_linkedin.social_actions (id, post_id, action_type, author, content, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.action_type }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  {{ $json.content ? \"'\" + $json.content.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET content = EXCLUDED.content, author = EXCLUDED.author\nRETURNING id;"
+        "query": "=INSERT INTO s_linkedin.social_action_comments (id, post_id, author, content, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET content = EXCLUDED.content, author = EXCLUDED.author\nRETURNING id;"
       },
-      "id": "insert-social-actions",
-      "name": "Insert/Upsert Social Actions",
+      "id": "insert-comments",
+      "name": "Insert/Upsert Comments",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
         700,
-        575
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_linkedin.social_action_likes (id, post_id, author, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET author = EXCLUDED.author\nRETURNING id;"
+      },
+      "id": "insert-likes",
+      "name": "Insert/Upsert Likes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        650
       ],
       "credentials": {
         "postgres": {
@@ -244,7 +278,7 @@
       "main": [
         [
           {
-            "node": "Parse LinkedIn Social Actions",
+            "node": "Parse LinkedIn Comments",
             "type": "main",
             "index": 0
           }
@@ -255,18 +289,29 @@
       "main": [
         [
           {
-            "node": "Parse LinkedIn Social Actions",
+            "node": "Parse LinkedIn Likes",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse LinkedIn Social Actions": {
+    "Parse LinkedIn Comments": {
       "main": [
         [
           {
-            "node": "Insert/Upsert Social Actions",
+            "node": "Insert/Upsert Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LinkedIn Likes": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Likes",
             "type": "main",
             "index": 0
           }

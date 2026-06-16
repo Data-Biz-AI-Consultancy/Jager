@@ -144,10 +144,19 @@ CREATE TABLE IF NOT EXISTS s_linkedin.ugc_posts (
   processed INTEGER DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS s_linkedin.social_actions (
+DROP TABLE IF EXISTS s_linkedin.social_actions CASCADE;
+
+CREATE TABLE IF NOT EXISTS s_linkedin.social_action_likes (
   id VARCHAR(255) PRIMARY KEY,
   post_id VARCHAR(255) NOT NULL,
-  action_type VARCHAR(50) NOT NULL,
+  author VARCHAR(255),
+  published_at TIMESTAMP WITH TIME ZONE,
+  processed INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS s_linkedin.social_action_comments (
+  id VARCHAR(255) PRIMARY KEY,
+  post_id VARCHAR(255) NOT NULL,
   author VARCHAR(255),
   content TEXT,
   published_at TIMESTAMP WITH TIME ZONE,
