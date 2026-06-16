@@ -49,3 +49,34 @@ jobs:
           file: ./src/n8n/Dockerfile
           push: false
           tags: n8n-custom:latest
+
+      - name: Spin up docker-compose stack
+        run: |
+          # Create a dummy .env file for the build to pass env checks
+          touch .env
+          echo "SLACK_OAUTH_TOKEN=dummy" >> .env
+          echo "SLACK_APP_TOKEN=dummy" >> .env
+          echo "OLLAMA_API_KEY=dummy" >> .env
+          echo "LINKEDIN_MEMBER_DATA_PORTABILITY_API_TOKEN=dummy" >> .env
+          
+          docker compose up -d --build
+
+      - name: Verify service health via Caddy proxy
+        run: |
+          echo "Waiting for stack to become healthy..."
+          # Poll localhost/healthz through Caddy. Wait up to 150 seconds.
+          for i in {1..15}; do
+            if curl -sf http://localhost/healthz; then
+              echo "Stack is healthy and Caddy is successfully proxying!"
+              docker compose ps
+              exit 0
+            fi
+            echo "Waiting for services (attempt $i/15)..."
+            docker compose ps
+            sleep 10
+          done
+          echo "Error: Timeout waiting for stack to become healthy. Printing logs:"
+          docker compose ps
+          docker compose logs
+          exit 1
+
