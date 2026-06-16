@@ -220,6 +220,14 @@ CREATE TABLE IF NOT EXISTS s_linkedin.searches (
   processed INTEGER DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS s_linkedin.inferences (
+  id VARCHAR(255) PRIMARY KEY,
+  inference_name VARCHAR(255),
+  inference_value TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  processed INTEGER DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL UNIQUE,
