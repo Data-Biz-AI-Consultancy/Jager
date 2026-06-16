@@ -589,6 +589,144 @@
           "name": "postgres Credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/rest/memberChangeLogs?q=memberAndApplication",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RestLi-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202312"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-linkedin-changelog-comments",
+      "name": "Fetch LinkedIn Changelog Comments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        1550
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "linkedin-member-data-portability-api",
+          "name": "LinkedIn Member Data Portability API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/rest/memberChangeLogs?q=memberAndApplication",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RestLi-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202312"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-linkedin-changelog-likes",
+      "name": "Fetch LinkedIn Changelog Likes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        1700
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "linkedin-member-data-portability-api",
+          "name": "LinkedIn Member Data Portability API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.resourceName === 'socialActions/comments') {\n      const activity = element.activity || {};\n      const message = activity.message || {};\n      const content = message.text || '';\n      \n      let post_id = 'unknown';\n      if (activity.object) {\n        post_id = activity.object;\n      } else if (element.resourceUri) {\n        const match = element.resourceUri.match(/\\/socialActions\\/(urn:li:[a-zA-Z0-9_]+:[0-9]+)\\/comments/);\n        if (match) {\n          post_id = match[1];\n        }\n      }\n\n      const id = element.resourceId || element.id || `${post_id}_comment_${element.capturedAt}`;\n      const author = element.actor || activity.actor || 'me';\n      \n      const published_at_ms = (activity.created && activity.created.time) || element.capturedAt || element.processedAt;\n      const published_at = published_at_ms ? new Date(published_at_ms).toISOString() : new Date().toISOString();\n\n      results.push({\n        id: id.toString(),\n        post_id,\n        author,\n        content,\n        published_at,\n        processed: 0\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-linkedin-changelog-comments",
+      "name": "Parse LinkedIn Changelog Comments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        1550
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const elements = Array.isArray(data) ? data : (data.elements || [data]);\n\n  for (const element of elements) {\n    if (element.resourceName === 'socialActions/likes') {\n      const activity = element.activity || {};\n      \n      let post_id = 'unknown';\n      if (activity.object) {\n        post_id = activity.object;\n      } else if (element.resourceId) {\n        post_id = element.resourceId;\n      } else if (element.resourceUri) {\n        const match = element.resourceUri.match(/\\/socialActions\\/(urn:li:[a-zA-Z0-9_]+:[0-9]+)\\/likes/);\n        if (match) {\n          post_id = match[1];\n        }\n      }\n\n      const author = element.actor || activity.actor || 'me';\n      const id = element.id || element.activityId || `${post_id}_like_${author}`;\n      \n      const published_at_ms = (activity.created && activity.created.time) || element.capturedAt || element.processedAt;\n      const published_at = published_at_ms ? new Date(published_at_ms).toISOString() : new Date().toISOString();\n\n      results.push({\n        id: id.toString(),\n        post_id,\n        author,\n        published_at,\n        processed: 0\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-linkedin-changelog-likes",
+      "name": "Parse LinkedIn Changelog Likes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_linkedin.social_action_comments (id, post_id, author, content, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET content = EXCLUDED.content, author = EXCLUDED.author\nRETURNING id;"
+      },
+      "id": "insert-changelog-comments",
+      "name": "Insert/Upsert Changelog Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        1550
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_linkedin.social_action_likes (id, post_id, author, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.post_id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET author = EXCLUDED.author\nRETURNING id;"
+      },
+      "id": "insert-changelog-likes",
+      "name": "Insert/Upsert Changelog Likes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        1700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     }
   ],
   "connections": {
@@ -632,6 +770,16 @@
           },
           {
             "node": "Fetch LinkedIn Searches",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch LinkedIn Changelog Comments",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch LinkedIn Changelog Likes",
             "type": "main",
             "index": 0
           }
@@ -808,6 +956,50 @@
         [
           {
             "node": "Insert/Upsert Searches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch LinkedIn Changelog Comments": {
+      "main": [
+        [
+          {
+            "node": "Parse LinkedIn Changelog Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LinkedIn Changelog Comments": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Changelog Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch LinkedIn Changelog Likes": {
+      "main": [
+        [
+          {
+            "node": "Parse LinkedIn Changelog Likes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LinkedIn Changelog Likes": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Changelog Likes",
             "type": "main",
             "index": 0
           }
