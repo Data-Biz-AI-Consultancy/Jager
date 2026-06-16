@@ -1,7 +1,23 @@
 {
   "id": "linkedin-ingestion-workflow",
   "name": "Data Ingestion - LinkedIn",
+  "description": "Ingests personal LinkedIn data including UGC posts, comments, likes, connection invitations, and inbox messages into PostgreSQL s_linkedin schema. Ref: https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05",
   "nodes": [
+    {
+      "parameters": {
+        "content": "### LinkedIn Data Ingestion\n\nThis workflow runs periodically to fetch personal LinkedIn Member Data Portability API exports:\n- **UGC Posts**: Shared posts and articles authored by you.\n- **Comments**: Comments made on posts.\n- **Likes**: Reactions (likes, empathy, praise, etc.) on posts.\n- **Invitations**: Incoming and outgoing connection requests.\n- **Messages**: Conversation inbox history.\n\n### Official Documentation:\n- [LinkedIn Member Data Portability](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member/?view=li-dma-data-portability-2026-05)\n- [Member Changelog API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-changelog-api?view=li-dma-data-portability-2026-05&tabs=http)\n- [Member Snapshot API](https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/shared/member-snapshot-api?view=li-dma-data-portability-2026-05&tabs=http)",
+        "height": 340,
+        "width": 420
+      },
+      "id": "sticky-note-doc",
+      "name": "Sticky Note Documentation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -150,
+        300
+      ]
+    },
     {
       "parameters": {
         "rule": {
