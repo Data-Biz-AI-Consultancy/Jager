@@ -105,8 +105,9 @@
           "id": "postgres-db",
           "name": "postgres Credential"
         }
-      },
-      {
+      }
+    },
+    {
         "parameters": {
           "url": "https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=ALL_COMMENTS",
           "authentication": "genericCredentialType",
