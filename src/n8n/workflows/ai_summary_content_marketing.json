@@ -151,7 +151,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT title AS post_title, url AS post_url, published_at AS post_published_at\nFROM s_substack.posts\nWHERE feed_name = 'JimmyPang' AND published_at >= NOW() - INTERVAL '7 days'\nORDER BY published_at DESC;"
+        "query": "SELECT title AS post_title, url AS post_url, published_at AS post_published_at\nFROM s_substack.posts\nWHERE feed_name = 'JimmyPang' \nORDER BY published_at DESC;"
       },
       "id": "get-our-substack-posts",
       "name": "Get Our Substack Posts",
