@@ -1,13 +1,13 @@
 {
   "display_information": {
-    "name": "Bella",
-    "description": "Dedicated Slack bot for the Jager opportunity finder and Reddit summaries.",
-    "background_color": "#611f69",
-    "long_description": "Bella is a dedicated assistant that monitors community channels, aggregates opportunities, and posts summary updates to team channels.asdfasdfasdfasdfasdfadsfasdfasdfasdfasdfasdfasfasdfasdfasdfasdadsf"
+    "name": "Giusy",
+    "description": "AI Marketing Director & Brand Strategist for personal brand and LinkedIn performance insights.",
+    "background_color": "#1f6958",
+    "long_description": "Giusy is a dedicated assistant that analyzes LinkedIn content, comments, and engagement to deliver strategic marketing recommendations, content ideas, and community management actions."
   },
   "features": {
     "bot_user": {
-      "display_name": "Bella",
+      "display_name": "Giusy",
       "always_online": true
     }
   },
