@@ -29,6 +29,14 @@ CREATE SCHEMA IF NOT EXISTS s_euro_stat;
 CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
 CREATE SCHEMA IF NOT EXISTS s_wordpress;
 CREATE SCHEMA IF NOT EXISTS s_linkedin;
+CREATE SCHEMA IF NOT EXISTS s_analytics;
+
+CREATE TABLE IF NOT EXISTS s_analytics.directives (
+  id SERIAL PRIMARY KEY,
+  directive TEXT NOT NULL UNIQUE,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
 CREATE TABLE IF NOT EXISTS s_reddit.subreddits_monitored (
   id SERIAL PRIMARY KEY,
@@ -478,6 +486,12 @@ INSERT INTO s_wordpress.feeds_monitored (name, feed_url, active)
 VALUES 
 ('Towards Data Science', 'https://towardsdatascience.com/feed', TRUE)
 ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO s_analytics.directives (directive) VALUES
+('Find opportunities for Leads Generations for Data Biz'),
+('Suggest new directives based on the existing available data'),
+('Find gaps of the existing data availability and the directives')
+ON CONFLICT (directive) DO NOTHING;
 `;
 
 async function run() {

@@ -24,24 +24,23 @@
     },
     {
       "parameters": {
-        "values": {
-          "string": [
-            {
-              "name": "directives",
-              "value": "Focus on Reddit post volumes, Substack activity, and analyze general content-generation trends to identify where we are seeing the most engagement."
-            }
-          ]
-        },
-        "options": {}
+        "operation": "executeQuery",
+        "query": "SELECT directive FROM s_analytics.directives WHERE active = TRUE;"
       },
-      "id": "set-directives",
-      "name": "Set Directives",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
+      "id": "get-directives",
+      "name": "Get Directives",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [
         300,
         300
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     },
     {
       "parameters": {
@@ -66,7 +65,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const schemaRows = $('Scan DB Structure').all();\nconst directivesItem = $('Set Directives').first();\nconst directives = directivesItem ? directivesItem.json.directives : 'No directives provided.';\n\nif (schemaRows.length === 0) {\n  return [{ json: { text: 'No database tables found.', directives } }];\n}\n\nconst schemas = {};\nschemaRows.forEach(row => {\n  const d = row.json;\n  if (!schemas[d.schema_name]) {\n    schemas[d.schema_name] = {};\n  }\n  if (!schemas[d.schema_name][d.table_name]) {\n    schemas[d.schema_name][d.table_name] = [];\n  }\n  schemas[d.schema_name][d.table_name].push({\n    column: d.column_name,\n    type: d.data_type,\n    description: d.column_description || ''\n  });\n});\n\nlet text = 'PostgreSQL Database Schema and Column Documentation:\\n\\n';\nfor (const [schemaName, tables] of Object.entries(schemas)) {\n  text += `Schema: ${schemaName}\\n`;\n  for (const [tableName, columns] of Object.entries(tables)) {\n    text += `  Table: ${tableName}\\n`;\n    columns.forEach(col => {\n      text += `    - ${col.column} (${col.type})${col.description ? ' // ' + col.description : ''}\\n`;\n    });\n  }\n  text += '\\n';\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nreturn [{ json: { text, directives, kowalski_persona: persona } }];"
+        "jsCode": "const schemaRows = $('Scan DB Structure').all();\nconst directiveRows = $('Get Directives').all();\nconst directives = directiveRows.length > 0 ? directiveRows.map((r, i) => (i + 1) + '. ' + r.json.directive).join('\\n') : 'No directives provided.';\n\nif (schemaRows.length === 0) {\n  return [{ json: { text: 'No database tables found.', directives } }];\n}\n\nconst schemas = {};\nschemaRows.forEach(row => {\n  const d = row.json;\n  if (!schemas[d.schema_name]) {\n    schemas[d.schema_name] = {};\n  }\n  if (!schemas[d.schema_name][d.table_name]) {\n    schemas[d.schema_name][d.table_name] = [];\n  }\n  schemas[d.schema_name][d.table_name].push({\n    column: d.column_name,\n    type: d.data_type,\n    description: d.column_description || ''\n  });\n});\n\nlet text = 'PostgreSQL Database Schema and Column Documentation:\\n\\n';\nfor (const [schemaName, tables] of Object.entries(schemas)) {\n  text += `Schema: ${schemaName}\\n`;\n  for (const [tableName, columns] of Object.entries(tables)) {\n    text += `  Table: ${tableName}\\n`;\n    columns.forEach(col => {\n      text += `    - ${col.column} (${col.type})${col.description ? ' // ' + col.description : ''}\\n`;\n    });\n  }\n  text += '\\n';\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nreturn [{ json: { text, directives, kowalski_persona: persona } }];"
       },
       "id": "format-schema-for-llm",
       "name": "Format Schema for LLM",
@@ -151,7 +150,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const items = $input.all();\nconst queryMeta = $('Parse Queries').all();\n\nconst results = items.map((item, index) => {\n  const meta = queryMeta[index] ? queryMeta[index].json : { hypothesis: 'Unknown hypothesis', title: 'Unknown Query', sql: '' };\n  return {\n    hypothesis: meta.hypothesis,\n    title: meta.title,\n    sql: meta.sql,\n    data: item.json.error ? null : item.json,\n    error: item.json.error || null\n  };\n});\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst directivesItem = $('Set Directives').first();\nconst directives = directivesItem ? directivesItem.json.directives : 'No directives provided.';\n\nreturn [{ json: { results, directives, kowalski_persona: persona } }];"
+        "jsCode": "const items = $input.all();\nconst queryMeta = $('Parse Queries').all();\n\nconst results = items.map((item, index) => {\n  const meta = queryMeta[index] ? queryMeta[index].json : { hypothesis: 'Unknown hypothesis', title: 'Unknown Query', sql: '' };\n  return {\n    hypothesis: meta.hypothesis,\n    title: meta.title,\n    sql: meta.sql,\n    data: item.json.error ? null : item.json,\n    error: item.json.error || null\n  };\n});\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst directiveRows = $('Get Directives').all();\nconst directives = directiveRows.length > 0 ? directiveRows.map((r, i) => (i + 1) + '. ' + r.json.directive).join('\\n') : 'No directives provided.';\n\nreturn [{ json: { results, directives, kowalski_persona: persona } }];"
       },
       "id": "format-results-for-analysis",
       "name": "Format Results for Analysis",
@@ -219,14 +218,14 @@
       "main": [
         [
           {
-            "node": "Set Directives",
+            "node": "Get Directives",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Directives": {
+    "Get Directives": {
       "main": [
         [
           {
