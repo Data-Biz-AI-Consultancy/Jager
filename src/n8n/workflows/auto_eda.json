@@ -194,7 +194,7 @@
     },
     {
       "parameters": {
-        "channel": "={{ $env.SLACK_READINGS_CHANNEL || 'Readings' }}",
+        "channel": "={{ $env.SLACK_ANALYTICS_CHANNEL || 'analytics' }}",
         "text": "=📊 *Kowalski Tactical Analysis & Gap Report* 📊\n\n{{ $json.content || $json.response }}",
         "otherOptions": {}
       },
