@@ -191,7 +191,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const response = $input.first().json.response || '';\nconst report = response.trim();\nconst text = report.length > 0\n  ? report\n  : '\u26a0\ufe0f Kowalski returned an empty report. The LLM may have timed out or exceeded its context window. Check the Auto EDA execution log for details.';\nreturn [{ json: { report_text: text } }];"
+        "jsCode": "const inputData = $input.first().json;\nconst response = inputData.output || inputData.response || inputData.text || '';\nconst report = typeof response === 'string' ? response.trim() : JSON.stringify(response);\nconst text = report.length > 0\n  ? report\n  : '⚠️ Kowalski returned an empty report. The LLM may have timed out or exceeded its context window. Check the Auto EDA execution log for details.';\nreturn [{ json: { report_text: text } }];"
       },
       "id": "format-report",
       "name": "Format Report",
