@@ -32,8 +32,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        300,
-        300
+        280,
+        200
       ],
       "credentials": {
         "postgres": {
@@ -44,8 +44,29 @@
     },
     {
       "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "directives",
+              "value": "Focus on Reddit post volumes, Substack activity, and analyze general content-generation trends to identify where we are seeing the most engagement."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-directives",
+      "name": "Set Directives",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        280,
+        400
+      ]
+    },
+    {
+      "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const rows = $input.all();\nif (rows.length === 0) {\n  return [{ json: { text: 'No database tables found.' } }];\n}\n\nconst schemas = {};\nrows.forEach(row => {\n  const d = row.json;\n  if (!schemas[d.schema_name]) {\n    schemas[d.schema_name] = {};\n  }\n  if (!schemas[d.schema_name][d.table_name]) {\n    schemas[d.schema_name][d.table_name] = [];\n  }\n  schemas[d.schema_name][d.table_name].push({\n    column: d.column_name,\n    type: d.data_type,\n    description: d.column_description || ''\n  });\n});\n\nlet text = 'PostgreSQL Database Schema Information:\\n\\n';\nfor (const [schemaName, tables] of Object.entries(schemas)) {\n  text += `Schema: ${schemaName}\\n`;\n  for (const [tableName, columns] of Object.entries(tables)) {\n    text += `  Table: ${tableName}\\n`;\n    columns.forEach(col => {\n      text += `    - ${col.column} (${col.type})${col.description ? ' // ' + col.description : ''}\\n`;\n    });\n  }\n  text += '\\n';\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nreturn [{ json: { text, kowalski_persona: persona } }];"
+        "jsCode": "const schemaRows = $('Scan DB Structure').all();\nconst directivesItem = $('Set Directives').first();\nconst directives = directivesItem ? directivesItem.json.directives : 'No directives provided.';\n\nif (schemaRows.length === 0) {\n  return [{ json: { text: 'No database tables found.', directives } }];\n}\n\nconst schemas = {};\nschemaRows.forEach(row => {\n  const d = row.json;\n  if (!schemas[d.schema_name]) {\n    schemas[d.schema_name] = {};\n  }\n  if (!schemas[d.schema_name][d.table_name]) {\n    schemas[d.schema_name][d.table_name] = [];\n  }\n  schemas[d.schema_name][d.table_name].push({\n    column: d.column_name,\n    type: d.data_type,\n    description: d.column_description || ''\n  });\n});\n\nlet text = 'PostgreSQL Database Schema and Column Documentation:\\n\\n';\nfor (const [schemaName, tables] of Object.entries(schemas)) {\n  text += `Schema: ${schemaName}\\n`;\n  for (const [tableName, columns] of Object.entries(tables)) {\n    text += `  Table: ${tableName}\\n`;\n    columns.forEach(col => {\n      text += `    - ${col.column} (${col.type})${col.description ? ' // ' + col.description : ''}\\n`;\n    });\n  }\n  text += '\\n';\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nreturn [{ json: { text, directives, kowalski_persona: persona } }];"
       },
       "id": "format-schema-for-llm",
       "name": "Format Schema for LLM",
@@ -66,7 +87,7 @@
         "messages": {
           "values": [
             {
-              "content": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### YOUR TASK ###\nBased on the PostgreSQL schema structure below, generate exactly 3 read-only SQL queries that would yield the most interesting operational statistics, recent activity, or potential business insights.\n\nFor example, query the counts of active items, latest ingestion timestamps, or distribution of values.\n\nReturn a JSON object with this exact structure — no extra text, no markdown fences, just raw JSON:\n\n{\n  \"queries\": [\n    {\n      \"title\": \"Name/purpose of the query\",\n      \"sql\": \"SELECT ...\"\n    }\n  ]\n}\n\nRules:\n- All SQL queries must be valid read-only PostgreSQL queries.\n- Only target tables defined in the schema below.\n- Output only valid JSON. No explanations, no markdown code blocks.\n\n### SCHEMA STRUCTURE ###\n{{ $json.text }}"
+              "content": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### YOUR TASK ###\nBased on the PostgreSQL schema structure below and Don Jimmy's directives, generate exactly 3 hypotheses to test.\nFor each hypothesis, write a valid read-only PostgreSQL query that aggregates or extracts stats to validate or invalidate the hypothesis.\n\nReturn a JSON object with this exact structure — no extra text, no markdown fences, just raw JSON:\n\n{\n  \"queries\": [\n    {\n      \"hypothesis\": \"Detailed statement of your hypothesis\",\n      \"title\": \"Short descriptive title for the test query\",\n      \"sql\": \"SELECT ...\"\n    }\n  ]\n}\n\nRules:\n- All SQL queries must be valid read-only PostgreSQL queries.\n- Only target tables defined in the schema below.\n- Output only valid JSON. No explanations, no markdown code blocks.\n\n### SCHEMA STRUCTURE ###\n{{ $json.text }}"
             }
           ]
         },
@@ -79,7 +100,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        700,
+        720,
         300
       ],
       "credentials": {
@@ -92,14 +113,14 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  // Default fallback queries if JSON parsing fails\n  parsed = {\n    queries: [\n      {\n        title: \"Total post counts across sources\",\n        sql: \"SELECT 'reddit' as src, count(*) from s_reddit.posts UNION SELECT 'substack', count(*) from s_substack.posts;\"\n      }\n    ]\n  };\n}\n\nconst queries = Array.isArray(parsed.queries) ? parsed.queries : [];\nreturn queries.map(q => ({ json: { title: q.title, sql: q.sql } }));"
+        "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  parsed = {\n    queries: [\n      {\n        hypothesis: \"Reddit activity represents the largest ingestion source in the database currently.\",\n        title: \"Total post counts across sources\",\n        sql: \"SELECT 'reddit' as src, count(*) from s_reddit.posts UNION SELECT 'substack', count(*) from s_substack.posts;\"\n      }\n    ]\n  };\n}\n\nconst queries = Array.isArray(parsed.queries) ? parsed.queries : [];\nreturn queries.map(q => ({ json: { hypothesis: q.hypothesis, title: q.title, sql: q.sql } }));"
       },
       "id": "parse-queries",
       "name": "Parse Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
+        920,
         300
       ]
     },
@@ -113,7 +134,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1100,
+        1120,
         300
       ],
       "credentials": {
@@ -126,14 +147,14 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const items = $input.all();\nconst queryMeta = $('Parse Queries').all();\n\nconst results = items.map((item, index) => {\n  const meta = queryMeta[index] ? queryMeta[index].json : { title: 'Unknown Query', sql: '' };\n  return {\n    title: meta.title,\n    sql: meta.sql,\n    data: item.json\n  };\n});\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nreturn [{ json: { results, kowalski_persona: persona } }];"
+        "jsCode": "const items = $input.all();\nconst queryMeta = $('Parse Queries').all();\n\nconst results = items.map((item, index) => {\n  const meta = queryMeta[index] ? queryMeta[index].json : { hypothesis: 'Unknown hypothesis', title: 'Unknown Query', sql: '' };\n  return {\n    hypothesis: meta.hypothesis,\n    title: meta.title,\n    sql: meta.sql,\n    data: item.json\n  };\n});\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst directivesItem = $('Set Directives').first();\nconst directives = directivesItem ? directivesItem.json.directives : 'No directives provided.';\n\nreturn [{ json: { results, directives, kowalski_persona: persona } }];"
       },
       "id": "format-results-for-analysis",
       "name": "Format Results for Analysis",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
+        1320,
         300
       ]
     },
@@ -147,7 +168,7 @@
         "messages": {
           "values": [
             {
-              "content": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### YOUR TASK ###\nAnalyze the SQL query results executed against Don Jimmy's database. Provide a concise, structured intelligence report containing key observations, insights, and recommendations.\n\n### QUERY RESULTS ###\n{{ JSON.stringify($json.results, null, 2) }}\n\nRules:\n- Format with clear headers, bullet points, and high readability.\n- Start with your signature tactical greeting.\n- End with your signature sign-off."
+              "content": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### HYPOTHESES & QUERY RESULTS ###\n{{ JSON.stringify($json.results, null, 2) }}\n\n### YOUR TASK ###\nPerform a tactical analysis based on the query results:\n1. **Evaluate Hypotheses**: For each hypothesis, check the results and state if it is VALIDATED, INVALIDATED, or INCONCLUSIVE.\n2. **Identify Insights**: Summarize the data points and any trends you observed.\n3. **Perform a Data Gap Analysis**: Identify what data is currently missing from the database (e.g. fields, tables, or sources) that would be critical to fully address Don Jimmy's directives or to confirm the hypotheses with higher certainty.\n\nRules:\n- Format with clear military-style sections (e.g., 📋 Overview, 🔬 Hypothesis Validation, ⚠️ Data Gap Analysis, 🫡 Recommendation).\n- Start with your signature greeting.\n- End with your signature sign-off."
             }
           ]
         }
@@ -157,7 +178,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        1500,
+        1520,
         300
       ],
       "credentials": {
@@ -170,7 +191,7 @@
     {
       "parameters": {
         "channel": "={{ $env.SLACK_READINGS_CHANNEL || 'Readings' }}",
-        "text": "=📊 *Kowalski Tactical Analysis Report* 📊\n\n{{ $json.content || $json.response }}",
+        "text": "=📊 *Kowalski Tactical Analysis & Gap Report* 📊\n\n{{ $json.content || $json.response }}",
         "otherOptions": {}
       },
       "id": "post-to-slack",
@@ -178,7 +199,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        1700,
+        1720,
         300
       ],
       "credentials": {
@@ -191,6 +212,17 @@
   ],
   "connections": {
     "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Directives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Directives": {
       "main": [
         [
           {
