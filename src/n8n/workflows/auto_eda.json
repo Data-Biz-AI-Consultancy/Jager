@@ -1,0 +1,343 @@
+{
+  "id": "AutoEda",
+  "name": "Auto EDA",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT directive FROM s_analytics.directives WHERE active = TRUE;"
+      },
+      "id": "get-directives",
+      "name": "Get Directives",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    ns.nspname AS schema_name,\n    cl.relname AS table_name,\n    att.attname AS column_name,\n    pg_catalog.format_type(att.atttypid, att.atttypmod) AS data_type,\n    pg_catalog.col_description(cl.oid, att.attnum) AS column_description\nFROM pg_attribute att\nJOIN pg_class cl ON att.attrelid = cl.oid\nJOIN pg_namespace ns ON cl.relnamespace = ns.oid\nWHERE ns.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND cl.relkind = 'r'\n  AND att.attnum > 0\n  AND NOT att.attisdropped\nORDER BY schema_name, table_name, att.attnum;"
+      },
+      "id": "scan-db-structure",
+      "name": "Scan DB Structure",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst schemaRows = $('Scan DB Structure').all();\nconst directiveRows = $('Get Directives').all();\nconst directives = directiveRows.length > 0 ? directiveRows.map((r, i) => (i + 1) + '. ' + r.json.directive).join('\\n') : 'No directives provided.';\n\nif (schemaRows.length === 0) {\n  return [{ json: { text: 'No database tables found.', directives, kowalski_persona: persona } }];\n}\n\nconst schemas = {};\nschemaRows.forEach(row => {\n  const d = row.json;\n  if (!schemas[d.schema_name]) {\n    schemas[d.schema_name] = {};\n  }\n  if (!schemas[d.schema_name][d.table_name]) {\n    schemas[d.schema_name][d.table_name] = [];\n  }\n  schemas[d.schema_name][d.table_name].push({\n    column: d.column_name,\n    type: d.data_type,\n    description: d.column_description || ''\n  });\n});\n\nlet text = 'PostgreSQL Database Schema and Column Documentation:\\n\\n';\nfor (const [schemaName, tables] of Object.entries(schemas)) {\n  text += `Schema: ${schemaName}\\n`;\n  for (const [tableName, columns] of Object.entries(tables)) {\n    text += `  Table: ${tableName}\\n`;\n    columns.forEach(col => {\n      text += `    - ${col.column} (${col.type})${col.description ? ' // ' + col.description : ''}\\n`;\n    });\n  }\n  text += '\\n';\n}\n\n// Cap schema to avoid overwhelming small LLMs (gemma3:4b context limit)\nconst MAX_SCHEMA_CHARS = 6000;\nif (text.length > MAX_SCHEMA_CHARS) {\n  text = text.substring(0, MAX_SCHEMA_CHARS) + '\\n...[schema truncated for LLM context limit]';\n}\n\nreturn [{ json: { text, directives, kowalski_persona: persona } }];"
+      },
+      "id": "format-schema-for-llm",
+      "name": "Format Schema for LLM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a strict, precise SQL query generator for PostgreSQL. Your ONLY job is to write valid SQL queries using EXCLUSIVELY the tables and columns listed in the SCHEMA STRUCTURE block below.\n\n### CRITICAL RULES — VIOLATION WILL BREAK THE PIPELINE ###\n1. NEVER invent, guess, or assume any column name, table name, or schema name.\n2. ONLY use column names that are explicitly listed under each table in the SCHEMA STRUCTURE block.\n3. ONLY use table names and schema names that appear in the SCHEMA STRUCTURE block.\n4. For every column you reference, mentally verify it is listed under the correct table before writing it.\n5. All queries MUST be read-only SELECT statements. No INSERT, UPDATE, DELETE, DROP, or DDL.\n6. Use fully qualified names: schema_name.table_name.column_name or schema_name.table_name t JOIN ... ON t.column_name.\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### SCHEMA STRUCTURE & COLUMN DOCUMENTATION ###\n(These are the ONLY valid identifiers you may use. Do not use anything else.)\n{{ $json.text }}\n\n### YOUR TASK ###\nFormulate exactly 3 hypotheses based on the directives above and the schema provided.\nFor each hypothesis, write one valid PostgreSQL SELECT query that would validate or invalidate it.\nOnly reference columns and tables that appear in the schema block above.\n\n### OUTPUT FORMAT ###\nRespond with ONLY a raw JSON object — no markdown, no explanation, no code fences. Use this exact structure:\n{\n  \"hypotheses\": [\n    {\n      \"hypothesis\": \"Description of what you are testing...\",\n      \"query\": \"SELECT ...\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
+      },
+      "id": "generate-sql-queries",
+      "name": "Generate SQL Queries",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const FALLBACK_HYPOTHESES = [\n  {\n    hypothesis: 'Most recently ingested content comes from Reddit versus Substack.',\n    query: \"SELECT 'reddit' AS source, MAX(created_at) AS latest FROM s_reddit.posts UNION ALL SELECT 'substack', MAX(published_at) FROM s_substack.posts ORDER BY latest DESC LIMIT 5;\"\n  },\n  {\n    hypothesis: 'LinkedIn messages represent the majority of personal communication data.',\n    query: \"SELECT COUNT(*) AS total_messages FROM s_linkedin.messages;\"\n  },\n  {\n    hypothesis: 'There are active subreddits being monitored with recent posts.',\n    query: \"SELECT s.name AS subreddit_name, COUNT(*) AS post_count FROM s_reddit.posts p JOIN s_reddit.subreddits_monitored s ON p.subreddit_id = s.id GROUP BY s.name ORDER BY post_count DESC LIMIT 10;\"\n  }\n];\n\nconst raw = $input.first().json.response || '';\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\nif (!jsonStr) {\n  console.log('LLM returned empty response, using fallback queries.');\n  return FALLBACK_HYPOTHESES.map(h => ({ json: h }));\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  console.log('Failed to parse LLM JSON, using fallback queries. Error: ' + e.message);\n  return FALLBACK_HYPOTHESES.map(h => ({ json: h }));\n}\n\nconst hypotheses = Array.isArray(parsed.hypotheses) ? parsed.hypotheses.filter(h => h && h.query) : [];\nif (hypotheses.length === 0) {\n  console.log('No valid hypotheses in LLM response, using fallback queries.');\n  return FALLBACK_HYPOTHESES.map(h => ({ json: h }));\n}\n\nreturn hypotheses.map(h => ({\n  json: {\n    hypothesis: h.hypothesis || 'Unnamed hypothesis',\n    query: h.query\n  }\n}));"
+      },
+      "id": "split-queries",
+      "name": "Split Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "execute-queries",
+      "name": "Execute Queries",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = $input.all();\nconst originalInput = $('Format Schema for LLM').first().json;\n\nconst MAX_INDIVIDUAL_RESULT_CHARS = 300; // Keep each individual query result short\nconst MAX_TOTAL_SUMMARY_CHARS = 5000;   // Keep the overall summary size within bounds\n\nlet resultsText = '';\nresults.forEach((item, index) => {\n  const splitList = $('Split Queries').all();\n  const pairedIdx = item.pairedItem && item.pairedItem.item !== undefined ? item.pairedItem.item : index;\n  const h = splitList[pairedIdx] ? splitList[pairedIdx].json : {};\n  const query = h.query || 'Unknown query';\n  const hypothesis = h.hypothesis || 'Unknown hypothesis';\n  let queryResult = '';\n  try {\n    queryResult = JSON.stringify(item.json);\n  } catch (e) {\n    queryResult = 'Error stringifying result: ' + e.message;\n  }\n  if (queryResult.length > MAX_INDIVIDUAL_RESULT_CHARS) {\n    queryResult = queryResult.substring(0, MAX_INDIVIDUAL_RESULT_CHARS) + '...[truncated]';\n  }\n  \n  const entry = `Hypothesis ${index + 1}: ${hypothesis}\\nSQL Query Run: ${query}\\nResult Data: ${queryResult}\\n\\n`;\n  \n  // Check if adding this entry exceeds our overall limit\n  if ((resultsText + entry).length > MAX_TOTAL_SUMMARY_CHARS) {\n    resultsText += `...\\n[Remaining ${results.length - index} hypothesis results truncated to prevent LLM context limit overflow]`;\n    return;\n  }\n  resultsText += entry;\n});\n\nreturn [{\n  json: {\n    directives: originalInput.directives,\n    kowalski_persona: originalInput.kowalski_persona,\n    results_summary: resultsText.trim()\n  }\n}];"
+      },
+      "id": "aggregate-results",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### HYPOTHESES & SQL QUERY EXECUTION RESULTS ###\n{{ $json.results_summary }}\n\n### YOUR TASK ###\nWrite a tactical intelligence report detailing:\n1. 🔬 **Hypothesis Validation**: For each hypothesis tested, show the SQL query ran, a summary of the results, and whether it is validated, invalidated, or inconclusive.\n2. ⚠️ **Data Gap Analysis**: Identify what data is currently missing from the database (e.g. fields, tables, or sources) that would be critical to fully address Don Jimmy's directives or to confirm the hypotheses with higher certainty.\n\nEnsure you write the report in English, following your tactical tone exactly."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "kowalski-report-draft",
+      "name": "Kowalski Report Draft",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        300
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const inputData = $input.first().json;\nconst response = inputData.content || inputData.output || inputData.response || inputData.text || '';\nlet report = typeof response === 'string' ? response.trim() : JSON.stringify(response);\n\n// Convert markdown tables into neat, readable lists for Slack\nif (report.includes('|')) {\n  const lines = report.split('\\n');\n  const formattedLines = [];\n  let inTable = false;\n  for (let line of lines) {\n    if (line.trim().startsWith('|')) {\n      if (!inTable) {\n        inTable = true;\n      }\n      const cells = line.split('|').map(c => c.trim()).filter(c => c !== '');\n      // Skip header and separator lines\n      if (cells.length > 0 && !cells[0].includes('---') && !cells[0].toLowerCase().includes('hypothesis') && !cells[0].toLowerCase().includes('sql query')) {\n        const hypothesisNum = cells[0];\n        const query = cells[1] ? `\\`${cells[1].replace(/`/g, '')}\\`` : '';\n        const result = cells[2] ? `\\`${cells[2].replace(/`/g, '')}\\`` : '';\n        const verdict = cells[3] ? `*${cells[3]}*` : '';\n        const analysis = cells[4] || '';\n        \n        formattedLines.push(`• *Hypothesis ${hypothesisNum}*: ${verdict}\\n  *Query:* ${query}\\n  *Result:* ${result}\\n  *Analysis:* ${analysis}`);\n      }\n    } else {\n      if (inTable) {\n        inTable = false;\n        formattedLines.push(''); // add spacer\n      }\n      formattedLines.push(line);\n    }\n  }\n  report = formattedLines.join('\\n');\n}\n\n// Basic cleanups for slack emojis and bold markers\nreport = report\n  .replace(/:saluting_face:/g, '🫡')\n  .replace(/\\n{3,}/g, '\\n\\n'); // normalize multiple newlines\n\nconst text = report.length > 0\n  ? report\n  : '⚠️ Kowalski returned an empty report. The LLM may have timed out or exceeded its context window. Check the Auto EDA execution log for details.';\nreturn [{ json: { report_text: text } }];"
+      },
+      "id": "format-report",
+      "name": "Format Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_ANALYTICS_CHANNEL || 'analytics' }}",
+        "text": "=\ud83d\udcca *Kowalski Tactical Analysis & Gap Report (Auto EDA)* \ud83d\udcca\n\n{{ $json.report_text }}",
+        "otherOptions": {}
+      },
+      "id": "post-to-slack",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        2050,
+        300
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-kowalski-cred",
+          "name": "Slack Kowalski Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Directives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Directives": {
+      "main": [
+        [
+          {
+            "node": "Scan DB Structure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan DB Structure": {
+      "main": [
+        [
+          {
+            "node": "Format Schema for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Schema for LLM": {
+      "main": [
+        [
+          {
+            "node": "Generate SQL Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate SQL Queries": {
+      "main": [
+        [
+          {
+            "node": "Split Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Queries": {
+      "main": [
+        [
+          {
+            "node": "Execute Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Queries": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Kowalski Report Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kowalski Report Draft": {
+      "main": [
+        [
+          {
+            "node": "Format Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Report": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
