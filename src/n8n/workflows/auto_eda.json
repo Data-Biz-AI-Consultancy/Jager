@@ -65,7 +65,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const schemaRows = $('Scan DB Structure').all();\nconst directiveRows = $('Get Directives').all();\nconst directives = directiveRows.length > 0 ? directiveRows.map((r, i) => (i + 1) + '. ' + r.json.directive).join('\\n') : 'No directives provided.';\n\nif (schemaRows.length === 0) {\n  return [{ json: { text: 'No database tables found.', directives } }];\n}\n\nconst schemas = {};\nschemaRows.forEach(row => {\n  const d = row.json;\n  if (!schemas[d.schema_name]) {\n    schemas[d.schema_name] = {};\n  }\n  if (!schemas[d.schema_name][d.table_name]) {\n    schemas[d.schema_name][d.table_name] = [];\n  }\n  schemas[d.schema_name][d.table_name].push({\n    column: d.column_name,\n    type: d.data_type,\n    description: d.column_description || ''\n  });\n});\n\nlet text = 'PostgreSQL Database Schema and Column Documentation:\\n\\n';\nfor (const [schemaName, tables] of Object.entries(schemas)) {\n  text += `Schema: ${schemaName}\\n`;\n  for (const [tableName, columns] of Object.entries(tables)) {\n    text += `  Table: ${tableName}\\n`;\n    columns.forEach(col => {\n      text += `    - ${col.column} (${col.type})${col.description ? ' // ' + col.description : ''}\\n`;\n    });\n  }\n  text += '\\n';\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nreturn [{ json: { text, directives, kowalski_persona: persona } }];"
+        "jsCode": "const fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst schemaRows = $('Scan DB Structure').all();\nconst directiveRows = $('Get Directives').all();\nconst directives = directiveRows.length > 0 ? directiveRows.map((r, i) => (i + 1) + '. ' + r.json.directive).join('\\n') : 'No directives provided.';\n\nif (schemaRows.length === 0) {\n  return [{ json: { text: 'No database tables found.', directives, kowalski_persona: persona } }];\n}\n\nconst schemas = {};\nschemaRows.forEach(row => {\n  const d = row.json;\n  if (!schemas[d.schema_name]) {\n    schemas[d.schema_name] = {};\n  }\n  if (!schemas[d.schema_name][d.table_name]) {\n    schemas[d.schema_name][d.table_name] = [];\n  }\n  schemas[d.schema_name][d.table_name].push({\n    column: d.column_name,\n    type: d.data_type,\n    description: d.column_description || ''\n  });\n});\n\nlet text = 'PostgreSQL Database Schema and Column Documentation:\\n\\n';\nfor (const [schemaName, tables] of Object.entries(schemas)) {\n  text += `Schema: ${schemaName}\\n`;\n  for (const [tableName, columns] of Object.entries(tables)) {\n    text += `  Table: ${tableName}\\n`;\n    columns.forEach(col => {\n      text += `    - ${col.column} (${col.type})${col.description ? ' // ' + col.description : ''}\\n`;\n    });\n  }\n  text += '\\n';\n}\n\nreturn [{ json: { text, directives, kowalski_persona: persona } }];"
       },
       "id": "format-schema-for-llm",
       "name": "Format Schema for LLM",
@@ -78,31 +78,29 @@
     },
     {
       "parameters": {
-        "promptType": "define",
-        "text": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### SCHEMA STRUCTURE & COLUMN DOCUMENTATION ###\n{{ $json.text }}\n\n### YOUR TASK ###\nFormulate exactly 3 hypotheses matching Don Jimmy's directives.\nQuery the database using your Postgres Query Tool to validate or invalidate each hypothesis.\n\nThen, write a tactical intelligence report detailing:\n1. 🔬 **Hypothesis Validation**: For each hypothesis, show the SQL query ran, the results, and whether it is validated, invalidated, or inconclusive.\n2. ⚠️ **Data Gap Analysis**: Identify what data is currently missing from the database (e.g. fields, tables, or sources) that would be critical to fully address Don Jimmy's directives or to confirm the hypotheses with higher certainty.\n\nEnsure you write the report in English, following your tactical tone.",
-        "options": {}
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'qwen2.5-coder:7b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a database analysis query generator. Based on the following schema and analysis directives, formulate exactly 3 hypotheses to test, and write a SQL query for each hypothesis.\nThe SQL queries MUST be read-only SELECT queries.\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### SCHEMA STRUCTURE & COLUMN DOCUMENTATION ###\n{{ $json.text }}\n\n### OUTPUT FORMAT ###\nYou must respond with a JSON object containing a \"hypotheses\" array. Do not output any markdown code blocks, explanation, or extra text. Just the raw JSON matching this structure:\n{\n  \"hypotheses\": [\n    {\n      \"hypothesis\": \"Description of the hypothesis...\",\n      \"query\": \"SELECT ...\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
       },
-      "id": "kowalski-ai-agent",
-      "name": "Kowalski AI Agent",
-      "type": "@n8n/n8n-nodes-langchain.agent",
+      "id": "generate-sql-queries",
+      "name": "Generate SQL Queries",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        950,
+        900,
         300
-      ]
-    },
-    {
-      "parameters": {
-        "model": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
-        "options": {}
-      },
-      "id": "ollama-model-node",
-      "name": "Ollama Chat Model",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-      "typeVersion": 1,
-      "position": [
-        850,
-        450
       ],
       "credentials": {
         "ollamaApi": {
@@ -113,34 +111,87 @@
     },
     {
       "parameters": {
-        "name": "postgres_query_tool",
-        "description": "Allows executing custom read-only SQL queries against the PostgreSQL database. Input must be a valid SQL query string.",
-        "jsCode": "const { Client } = require('pg');\nconst client = new Client({\n  host: process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db',\n  port: parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10),\n  database: 'jager',\n  user: process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager',\n  password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',\n});\nawait client.connect();\ntry {\n  const res = await client.query(query);\n  await client.end();\n  return JSON.stringify(res.rows);\n} catch (err) {\n  await client.end();\n  return JSON.stringify({ error: err.message });\n}"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const raw = $input.first().json.response || '';\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  throw new Error('Failed to parse JSON: ' + e.message + '. Raw response: ' + raw);\n}\n\nconst hypotheses = parsed.hypotheses || [];\nif (!Array.isArray(hypotheses) || hypotheses.length === 0) {\n  throw new Error('No hypotheses array found in parsed JSON. Raw response: ' + raw);\n}\nfor (const h of hypotheses) {\n  if (!h.query) {\n    throw new Error('One of the hypotheses is missing a query. Raw response: ' + raw);\n  }\n}\nreturn hypotheses.map(h => ({\n  json: {\n    hypothesis: h.hypothesis,\n    query: h.query\n  }\n}));"
       },
-      "id": "postgres-query-tool",
-      "name": "Postgres Query Tool",
-      "type": "@n8n/n8n-nodes-langchain.toolCode",
-      "typeVersion": 1,
-      "position": [
-        980,
-        450
-      ]
-    },
-    {
-      "parameters": {},
-      "id": "agent-memory-node",
-      "name": "Agent Memory",
-      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
-      "typeVersion": 1,
+      "id": "split-queries",
+      "name": "Split Queries",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1100,
-        450
+        300
       ]
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.query }}"
+      },
+      "id": "execute-queries",
+      "name": "Execute Queries",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = $input.all();\nconst originalInput = $('Format Schema for LLM').first().json;\n\nlet resultsText = '';\nresults.forEach((item, index) => {\n  const splitList = $('Split Queries').all();\n  const pairedIdx = item.pairedItem && item.pairedItem.item !== undefined ? item.pairedItem.item : index;\n  const h = splitList[pairedIdx] ? splitList[pairedIdx].json : {};\n  const query = h.query || 'Unknown query';\n  const hypothesis = h.hypothesis || 'Unknown hypothesis';\n  let queryResult = '';\n  try {\n    queryResult = JSON.stringify(item.json);\n  } catch (e) {\n    queryResult = 'Error stringifying result: ' + e.message;\n  }\n  resultsText += `Hypothesis ${index + 1}: ${hypothesis}\\n`;\n  resultsText += `SQL Query Run: ${query}\\n`;\n  resultsText += `Result Data: ${queryResult}\\n\\n`;\n});\n\nreturn [{\n  json: {\n    directives: originalInput.directives,\n    kowalski_persona: originalInput.kowalski_persona,\n    results_summary: resultsText\n  }\n}];"
+      },
+      "id": "aggregate-results",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'qwen2.5-coder:7b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### HYPOTHESES & SQL QUERY EXECUTION RESULTS ###\n{{ $json.results_summary }}\n\n### YOUR TASK ###\nWrite a tactical intelligence report detailing:\n1. 🔬 **Hypothesis Validation**: For each hypothesis tested, show the SQL query ran, a summary of the results, and whether it is validated, invalidated, or inconclusive.\n2. ⚠️ **Data Gap Analysis**: Identify what data is currently missing from the database (e.g. fields, tables, or sources) that would be critical to fully address Don Jimmy's directives or to confirm the hypotheses with higher certainty.\n\nEnsure you write the report in English, following your tactical tone exactly."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "kowalski-report-draft",
+      "name": "Kowalski Report Draft",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        300
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
         "channel": "={{ $env.SLACK_ANALYTICS_CHANNEL || 'analytics' }}",
-        "text": "=📊 *Kowalski Tactical Analysis & Gap Report (Auto EDA)* 📊\n\n{{ $json.output }}",
+        "text": "=📊 *Kowalski Tactical Analysis & Gap Report (Auto EDA)* 📊\n\n{{ $json.response }}",
         "otherOptions": {}
       },
       "id": "post-to-slack",
@@ -148,7 +199,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        1200,
+        1900,
         300
       ],
       "credentials": {
@@ -197,47 +248,58 @@
       "main": [
         [
           {
-            "node": "Kowalski AI Agent",
+            "node": "Generate SQL Queries",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Ollama Chat Model": {
-      "ai_languageModel": [
+    "Generate SQL Queries": {
+      "main": [
         [
           {
-            "node": "Kowalski AI Agent",
-            "type": "ai_languageModel",
+            "node": "Split Queries",
+            "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Postgres Query Tool": {
-      "ai_tool": [
+    "Split Queries": {
+      "main": [
         [
           {
-            "node": "Kowalski AI Agent",
-            "type": "ai_tool",
+            "node": "Execute Queries",
+            "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Agent Memory": {
-      "ai_memory": [
+    "Execute Queries": {
+      "main": [
         [
           {
-            "node": "Kowalski AI Agent",
-            "type": "ai_memory",
+            "node": "Aggregate Results",
+            "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Kowalski AI Agent": {
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Kowalski Report Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kowalski Report Draft": {
       "main": [
         [
           {
