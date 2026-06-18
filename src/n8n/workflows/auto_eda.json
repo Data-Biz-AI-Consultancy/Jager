@@ -113,24 +113,18 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT 1;",
-        "description": "Allows executing custom read-only SQL queries against the PostgreSQL database to discover structure, row counts, and sample content."
+        "name": "postgres_query_tool",
+        "description": "Allows executing custom read-only SQL queries against the PostgreSQL database. Input must be a valid SQL query string.",
+        "jsCode": "const { Client } = require('pg');\nconst client = new Client({\n  host: process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db',\n  port: parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10),\n  database: 'jager',\n  user: process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager',\n  password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',\n});\nawait client.connect();\ntry {\n  const res = await client.query(query);\n  await client.end();\n  return JSON.stringify(res.rows);\n} catch (err) {\n  await client.end();\n  return JSON.stringify({ error: err.message });\n}"
       },
       "id": "postgres-query-tool",
       "name": "Postgres Query Tool",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1,
       "position": [
         980,
         450
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
+      ]
     },
     {
       "parameters": {},
