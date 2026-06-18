@@ -24,26 +24,6 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT \n    ns.nspname AS schema_name,\n    cl.relname AS table_name,\n    att.attname AS column_name,\n    pg_catalog.format_type(att.atttypid, att.atttypmod) AS data_type,\n    pg_catalog.col_description(cl.oid, att.attnum) AS column_description\nFROM pg_attribute att\nJOIN pg_class cl ON att.attrelid = cl.oid\nJOIN pg_namespace ns ON cl.relnamespace = ns.oid\nWHERE ns.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND cl.relkind = 'r'\n  AND att.attnum > 0\n  AND NOT att.attisdropped\nORDER BY schema_name, table_name, att.attnum;"
-      },
-      "id": "scan-db-structure",
-      "name": "Scan DB Structure",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        500,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
         "values": {
           "string": [
             {
@@ -62,6 +42,26 @@
         300,
         300
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n    ns.nspname AS schema_name,\n    cl.relname AS table_name,\n    att.attname AS column_name,\n    pg_catalog.format_type(att.atttypid, att.atttypmod) AS data_type,\n    pg_catalog.col_description(cl.oid, att.attnum) AS column_description\nFROM pg_attribute att\nJOIN pg_class cl ON att.attrelid = cl.oid\nJOIN pg_namespace ns ON cl.relnamespace = ns.oid\nWHERE ns.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND cl.relkind = 'r'\n  AND att.attnum > 0\n  AND NOT att.attisdropped\nORDER BY schema_name, table_name, att.attnum;"
+      },
+      "id": "scan-db-structure",
+      "name": "Scan DB Structure",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     },
     {
       "parameters": {
@@ -137,6 +137,10 @@
         1300,
         300
       ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
       "credentials": {
         "postgres": {
           "id": "postgres-db",
@@ -147,7 +151,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const items = $input.all();\nconst queryMeta = $('Parse Queries').all();\n\nconst results = items.map((item, index) => {\n  const meta = queryMeta[index] ? queryMeta[index].json : { hypothesis: 'Unknown hypothesis', title: 'Unknown Query', sql: '' };\n  return {\n    hypothesis: meta.hypothesis,\n    title: meta.title,\n    sql: meta.sql,\n    data: item.json\n  };\n});\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst directivesItem = $('Set Directives').first();\nconst directives = directivesItem ? directivesItem.json.directives : 'No directives provided.';\n\nreturn [{ json: { results, directives, kowalski_persona: persona } }];"
+        "jsCode": "const items = $input.all();\nconst queryMeta = $('Parse Queries').all();\n\nconst results = items.map((item, index) => {\n  const meta = queryMeta[index] ? queryMeta[index].json : { hypothesis: 'Unknown hypothesis', title: 'Unknown Query', sql: '' };\n  return {\n    hypothesis: meta.hypothesis,\n    title: meta.title,\n    sql: meta.sql,\n    data: item.json.error ? null : item.json,\n    error: item.json.error || null\n  };\n});\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst directivesItem = $('Set Directives').first();\nconst directives = directivesItem ? directivesItem.json.directives : 'No directives provided.';\n\nreturn [{ json: { results, directives, kowalski_persona: persona } }];"
       },
       "id": "format-results-for-analysis",
       "name": "Format Results for Analysis",
@@ -168,7 +172,7 @@
         "messages": {
           "values": [
             {
-              "content": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### HYPOTHESES & QUERY RESULTS ###\n{{ JSON.stringify($json.results, null, 2) }}\n\n### YOUR TASK ###\nPerform a tactical analysis based on the query results:\n1. **Evaluate Hypotheses**: For each hypothesis, check the results and state if it is VALIDATED, INVALIDATED, or INCONCLUSIVE.\n2. **Identify Insights**: Summarize the data points and any trends you observed.\n3. **Perform a Data Gap Analysis**: Identify what data is currently missing from the database (e.g. fields, tables, or sources) that would be critical to fully address Don Jimmy's directives or to confirm the hypotheses with higher certainty.\n\nRules:\n- Format with clear military-style sections (e.g., 📋 Overview, 🔬 Hypothesis Validation, ⚠️ Data Gap Analysis, 🫡 Recommendation).\n- Start with your signature greeting.\n- End with your signature sign-off."
+              "content": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### HYPOTHESES & QUERY RESULTS ###\n{{ JSON.stringify($json.results, null, 2) }}\n\n### YOUR TASK ###\nPerform a tactical analysis based on the query results:\n1. **Evaluate Hypotheses**: For each hypothesis, check the results and state if it is VALIDATED, INVALIDATED, or INCONCLUSIVE (if a query returned an error, state it clearly as inconclusive due to syntax/schema issues).\n2. **Identify Insights**: Summarize the data points and any trends you observed.\n3. **Perform a Data Gap Analysis**: Identify what data is currently missing from the database (e.g. fields, tables, or sources) that would be critical to fully address Don Jimmy's directives or to confirm the hypotheses with higher certainty.\n\nRules:\n- Format with clear military-style sections (e.g., 📋 Overview, 🔬 Hypothesis Validation, ⚠️ Data Gap Analysis, 🫡 Recommendation).\n- Start with your signature greeting.\n- End with your signature sign-off."
             }
           ]
         }
