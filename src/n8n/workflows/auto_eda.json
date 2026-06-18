@@ -78,29 +78,31 @@
     },
     {
       "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
-          "mode": "id"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### YOUR TASK ###\nBased on the PostgreSQL schema structure below and Don Jimmy's directives, generate exactly 3 hypotheses to test.\nFor each hypothesis, write a valid read-only PostgreSQL query that aggregates or extracts stats to validate or invalidate the hypothesis.\n\nReturn a JSON object with this exact structure — no extra text, no markdown fences, just raw JSON:\n\n{\n  \"queries\": [\n    {\n      \"hypothesis\": \"Detailed statement of your hypothesis\",\n      \"title\": \"Short descriptive title for the test query\",\n      \"sql\": \"SELECT ...\"\n    }\n  ]\n}\n\nRules:\n- All SQL queries must be valid read-only PostgreSQL queries.\n- Only target tables defined in the schema below.\n- Output only valid JSON. No explanations, no markdown code blocks.\n\n### SCHEMA STRUCTURE ###\n{{ $json.text }}"
-            }
-          ]
-        },
-        "options": {
-          "format": "json"
-        }
+        "promptType": "define",
+        "text": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### SCHEMA STRUCTURE & COLUMN DOCUMENTATION ###\n{{ $json.text }}\n\n### YOUR TASK ###\nFormulate exactly 3 hypotheses matching Don Jimmy's directives.\nQuery the database using your Postgres Query Tool to validate or invalidate each hypothesis.\n\nThen, write a tactical intelligence report detailing:\n1. 🔬 **Hypothesis Validation**: For each hypothesis, show the SQL query ran, the results, and whether it is validated, invalidated, or inconclusive.\n2. ⚠️ **Data Gap Analysis**: Identify what data is currently missing from the database (e.g. fields, tables, or sources) that would be critical to fully address Don Jimmy's directives or to confirm the hypotheses with higher certainty.\n\nEnsure you write the report in English, following your tactical tone.",
+        "options": {}
       },
-      "id": "suggest-insights-queries",
-      "name": "Suggest Insights Queries",
-      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "id": "kowalski-ai-agent",
+      "name": "Kowalski AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1,
       "position": [
-        900,
+        950,
         300
+      ]
+    },
+    {
+      "parameters": {
+        "model": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+        "options": {}
+      },
+      "id": "ollama-model-node",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        850,
+        450
       ],
       "credentials": {
         "ollamaApi": {
@@ -111,35 +113,18 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  parsed = {\n    queries: [\n      {\n        hypothesis: \"Reddit activity represents the largest ingestion source in the database currently.\",\n        title: \"Total post counts across sources\",\n        sql: \"SELECT 'reddit' as src, count(*) from s_reddit.posts UNION SELECT 'substack', count(*) from s_substack.posts;\"\n      }\n    ]\n  };\n}\n\nconst queries = Array.isArray(parsed.queries) ? parsed.queries : [];\nreturn queries.map(q => ({ json: { hypothesis: q.hypothesis, title: q.title, sql: q.sql } }));"
-      },
-      "id": "parse-queries",
-      "name": "Parse Queries",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1100,
-        300
-      ]
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.sql }}"
+        "query": "SELECT 1;",
+        "description": "Allows executing custom read-only SQL queries against the PostgreSQL database to discover structure, row counts, and sample content."
       },
-      "id": "execute-dynamic-query",
-      "name": "Execute Dynamic Query",
+      "id": "postgres-query-tool",
+      "name": "Postgres Query Tool",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1300,
-        300
+        980,
+        450
       ],
-      "onError": "continueRegularOutput",
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
       "credentials": {
         "postgres": {
           "id": "postgres-db",
@@ -148,53 +133,20 @@
       }
     },
     {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const items = $input.all();\nconst queryMeta = $('Parse Queries').all();\n\nconst results = items.map((item, index) => {\n  const meta = queryMeta[index] ? queryMeta[index].json : { hypothesis: 'Unknown hypothesis', title: 'Unknown Query', sql: '' };\n  return {\n    hypothesis: meta.hypothesis,\n    title: meta.title,\n    sql: meta.sql,\n    data: item.json.error ? null : item.json,\n    error: item.json.error || null\n  };\n});\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst directiveRows = $('Get Directives').all();\nconst directives = directiveRows.length > 0 ? directiveRows.map((r, i) => (i + 1) + '. ' + r.json.directive).join('\\n') : 'No directives provided.';\n\nreturn [{ json: { results, directives, kowalski_persona: persona } }];"
-      },
-      "id": "format-results-for-analysis",
-      "name": "Format Results for Analysis",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "parameters": {},
+      "id": "agent-memory-node",
+      "name": "Agent Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1,
       "position": [
-        1500,
-        300
+        1100,
+        450
       ]
     },
     {
       "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
-          "mode": "id"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "=### YOUR PERSONA ###\n{{ $json.kowalski_persona }}\n\n### DON JIMMY'S ANALYSIS DIRECTIVES ###\n{{ $json.directives }}\n\n### HYPOTHESES & QUERY RESULTS ###\n{{ JSON.stringify($json.results, null, 2) }}\n\n### YOUR TASK ###\nPerform a tactical analysis based on the query results:\n1. **Evaluate Hypotheses**: For each hypothesis, check the results and state if it is VALIDATED, INVALIDATED, or INCONCLUSIVE (if a query returned an error, state it clearly as inconclusive due to syntax/schema issues).\n2. **Identify Insights**: Summarize the data points and any trends you observed.\n3. **Perform a Data Gap Analysis**: Identify what data is currently missing from the database (e.g. fields, tables, or sources) that would be critical to fully address Don Jimmy's directives or to confirm the hypotheses with higher certainty.\n\nRules:\n- Format with clear military-style sections (e.g., 📋 Overview, 🔬 Hypothesis Validation, ⚠️ Data Gap Analysis, 🫡 Recommendation).\n- Start with your signature greeting.\n- End with your signature sign-off."
-            }
-          ]
-        }
-      },
-      "id": "analyze-results-via-llm",
-      "name": "Analyze Results via LLM",
-      "type": "@n8n/n8n-nodes-langchain.ollama",
-      "typeVersion": 1,
-      "position": [
-        1700,
-        300
-      ],
-      "credentials": {
-        "ollamaApi": {
-          "id": "ollama-cloud-api",
-          "name": "Ollama Cloud API"
-        }
-      }
-    },
-    {
-      "parameters": {
         "channel": "={{ $env.SLACK_ANALYTICS_CHANNEL || 'analytics' }}",
-        "text": "=📊 *Kowalski Tactical Analysis & Gap Report* 📊\n\n{{ $json.content || $json.response }}",
+        "text": "=📊 *Kowalski Tactical Analysis & Gap Report (Auto EDA)* 📊\n\n{{ $json.output }}",
         "otherOptions": {}
       },
       "id": "post-to-slack",
@@ -202,7 +154,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        1900,
+        1200,
         300
       ],
       "credentials": {
@@ -251,58 +203,47 @@
       "main": [
         [
           {
-            "node": "Suggest Insights Queries",
+            "node": "Kowalski AI Agent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Suggest Insights Queries": {
-      "main": [
+    "Ollama Chat Model": {
+      "ai_languageModel": [
         [
           {
-            "node": "Parse Queries",
-            "type": "main",
+            "node": "Kowalski AI Agent",
+            "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Queries": {
-      "main": [
+    "Postgres Query Tool": {
+      "ai_tool": [
         [
           {
-            "node": "Execute Dynamic Query",
-            "type": "main",
+            "node": "Kowalski AI Agent",
+            "type": "ai_tool",
             "index": 0
           }
         ]
       ]
     },
-    "Execute Dynamic Query": {
-      "main": [
+    "Agent Memory": {
+      "ai_memory": [
         [
           {
-            "node": "Format Results for Analysis",
-            "type": "main",
+            "node": "Kowalski AI Agent",
+            "type": "ai_memory",
             "index": 0
           }
         ]
       ]
     },
-    "Format Results for Analysis": {
-      "main": [
-        [
-          {
-            "node": "Analyze Results via LLM",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Analyze Results via LLM": {
+    "Kowalski AI Agent": {
       "main": [
         [
           {
