@@ -80,7 +80,7 @@
       "parameters": {
         "modelId": {
           "__rl": true,
-          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'qwen2.5-coder:7b' }}",
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
           "mode": "id"
         },
         "messages": {
@@ -161,7 +161,7 @@
       "parameters": {
         "modelId": {
           "__rl": true,
-          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'qwen2.5-coder:7b' }}",
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
           "mode": "id"
         },
         "messages": {
