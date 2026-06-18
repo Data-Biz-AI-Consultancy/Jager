@@ -146,7 +146,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = $input.all();\nconst originalInput = $('Format Schema for LLM').first().json;\n\nlet resultsText = '';\nresults.forEach((item, index) => {\n  const splitList = $('Split Queries').all();\n  const pairedIdx = item.pairedItem && item.pairedItem.item !== undefined ? item.pairedItem.item : index;\n  const h = splitList[pairedIdx] ? splitList[pairedIdx].json : {};\n  const query = h.query || 'Unknown query';\n  const hypothesis = h.hypothesis || 'Unknown hypothesis';\n  let queryResult = '';\n  try {\n    queryResult = JSON.stringify(item.json);\n  } catch (e) {\n    queryResult = 'Error stringifying result: ' + e.message;\n  }\n  resultsText += `Hypothesis ${index + 1}: ${hypothesis}\\n`;\n  resultsText += `SQL Query Run: ${query}\\n`;\n  resultsText += `Result Data: ${queryResult}\\n\\n`;\n});\n\nreturn [{\n  json: {\n    directives: originalInput.directives,\n    kowalski_persona: originalInput.kowalski_persona,\n    results_summary: resultsText\n  }\n}];"
+        "jsCode": "const results = $input.all();\nconst originalInput = $('Format Schema for LLM').first().json;\n\nconst MAX_RESULT_CHARS = 300; // keep each query result short to avoid LLM context overflow\n\nlet resultsText = '';\nresults.forEach((item, index) => {\n  const splitList = $('Split Queries').all();\n  const pairedIdx = item.pairedItem && item.pairedItem.item !== undefined ? item.pairedItem.item : index;\n  const h = splitList[pairedIdx] ? splitList[pairedIdx].json : {};\n  const query = h.query || 'Unknown query';\n  const hypothesis = h.hypothesis || 'Unknown hypothesis';\n  let queryResult = '';\n  try {\n    queryResult = JSON.stringify(item.json);\n  } catch (e) {\n    queryResult = 'Error stringifying result: ' + e.message;\n  }\n  if (queryResult.length > MAX_RESULT_CHARS) {\n    queryResult = queryResult.substring(0, MAX_RESULT_CHARS) + '...[truncated]';\n  }\n  resultsText += `Hypothesis ${index + 1}: ${hypothesis}\\n`;\n  resultsText += `SQL Query Run: ${query}\\n`;\n  resultsText += `Result Data: ${queryResult}\\n\\n`;\n});\n\nreturn [{\n  json: {\n    directives: originalInput.directives,\n    kowalski_persona: originalInput.kowalski_persona,\n    results_summary: resultsText\n  }\n}];"
       },
       "id": "aggregate-results",
       "name": "Aggregate Results",
@@ -191,7 +191,7 @@
     {
       "parameters": {
         "channel": "={{ $env.SLACK_ANALYTICS_CHANNEL || 'analytics' }}",
-        "text": "=📊 *Kowalski Tactical Analysis & Gap Report (Auto EDA)* 📊\n\n{{ $json.response }}",
+        "text": "=📊 *Kowalski Tactical Analysis & Gap Report (Auto EDA)* 📊\n\n{{ $json.response || '⚠️ Kowalski returned an empty report. The LLM may have timed out or exceeded context. Check the Auto EDA execution log for details.' }}",
         "otherOptions": {}
       },
       "id": "post-to-slack",
