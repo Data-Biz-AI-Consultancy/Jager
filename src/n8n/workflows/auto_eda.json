@@ -183,8 +183,8 @@
       ],
       "credentials": {
         "slackApi": {
-          "id": "slack-api-cred",
-          "name": "Slack API Credential"
+          "id": "slack-kowalski-cred",
+          "name": "Slack Kowalski Credential"
         }
       }
     }
