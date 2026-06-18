@@ -32,8 +32,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        280,
-        200
+        500,
+        300
       ],
       "credentials": {
         "postgres": {
@@ -59,8 +59,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
       "position": [
-        280,
-        400
+        300,
+        300
       ]
     },
     {
@@ -73,7 +73,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
+        700,
         300
       ]
     },
@@ -100,7 +100,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        720,
+        900,
         300
       ],
       "credentials": {
@@ -120,7 +120,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        920,
+        1100,
         300
       ]
     },
@@ -134,7 +134,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1120,
+        1300,
         300
       ],
       "credentials": {
@@ -154,7 +154,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1320,
+        1500,
         300
       ]
     },
@@ -178,7 +178,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        1520,
+        1700,
         300
       ],
       "credentials": {
@@ -199,7 +199,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        1720,
+        1900,
         300
       ],
       "credentials": {
