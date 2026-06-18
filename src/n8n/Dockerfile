@@ -13,6 +13,7 @@ COPY src/n8n/workflows/ /etc/n8n/workflows/
 COPY src/n8n/credentials.json /etc/n8n/credentials.json
 COPY src/n8n/bella.md /etc/n8n/bella.md
 COPY src/n8n/giusy.md /etc/n8n/giusy.md
+COPY src/n8n/kowalski.md /etc/n8n/kowalski.md
 COPY src/n8n/import-workflows.js /etc/n8n/import-workflows.js
 COPY scripts/migrate-db.js /etc/n8n/migrate-db.js
 
