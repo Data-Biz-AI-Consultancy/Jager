@@ -24,23 +24,17 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, database_id, name FROM s_notion.databases_monitored WHERE active = true;"
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [\n  {\n    json: {\n      \"id\": 1,\n      \"name\": \"Engineering Tasks\",\n      \"database_id\": \"15e19ce3759e80a08e1ec26d03ca4d41\"\n    }\n  }\n];"
       },
       "id": "get-active-databases",
       "name": "Get Active Databases",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         300,
         300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
+      ]
     },
     {
       "parameters": {
@@ -102,6 +96,26 @@
           "name": "postgres Credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_notion.databases_monitored (id, database_id, name, active)\nVALUES ({{ $json.id }}, '{{ $json.database_id }}', '{{ $json.name }}', true)\nON CONFLICT (database_id) \nDO UPDATE SET name = EXCLUDED.name, active = true;"
+      },
+      "id": "update-monitored-databases",
+      "name": "Update Monitored Databases",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     }
   ],
   "connections": {
@@ -121,6 +135,11 @@
         [
           {
             "node": "Fetch Notion Pages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Monitored Databases",
             "type": "main",
             "index": 0
           }
