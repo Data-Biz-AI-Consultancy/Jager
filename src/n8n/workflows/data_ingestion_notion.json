@@ -1,0 +1,288 @@
+{
+  "id": "notion-ingestion-workflow",
+  "name": "Data Ingestion - Notion",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "value": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "start-date-uuid",
+              "name": "start_date",
+              "type": "string",
+              "value": "={{ $now.minus({ days: 30 }).toFormat('yyyy-MM-dd') }}"
+            }
+          ]
+        }
+      },
+      "id": "workflow-parameters",
+      "name": "Ingestion Date Range Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        250,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [\n  {\n    json: {\n      \"name\": \"Leadership & Management\",\n      \"database_id\": \"b5ad53f72b0e45e3b481e25da2703fd8\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Science - AIs\",\n      \"database_id\": \"1686e98d4ef8806da4e1c28268b7365e\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Science\",\n      \"database_id\": \"4cd9498f5b5c48c6864d57bd36f7f82d\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"data engineering\",\n      \"database_id\": \"32fcdb5f301b4a9c94329dcadeffca15\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Governance\",\n      \"database_id\": \"f0501c9ac3bf4f0ea8d06b7ed6e40a31\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Visualization & Reporting\",\n      \"database_id\": \"8fc4f5d17d6644eaa6b199f11cb3bf2b\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Product Management\",\n      \"database_id\": \"40906fc76abd4951bd4b283c9717d320\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Product Analytics\",\n      \"database_id\": \"2bdfbb81d5c043d0a5fdd3028ad2504f\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Software Engineering\",\n      \"database_id\": \"1d362ecd225241c0ab3c0fe4d0ed3cda\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Business\",\n      \"database_id\": \"2d56e98d4ef8806ba96cca38539b67e1\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Career\",\n      \"database_id\": \"f34619396f3c4be8b96fa64211eb18d7\",\n      \"type\": \"database\"\n    }\n  }\n];"
+      },
+      "id": "get-active-databases",
+      "name": "Get Active Databases",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.notion.com/v1/databases/{{ $json.database_id }}/query",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.NOTION_API_KEY}}"
+            },
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"filter\": {\n    \"timestamp\": \"last_edited_time\",\n    \"last_edited_time\": {\n      \"on_or_after\": \"{{ $('Ingestion Date Range Parameters').first().json.start_date }}\"\n    }\n  },\n  \"page_size\": 100\n}",
+        "options": {}
+      },
+      "id": "fetch-monitored-pages",
+      "name": "Fetch Monitored Pages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let databaseItem;\n  try {\n    databaseItem = $('Get Active Databases').all()[i].json;\n  } catch (e) {\n    console.error('Could not get active database item:', e.message);\n  }\n  const dbId = databaseItem ? databaseItem.database_id : '';\n  const dbName = databaseItem ? databaseItem.name : '';\n\n  if (item.json.results && Array.isArray(item.json.results)) {\n    for (const page of item.json.results) {\n      results.push({\n        json: {\n          ...page,\n          database_id: dbId,\n          database_name: dbName\n        }\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "split-pages-list",
+      "name": "Split Pages List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.notion.com/v1/blocks/{{ $json.id }}/children",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.NOTION_API_KEY}}"
+            },
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 5,
+              "batchInterval": 1000
+            }
+          }
+        }
+      },
+      "id": "fetch-page-blocks",
+      "name": "Fetch Page Blocks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const blocksResponse = items[i].json;\n  \n  let pageItem;\n  try {\n    pageItem = $('Split Pages List').all()[i].json;\n  } catch (e) {\n    console.error('Could not retrieve parent page item:', e.message);\n    continue;\n  }\n  \n  let database_id = pageItem.database_id || '';\n  if (!database_id && pageItem.parent && pageItem.parent.type === 'database_id') {\n    database_id = pageItem.parent.database_id;\n  }\n\n  if (database_id) {\n    database_id = database_id.replace(/-/g, '');\n  }\n\n  let title = '';\n  if (pageItem.properties) {\n    for (const key of Object.keys(pageItem.properties)) {\n      const prop = pageItem.properties[key];\n      if (prop && prop.type === 'title') {\n        if (prop.title && prop.title.length > 0) {\n          title = prop.title.map(t => t.plain_text).join('');\n        }\n        break;\n      }\n    }\n  }\n  if (!title) {\n    title = pageItem.title || pageItem.name || 'Untitled';\n  }\n\n  const url = pageItem.url || '';\n  const created_time = pageItem.created_time || pageItem.createdTime || new Date().toISOString();\n  const last_edited_time = pageItem.last_edited_time || pageItem.lastEditedTime || new Date().toISOString();\n\n  let textContent = '';\n  if (blocksResponse.results) {\n    for (const block of blocksResponse.results) {\n      const type = block.type;\n      const blockContent = block[type];\n      if (blockContent && blockContent.rich_text) {\n        const text = blockContent.rich_text.map(t => t.plain_text).join('');\n        textContent += text + '\\n';\n      }\n    }\n  }\n  if (!textContent) {\n    textContent = JSON.stringify(pageItem.properties || {});\n  }\n\n  results.push({\n    id: pageItem.id,\n    database_id,\n    title,\n    content: textContent,\n    url,\n    created_time,\n    last_edited_time\n  });\n}\nreturn results;"
+      },
+      "id": "parse-notion-pages",
+      "name": "Parse Notion Pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_notion.pages (id, database_id, title, content, url, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.database_id }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.created_time }}',\n  '{{ $json.last_edited_time }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;"
+      },
+      "id": "insert-notion-pages",
+      "name": "Insert/Upsert Notion Pages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1250,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_notion.databases_monitored (database_id, name, active)\nVALUES ('{{ $json.database_id }}', '{{ $json.name }}', true)\nON CONFLICT (database_id) \nDO UPDATE SET name = EXCLUDED.name, active = true;"
+      },
+      "id": "update-monitored-databases",
+      "name": "Update Monitored Databases",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        450,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Ingestion Date Range Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingestion Date Range Parameters": {
+      "main": [
+        [
+          {
+            "node": "Get Active Databases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Databases": {
+      "main": [
+        [
+          {
+            "node": "Fetch Monitored Pages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Monitored Databases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Monitored Pages": {
+      "main": [
+        [
+          {
+            "node": "Split Pages List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Pages List": {
+      "main": [
+        [
+          {
+            "node": "Fetch Page Blocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Page Blocks": {
+      "main": [
+        [
+          {
+            "node": "Parse Notion Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Notion Pages": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Notion Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
