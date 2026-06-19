@@ -81,7 +81,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_notion.pages (id, database_db_id, database_id, title, content, url, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $json.id }}',\n  (SELECT id FROM s_notion.databases_monitored WHERE database_id = '{{ $json.database_id }}' LIMIT 1),\n  '{{ $json.database_id }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.created_time }}',\n  '{{ $json.last_edited_time }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;"
+        "query": "=INSERT INTO s_notion.pages (id, database_id, title, content, url, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.database_id }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.created_time }}',\n  '{{ $json.last_edited_time }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;"
       },
       "id": "insert-notion-pages",
       "name": "Insert/Upsert Notion Pages",
@@ -101,7 +101,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_notion.databases_monitored (id, database_id, name, active)\nVALUES ({{ $json.id }}, '{{ $json.database_id }}', '{{ $json.name }}', true)\nON CONFLICT (database_id) \nDO UPDATE SET name = EXCLUDED.name, active = true;"
+        "query": "=INSERT INTO s_notion.databases_monitored (database_id, name, active)\nVALUES ('{{ $json.database_id }}', '{{ $json.name }}', true)\nON CONFLICT (database_id) \nDO UPDATE SET name = EXCLUDED.name, active = true;"
       },
       "id": "update-monitored-databases",
       "name": "Update Monitored Databases",

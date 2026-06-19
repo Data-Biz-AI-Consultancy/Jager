@@ -283,8 +283,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	);
 
 	CREATE TABLE IF NOT EXISTS s_notion.databases_monitored (
-		id SERIAL PRIMARY KEY,
-		database_id VARCHAR(255) NOT NULL UNIQUE,
+		database_id VARCHAR(255) PRIMARY KEY,
 		name VARCHAR(255) NOT NULL,
 		active BOOLEAN DEFAULT TRUE,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -292,8 +291,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 
 	CREATE TABLE IF NOT EXISTS s_notion.pages (
 		id VARCHAR(255) PRIMARY KEY,
-		database_db_id INTEGER REFERENCES s_notion.databases_monitored(id) ON DELETE CASCADE,
-		database_id VARCHAR(255),
+		database_id VARCHAR(255) REFERENCES s_notion.databases_monitored(database_id) ON DELETE CASCADE,
 		title VARCHAR(1024),
 		content TEXT,
 		url VARCHAR(2048),
