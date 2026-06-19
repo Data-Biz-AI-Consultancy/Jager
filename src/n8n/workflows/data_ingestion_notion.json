@@ -8,7 +8,7 @@
           "interval": [
             {
               "field": "minutes",
-              "value": 1
+              "value": 15
             }
           ]
         }
