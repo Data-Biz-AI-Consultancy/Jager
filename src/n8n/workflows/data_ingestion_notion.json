@@ -65,15 +65,42 @@
     },
     {
       "parameters": {
+        "url": "=https://api.notion.com/v1/blocks/{{ $json.id }}/children",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.NOTION_API_KEY}}"
+            },
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-page-blocks",
+      "name": "Fetch Page Blocks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  if (!item.json.id) continue;\n  \n  let database_id = '';\n  if (item.json.parent && item.json.parent.type === 'database_id') {\n    database_id = item.json.parent.database_id;\n  }\n  \n  if (!database_id) {\n    try {\n      database_id = $('Get Active Databases').item.json.database_id;\n    } catch (e) {\n      console.log('Could not get database_id from input item:', e.message);\n    }\n  }\n\n  if (database_id) {\n    database_id = database_id.replace(/-/g, '');\n  }\n\n  let title = '';\n  if (item.json.properties) {\n    for (const key of Object.keys(item.json.properties)) {\n      const prop = item.json.properties[key];\n      if (prop && prop.type === 'title') {\n        if (prop.title && prop.title.length > 0) {\n          title = prop.title.map(t => t.plain_text).join('');\n        }\n        break;\n      }\n    }\n  }\n  if (!title) {\n    title = item.json.title || item.json.name || 'Untitled';\n  }\n\n  const url = item.json.url || '';\n  const created_time = item.json.createdTime || item.json.created_time || new Date().toISOString();\n  const last_edited_time = item.json.lastEditedTime || item.json.last_edited_time || new Date().toISOString();\n\n  const properties = { ...item.json.properties };\n  const content = JSON.stringify(properties);\n\n  results.push({\n    id: item.json.id,\n    database_id,\n    title,\n    content,\n    url,\n    created_time,\n    last_edited_time\n  });\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const blocksResponse = items[i].json;\n  \n  let pageItem;\n  try {\n    pageItem = $('Fetch Notion Pages').all()[i].json;\n  } catch (e) {\n    console.error('Could not retrieve parent page item:', e.message);\n    continue;\n  }\n  \n  let database_id = '';\n  if (pageItem.parent && pageItem.parent.type === 'database_id') {\n    database_id = pageItem.parent.database_id;\n  }\n  \n  if (!database_id) {\n    try {\n      database_id = $('Get Active Databases').item.json.database_id;\n    } catch (e) {\n      console.log('Could not get database_id from input item:', e.message);\n    }\n  }\n\n  if (database_id) {\n    database_id = database_id.replace(/-/g, '');\n  }\n\n  let title = '';\n  if (pageItem.properties) {\n    for (const key of Object.keys(pageItem.properties)) {\n      const prop = pageItem.properties[key];\n      if (prop && prop.type === 'title') {\n        if (prop.title && prop.title.length > 0) {\n          title = prop.title.map(t => t.plain_text).join('');\n        }\n        break;\n      }\n    }\n  }\n  if (!title) {\n    title = pageItem.title || pageItem.name || 'Untitled';\n  }\n\n  const url = pageItem.url || '';\n  const created_time = pageItem.created_time || pageItem.createdTime || new Date().toISOString();\n  const last_edited_time = pageItem.last_edited_time || pageItem.lastEditedTime || new Date().toISOString();\n\n  let textContent = '';\n  if (blocksResponse.results) {\n    for (const block of blocksResponse.results) {\n      const type = block.type;\n      const blockContent = block[type];\n      if (blockContent && blockContent.rich_text) {\n        const text = blockContent.rich_text.map(t => t.plain_text).join('');\n        textContent += text + '\\n';\n      }\n    }\n  }\n  if (!textContent) {\n    textContent = JSON.stringify(pageItem.properties || {});\n  }\n\n  results.push({\n    id: pageItem.id,\n    database_id,\n    title,\n    content: textContent,\n    url,\n    created_time,\n    last_edited_time\n  });\n}\nreturn results;"
       },
       "id": "parse-notion-pages",
       "name": "Parse Notion Pages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        700,
+        900,
         300
       ]
     },
@@ -87,7 +114,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        900,
+        1100,
         300
       ],
       "credentials": {
@@ -147,6 +174,17 @@
       ]
     },
     "Fetch Notion Pages": {
+      "main": [
+        [
+          {
+            "node": "Fetch Page Blocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Page Blocks": {
       "main": [
         [
           {
