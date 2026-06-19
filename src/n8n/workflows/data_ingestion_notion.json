@@ -25,7 +25,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "return [\n  {\n    json: {\n      \"id\": 1,\n      \"name\": \"Leadership & Management\",\n      \"database_id\": \"b5ad53f72b0e45e3b481e25da2703fd8\"\n    }\n  }\n];"
+        "jsCode": "return [\n  {\n    json: {\n      \"id\": 1,\n      \"name\": \"Leadership & Management\",\n      \"database_id\": \"b5ad53f72b0e45e3b481e25da2703fd8\"\n    }\n  },\n  {\n    json: {\n      \"id\": 2,\n      \"name\": \"data science & AI\",\n      \"database_id\": \"1686e98d4ef8806da4e1c28268b7365e\"\n    }\n  },\n  {\n    json: {\n      \"id\": 3,\n      \"name\": \"Data Science\",\n      \"database_id\": \"4cd9498f5b5c48c6864d57bd36f7f82d\"\n    }\n  },\n  {\n    json: {\n      \"id\": 4,\n      \"name\": \"data engineering\",\n      \"database_id\": \"32fcdb5f301b4a9c94329dcadeffca15\"\n    }\n  },\n  {\n    json: {\n      \"id\": 5,\n      \"name\": \"Product Management\",\n      \"database_id\": \"40906fc76abd4951bd4b283c9717d320\"\n    }\n  },\n  {\n    json: {\n      \"id\": 6,\n      \"name\": \"Product Analytics\",\n      \"database_id\": \"2bdfbb81d5c043d0a5fdd3028ad2504f\"\n    }\n  },\n  {\n    json: {\n      \"id\": 7,\n      \"name\": \"Software Engineering\",\n      \"database_id\": \"1d362ecd225241c0ab3c0fe4d0ed3cda\"\n    }\n  }\n];"
 
       },
       "id": "get-active-databases",
