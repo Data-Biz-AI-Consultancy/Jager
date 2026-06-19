@@ -1,0 +1,157 @@
+{
+  "id": "notion-ingestion-workflow",
+  "name": "Data Ingestion - Notion",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "value": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, database_id, name FROM s_notion.databases_monitored WHERE active = true;"
+      },
+      "id": "get-active-databases",
+      "name": "Get Active Databases",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "={{ $json.database_id }}",
+          "mode": "id"
+        },
+        "simple": false,
+        "options": {}
+      },
+      "id": "fetch-notion-pages",
+      "name": "Fetch Notion Pages",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-api-cred",
+          "name": "Notion API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  \n  let database_id = '';\n  if (item.json.parent && item.json.parent.type === 'database_id') {\n    database_id = item.json.parent.database_id;\n  }\n  \n  if (!database_id) {\n    try {\n      database_id = $('Get Active Databases').item.json.database_id;\n    } catch (e) {\n      console.log('Could not get database_id from input item:', e.message);\n    }\n  }\n\n  let title = '';\n  if (item.json.properties) {\n    for (const key of Object.keys(item.json.properties)) {\n      const prop = item.json.properties[key];\n      if (prop && prop.type === 'title') {\n        if (prop.title && prop.title.length > 0) {\n          title = prop.title.map(t => t.plain_text).join('');\n        }\n        break;\n      }\n    }\n  }\n  if (!title) {\n    title = item.json.title || item.json.name || 'Untitled';\n  }\n\n  const url = item.json.url || '';\n  const created_time = item.json.createdTime || item.json.created_time || new Date().toISOString();\n  const last_edited_time = item.json.lastEditedTime || item.json.last_edited_time || new Date().toISOString();\n\n  const properties = { ...item.json.properties };\n  const content = JSON.stringify(properties);\n\n  results.push({\n    id: item.json.id,\n    database_id,\n    title,\n    content,\n    url,\n    created_time,\n    last_edited_time\n  });\n}\nreturn results;"
+      },
+      "id": "parse-notion-pages",
+      "name": "Parse Notion Pages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_notion.pages (id, database_db_id, database_id, title, content, url, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $json.id }}',\n  (SELECT id FROM s_notion.databases_monitored WHERE database_id = '{{ $json.database_id }}' LIMIT 1),\n  '{{ $json.database_id }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.created_time }}',\n  '{{ $json.last_edited_time }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;"
+      },
+      "id": "insert-notion-pages",
+      "name": "Insert/Upsert Notion Pages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Active Databases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Databases": {
+      "main": [
+        [
+          {
+            "node": "Fetch Notion Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Notion Pages": {
+      "main": [
+        [
+          {
+            "node": "Parse Notion Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Notion Pages": {
+      "main": [
+        [
+          {
+            "node": "Insert/Upsert Notion Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

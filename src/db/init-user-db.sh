@@ -13,6 +13,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
 	CREATE SCHEMA IF NOT EXISTS s_wordpress;
 	CREATE SCHEMA IF NOT EXISTS s_linkedin;
+	CREATE SCHEMA IF NOT EXISTS s_notion;
 
 	CREATE TABLE IF NOT EXISTS s_reddit.subreddits_monitored (
 		id SERIAL PRIMARY KEY,
@@ -278,6 +279,26 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		description TEXT NOT NULL,
 		url VARCHAR(2048),
 		published_at TIMESTAMP WITH TIME ZONE,
+		processed INTEGER DEFAULT 0
+	);
+
+	CREATE TABLE IF NOT EXISTS s_notion.databases_monitored (
+		id SERIAL PRIMARY KEY,
+		database_id VARCHAR(255) NOT NULL UNIQUE,
+		name VARCHAR(255) NOT NULL,
+		active BOOLEAN DEFAULT TRUE,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS s_notion.pages (
+		id VARCHAR(255) PRIMARY KEY,
+		database_db_id INTEGER REFERENCES s_notion.databases_monitored(id) ON DELETE CASCADE,
+		database_id VARCHAR(255),
+		title VARCHAR(1024),
+		content TEXT,
+		url VARCHAR(2048),
+		created_time TIMESTAMP WITH TIME ZONE,
+		last_edited_time TIMESTAMP WITH TIME ZONE,
 		processed INTEGER DEFAULT 0
 	);
 
