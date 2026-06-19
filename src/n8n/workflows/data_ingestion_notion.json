@@ -25,8 +25,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "return [\n  {\n    json: {\n      \"name\": \"Leadership & Management\",\n      \"database_id\": \"b5ad53f72b0e45e3b481e25da2703fd8\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"data science & AI\",\n      \"database_id\": \"1686e98d4ef8806da4e1c28268b7365e\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Science\",\n      \"database_id\": \"4cd9498f5b5c48c6864d57bd36f7f82d\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"data engineering\",\n      \"database_id\": \"32fcdb5f301b4a9c94329dcadeffca15\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Product Management\",\n      \"database_id\": \"40906fc76abd4951bd4b283c9717d320\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Product Analytics\",\n      \"database_id\": \"2bdfbb81d5c043d0a5fdd3028ad2504f\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Software Engineering\",\n      \"database_id\": \"1d362ecd225241c0ab3c0fe4d0ed3cda\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Business\",\n      \"database_id\": \"2d56e98d4ef8806ba96cca38539b67e1\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Notes\",\n      \"database_id\": \"a92c79a19c074994baa4c271d02b709c\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Docs from Vestiaire\",\n      \"database_id\": \"2a86e98d4ef880e29da4f568c14fe98d\"\n    }\n  }\n];"
-
+        "jsCode": "return [\n  {\n    json: {\n      \"name\": \"Leadership & Management\",\n      \"database_id\": \"b5ad53f72b0e45e3b481e25da2703fd8\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"data science & AI\",\n      \"database_id\": \"1686e98d4ef8806da4e1c28268b7365e\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Science\",\n      \"database_id\": \"4cd9498f5b5c48c6864d57bd36f7f82d\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"data engineering\",\n      \"database_id\": \"32fcdb5f301b4a9c94329dcadeffca15\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Product Management\",\n      \"database_id\": \"40906fc76abd4951bd4b283c9717d320\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Product Analytics\",\n      \"database_id\": \"2bdfbb81d5c043d0a5fdd3028ad2504f\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Software Engineering\",\n      \"database_id\": \"1d362ecd225241c0ab3c0fe4d0ed3cda\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Business\",\n      \"database_id\": \"2d56e98d4ef8806ba96cca38539b67e1\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Notes\",\n      \"database_id\": \"a92c79a19c074994baa4c271d02b709c\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Docs from Vestiaire\",\n      \"database_id\": \"2a86e98d4ef880e29da4f568c14fe98d\",\n      \"type\": \"page\"\n    }\n  }\n];"
       },
       "id": "get-active-databases",
       "name": "Get Active Databases",
@@ -39,42 +38,52 @@
     },
     {
       "parameters": {
-        "resource": "databasePage",
-        "operation": "getAll",
-        "databaseId": {
-          "__rl": true,
-          "value": "={{ $json.database_id }}",
-          "mode": "id"
-        },
-        "simple": false,
-        "options": {}
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "api-key-assign-uuid",
+              "name": "apiKey",
+              "type": "string",
+              "value": "={{$env.NOTION_API_KEY}}"
+            }
+          ]
+        }
       },
-      "id": "fetch-notion-pages",
-      "name": "Fetch Notion Pages",
-      "type": "n8n-nodes-base.notion",
-      "typeVersion": 2,
+      "id": "set-notion-api-key",
+      "name": "Set Notion API Key",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
         500,
         300
-      ],
-      "credentials": {
-        "notionApi": {
-          "id": "notion-api-cred",
-          "name": "Notion API Credential"
-        }
-      }
+      ]
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  \n  let database_id = '';\n  if (item.json.parent && item.json.parent.type === 'database_id') {\n    database_id = item.json.parent.database_id;\n  }\n  \n  if (!database_id) {\n    try {\n      database_id = $('Get Active Databases').item.json.database_id;\n    } catch (e) {\n      console.log('Could not get database_id from input item:', e.message);\n    }\n  }\n\n  let title = '';\n  if (item.json.properties) {\n    for (const key of Object.keys(item.json.properties)) {\n      const prop = item.json.properties[key];\n      if (prop && prop.type === 'title') {\n        if (prop.title && prop.title.length > 0) {\n          title = prop.title.map(t => t.plain_text).join('');\n        }\n        break;\n      }\n    }\n  }\n  if (!title) {\n    title = item.json.title || item.json.name || 'Untitled';\n  }\n\n  const url = item.json.url || '';\n  const created_time = item.json.createdTime || item.json.created_time || new Date().toISOString();\n  const last_edited_time = item.json.lastEditedTime || item.json.last_edited_time || new Date().toISOString();\n\n  const properties = { ...item.json.properties };\n  const content = JSON.stringify(properties);\n\n  results.push({\n    id: item.json.id,\n    database_id,\n    title,\n    content,\n    url,\n    created_time,\n    last_edited_time\n  });\n}\nreturn results;"
+        "jsCode": "const https = require('https');\n\nfunction makeRequest(options, postData = null) {\n  return new Promise((resolve, reject) => {\n    const req = https.request(options, (res) => {\n      let data = '';\n      res.on('data', (chunk) => { data += chunk; });\n      res.on('end', () => {\n        try {\n          const parsed = JSON.parse(data);\n          if (res.statusCode >= 200 && res.statusCode < 300) {\n            resolve(parsed);\n          } else {\n            reject(new Error(`Notion API error (${res.statusCode}): ${parsed.message || data}`));\n          }\n        } catch (e) {\n          reject(new Error(`Failed to parse response: ${e.message}`));\n        }\n      });\n    });\n    req.on('error', (err) => reject(err));\n    if (postData) {\n      req.write(postData);\n    }\n    req.end();\n  });\n}\n\nconst results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const { name, database_id, type, apiKey } = item.json;\n  if (!database_id) continue;\n  if (!apiKey) {\n    throw new Error('NOTION_API_KEY is not defined in context. Ensure Set Notion API Key node is active.');\n  }\n  \n  const headers = {\n    'Authorization': `Bearer ${apiKey}`,\n    'Notion-Version': '2022-06-28',\n    'Content-Type': 'application/json'\n  };\n\n  try {\n    if (type === 'page') {\n      const options = {\n        hostname: 'api.notion.com',\n        path: `/v1/pages/${database_id}`,\n        method: 'GET',\n        headers\n      };\n      console.log(`Fetching Notion Page: ${name} (${database_id})`);\n      const page = await makeRequest(options);\n      results.push({\n        ...page,\n        database_id\n      });\n    } else {\n      const options = {\n        hostname: 'api.notion.com',\n        path: `/v1/databases/${database_id}/query`,\n        method: 'POST',\n        headers\n      };\n      console.log(`Querying Notion Database: ${name} (${database_id})`);\n      const dbResponse = await makeRequest(options, JSON.stringify({ page_size: 100 }));\n      if (dbResponse.results && dbResponse.results.length > 0) {\n        for (const page of dbResponse.results) {\n          results.push({\n            ...page,\n            database_id\n          });\n        }\n      }\n    }\n  } catch (error) {\n    console.error(`Error fetching Notion resource ${name}:`, error.message);\n  }\n}\n\nreturn results;"
+      },
+      "id": "fetch-notion-data",
+      "name": "Fetch Notion Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  if (!item.json.id) continue;\n  \n  let database_id = '';\n  if (item.json.parent && item.json.parent.type === 'database_id') {\n    database_id = item.json.parent.database_id;\n  }\n  \n  if (!database_id) {\n    try {\n      database_id = item.json.database_id;\n    } catch (e) {\n      console.log('Could not get database_id from input item:', e.message);\n    }\n  }\n\n  let title = '';\n  if (item.json.properties) {\n    for (const key of Object.keys(item.json.properties)) {\n      const prop = item.json.properties[key];\n      if (prop && prop.type === 'title') {\n        if (prop.title && prop.title.length > 0) {\n          title = prop.title.map(t => t.plain_text).join('');\n        }\n        break;\n      }\n    }\n  }\n  if (!title) {\n    title = item.json.title || item.json.name || 'Untitled';\n  }\n\n  const url = item.json.url || '';\n  const created_time = item.json.createdTime || item.json.created_time || new Date().toISOString();\n  const last_edited_time = item.json.lastEditedTime || item.json.last_edited_time || new Date().toISOString();\n\n  const properties = { ...item.json.properties };\n  const content = JSON.stringify(properties);\n\n  results.push({\n    id: item.json.id,\n    database_id,\n    title,\n    content,\n    url,\n    created_time,\n    last_edited_time\n  });\n}\nreturn results;"
       },
       "id": "parse-notion-pages",
       "name": "Parse Notion Pages",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        700,
+        900,
         300
       ]
     },
@@ -88,7 +97,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        900,
+        1100,
         300
       ],
       "credentials": {
@@ -135,7 +144,7 @@
       "main": [
         [
           {
-            "node": "Fetch Notion Pages",
+            "node": "Set Notion API Key",
             "type": "main",
             "index": 0
           },
@@ -147,7 +156,18 @@
         ]
       ]
     },
-    "Fetch Notion Pages": {
+    "Set Notion API Key": {
+      "main": [
+        [
+          {
+            "node": "Fetch Notion Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Notion Data": {
       "main": [
         [
           {
