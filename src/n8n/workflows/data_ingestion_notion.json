@@ -25,7 +25,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "return [\n  {\n    json: {\n      \"name\": \"Leadership & Management\",\n      \"database_id\": \"b5ad53f72b0e45e3b481e25da2703fd8\",\n      \"type\": \"database\"\n    }\n  }\n];"
+        "jsCode": "return [\n  {\n    json: {\n      \"name\": \"Leadership & Management\",\n      \"database_id\": \"b5ad53f72b0e45e3b481e25da2703fd8\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Science - AIs\",\n      \"database_id\": \"1686e98d4ef8806da4e1c28268b7365e\",\n      \"type\": \"database\"\n    }\n  }\n];"
       },
       "id": "get-active-databases",
       "name": "Get Active Databases",
