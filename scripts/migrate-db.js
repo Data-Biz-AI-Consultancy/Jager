@@ -482,6 +482,7 @@ CREATE TABLE IF NOT EXISTS t_content_generation.linkedin_posts (
   content TEXT NOT NULL,
   original_prompt_or_source TEXT,
   status VARCHAR(50) DEFAULT 'draft',
+  is_approved BOOLEAN DEFAULT FALSE,
   slack_ts VARCHAR(100),
   scheduled_at TIMESTAMP WITH TIME ZONE,
   published_at TIMESTAMP WITH TIME ZONE,

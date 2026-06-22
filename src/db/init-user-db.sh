@@ -464,6 +464,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		content TEXT NOT NULL,
 		original_prompt_or_source TEXT,
 		status VARCHAR(50) DEFAULT 'draft',
+		is_approved BOOLEAN DEFAULT FALSE,
 		slack_ts VARCHAR(100),
 		scheduled_at TIMESTAMP WITH TIME ZONE,
 		published_at TIMESTAMP WITH TIME ZONE,
