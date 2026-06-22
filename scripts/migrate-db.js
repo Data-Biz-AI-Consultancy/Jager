@@ -474,6 +474,33 @@ CREATE TABLE IF NOT EXISTS training.trained_models (
   UNIQUE (symbol, model_name)
 );
 
+CREATE SCHEMA IF NOT EXISTS t_content_generation;
+
+CREATE TABLE IF NOT EXISTS t_content_generation.linkedin_posts (
+  id SERIAL PRIMARY KEY,
+  channel VARCHAR(50) NOT NULL,
+  content TEXT NOT NULL,
+  original_prompt_or_source TEXT,
+  status VARCHAR(50) DEFAULT 'draft',
+  slack_ts VARCHAR(100),
+  scheduled_at TIMESTAMP WITH TIME ZONE,
+  published_at TIMESTAMP WITH TIME ZONE,
+  external_post_id VARCHAR(255),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS t_content_generation.substack_articles (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(1024) NOT NULL,
+  content TEXT NOT NULL,
+  status VARCHAR(50) DEFAULT 'draft',
+  published_at TIMESTAMP WITH TIME ZONE,
+  external_post_id VARCHAR(255),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 `;
 
 const seeds = `
