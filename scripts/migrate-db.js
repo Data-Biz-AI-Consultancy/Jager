@@ -30,6 +30,7 @@ CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
 CREATE SCHEMA IF NOT EXISTS s_wordpress;
 CREATE SCHEMA IF NOT EXISTS s_linkedin;
 CREATE SCHEMA IF NOT EXISTS s_analytics;
+CREATE SCHEMA IF NOT EXISTS s_notion;
 
 CREATE TABLE IF NOT EXISTS s_analytics.directives (
   id SERIAL PRIMARY KEY,
@@ -325,6 +326,24 @@ CREATE TABLE IF NOT EXISTS s_meetup.search_results (
   description TEXT NOT NULL,
   url VARCHAR(2048),
   published_at TIMESTAMP WITH TIME ZONE,
+  processed INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS s_notion.databases_monitored (
+  database_id VARCHAR(255) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS s_notion.pages (
+  id VARCHAR(255) PRIMARY KEY,
+  database_id VARCHAR(255) REFERENCES s_notion.databases_monitored(database_id) ON DELETE CASCADE,
+  title VARCHAR(1024),
+  content TEXT,
+  url VARCHAR(2048),
+  created_time TIMESTAMP WITH TIME ZONE,
+  last_edited_time TIMESTAMP WITH TIME ZONE,
   processed INTEGER DEFAULT 0
 );
 
