@@ -1,0 +1,211 @@
+{
+  "id": "CgeLinkedinIndividualPosts",
+  "name": "CGE - LinkedIn Individual Posts Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "When clicking \"Execute Workflow\"",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT title AS post_title, content AS post_content, url AS post_url, published_at AS post_published_at\nFROM s_substack.posts\nWHERE feed_name = 'Data Biz'\nORDER BY published_at DESC\nLIMIT 3;"
+      },
+      "id": "get-substack-context",
+      "name": "Get Substack Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const rows = $input.all();\nlet text = '';\nif (rows.length === 0 || !rows[0].json.post_title) {\n  text = 'No Substack posts found to use as context.';\n} else {\n  text = 'Use the following recent Substack articles as context/ideas for generating a LinkedIn post:\\n\\n';\n  rows.forEach((row, index) => {\n    const p = row.json;\n    text += `[Article #${index + 1}]\\nTitle: ${p.post_title}\\nURL: ${p.post_url}\\nContent snippet: ${(p.post_content || '').substring(0, 3000)}\\n\\n`;\n  });\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/giusy.md', 'utf8');\n} catch (e) {\n  persona = 'Warm, brilliant AI Marketing Director named Giusy.';\n}\n\nreturn [{ json: { text, giusy_persona: persona } }];"
+      },
+      "id": "format-context-for-llm",
+      "name": "Format Context for LLM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=### YOUR PERSONA & CONTEXT ###\nYou are Giusy, Don Jimmy's brilliant AI Marketing Director and Brand Strategist. Creative, sharp, and highly growth-oriented.\n\n### YOUR TASK ###\nRead the Substack articles provided below. Generate a high-impact, professional, and engaging LinkedIn post proposal for Don Jimmy's individual LinkedIn account. The post should capture his voice, provide deep technical or business insights in data and AI, use strong hooks, and encourage audience engagement.\n\nWrite the post in English. Ensure it uses formatting suitable for LinkedIn (spacing, bullet points, maximum 3 relevant hashtags).\n\nReturn a JSON object with this exact structure — no extra text, no markdown fences, just raw JSON:\n\n{\n  \"linkedin_post\": \"The complete, ready-to-publish LinkedIn post content.\",\n  \"brief_strategic_reasoning\": \"A short sentence explaining why you structured/wrote the post this way.\"\n}\n\n### SOURCE DATA ###\n{{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
+      },
+      "id": "generate-proposal-post",
+      "name": "Generate Proposal Post",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\njsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  parsed = { linkedin_post: raw, brief_strategic_reasoning: 'Fallback parsing.' };\n}\n\nreturn [{ json: { linkedin_post: parsed.linkedin_post, reasoning: parsed.brief_strategic_reasoning || '' } }];"
+      },
+      "id": "parse-llm-response",
+      "name": "Parse LLM Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO t_content_generation.linkedin_posts (channel, content, original_prompt_or_source, status)\nVALUES ('individual', '{{ $json.linkedin_post.replace(/'/g, \"''\") }}', 'Generated from Substack feed context.', 'draft')\nRETURNING id, channel, status, content;"
+      },
+      "id": "save-proposal-to-db",
+      "name": "Save Proposal to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
+        "text": "=💡 *New LinkedIn Post Proposal (Individual)* 💡\n\n*Status:* Draft (Saved in Database, ID: {{ $json.id }})\n*Proposed Content:*\n```\n{{ $json.content }}\n```\n\n_Generated by Giusy_ 🤖",
+        "otherOptions": {}
+      },
+      "id": "notify-slack",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-giusy-cred",
+          "name": "Slack Giusy Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking \"Execute Workflow\"": {
+      "main": [
+        [
+          {
+            "node": "Get Substack Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Substack Context": {
+      "main": [
+        [
+          {
+            "node": "Format Context for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Context for LLM": {
+      "main": [
+        [
+          {
+            "node": "Generate Proposal Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Proposal Post": {
+      "main": [
+        [
+          {
+            "node": "Parse LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Response": {
+      "main": [
+        [
+          {
+            "node": "Save Proposal to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Proposal to DB": {
+      "main": [
+        [
+          {
+            "node": "Notify Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

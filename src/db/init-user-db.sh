@@ -455,5 +455,32 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	INSERT INTO s_wordpress.feeds_monitored (name, feed_url, active) VALUES 
 		('Towards Data Science', 'https://towardsdatascience.com/feed', TRUE)
 	ON CONFLICT (name) DO NOTHING;
+
+	CREATE SCHEMA IF NOT EXISTS t_content_generation;
+
+	CREATE TABLE IF NOT EXISTS t_content_generation.linkedin_posts (
+		id SERIAL PRIMARY KEY,
+		channel VARCHAR(50) NOT NULL,
+		content TEXT NOT NULL,
+		original_prompt_or_source TEXT,
+		status VARCHAR(50) DEFAULT 'draft',
+		slack_ts VARCHAR(100),
+		scheduled_at TIMESTAMP WITH TIME ZONE,
+		published_at TIMESTAMP WITH TIME ZONE,
+		external_post_id VARCHAR(255),
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS t_content_generation.substack_articles (
+		id SERIAL PRIMARY KEY,
+		title VARCHAR(1024) NOT NULL,
+		content TEXT NOT NULL,
+		status VARCHAR(50) DEFAULT 'draft',
+		published_at TIMESTAMP WITH TIME ZONE,
+		external_post_id VARCHAR(255),
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
 EOSQL
 
