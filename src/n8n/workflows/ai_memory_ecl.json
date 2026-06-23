@@ -190,7 +190,7 @@
         "messages": {
           "values": [
             {
-              "content": "=Analyze the following text and categorize it under one of these primary categories:\n- Software Engineering\n- AI / ML\n- Business Strategy\n- Data Science & Engineering\n- Product Management\n- Career & Growth\n- Other\n\nReturn a JSON object only:\n{\n  \"category\": \"Category Name\"\n}\n\nText:\n{{ $json.cleaned_content }}"
+              "content": "=Analyze the following text and return a JSON object with a categorization and an executive summary:\n{\n  \"category\": \"One of: Software Engineering, AI / ML, Business Strategy, Data Science & Engineering, Product Management, Career & Growth, Other\",\n  \"executive_summary\": {\n    \"summary\": \"A concise 1-2 sentence executive summary.\",\n    \"key_takeaways\": [\"Key takeaway point 1\", \"Key takeaway point 2\"],\n    \"action_items\": [\"Action item 1\", \"Action item 2\"]\n  }\n}\n\nText:\n{{ $json.cleaned_content }}"
             }
           ]
         },
@@ -199,7 +199,7 @@
         }
       },
       "id": "categorize-substack",
-      "name": "Categorize Substack",
+      "name": "Categorize & Summarize Substack",
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
@@ -223,7 +223,7 @@
         "messages": {
           "values": [
             {
-              "content": "=Analyze the following text and categorize it under one of these primary categories:\n- Software Engineering\n- AI / ML\n- Business Strategy\n- Data Science & Engineering\n- Product Management\n- Career & Growth\n- Other\n\nReturn a JSON object only:\n{\n  \"category\": \"Category Name\"\n}\n\nText:\n{{ $json.cleaned_content }}"
+              "content": "=Analyze the following text and return a JSON object with a categorization and an executive summary:\n{\n  \"category\": \"One of: Software Engineering, AI / ML, Business Strategy, Data Science & Engineering, Product Management, Career & Growth, Other\",\n  \"executive_summary\": {\n    \"summary\": \"A concise 1-2 sentence executive summary.\",\n    \"key_takeaways\": [\"Key takeaway point 1\", \"Key takeaway point 2\"],\n    \"action_items\": [\"Action item 1\", \"Action item 2\"]\n  }\n}\n\nText:\n{{ $json.cleaned_content }}"
             }
           ]
         },
@@ -232,7 +232,7 @@
         }
       },
       "id": "categorize-linkedin",
-      "name": "Categorize LinkedIn",
+      "name": "Categorize & Summarize LinkedIn",
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
@@ -263,7 +263,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst originalItems = $('Clean Substack Content').all();\nfor (let i = 0; i < currentItems.length; i++) {\n  const current = currentItems[i].json;\n  const original = originalItems[i].json;\n  let category = 'Other';\n  try {\n    const parsed = JSON.parse(current.response || current.content || '{}');\n    category = parsed.category || 'Other';\n  } catch (e) {\n    if (current.response) category = current.response.trim();\n  }\n  results.push({\n    json: {\n      ...original,\n      category\n    }\n  });\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst originalItems = $('Clean Substack Content').all();\nfor (let i = 0; i < currentItems.length; i++) {\n  const current = currentItems[i].json;\n  const original = originalItems[i].json;\n  let category = 'Other';\n  let executive_summary = {};\n  const raw = current.response || current.content || '';\n  let jsonStr = raw.trim();\n  const firstBrace = jsonStr.indexOf('{');\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n    jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n  }\n  jsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n  try {\n    const parsed = JSON.parse(jsonStr);\n    category = parsed.category || 'Other';\n    executive_summary = parsed.executive_summary || {};\n  } catch (e) {\n    if (raw) category = raw.trim().substring(0, 50);\n  }\n  results.push({\n    json: {\n      ...original,\n      category,\n      executive_summary: JSON.stringify(executive_summary)\n    }\n  });\n}\nreturn results;"
       },
       "id": "merge-substack-category",
       "name": "Merge Substack Category",
@@ -277,7 +277,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst originalItems = $('Clean LinkedIn Content').all();\nfor (let i = 0; i < currentItems.length; i++) {\n  const current = currentItems[i].json;\n  const original = originalItems[i].json;\n  let category = 'Other';\n  try {\n    const parsed = JSON.parse(current.response || current.content || '{}');\n    category = parsed.category || 'Other';\n  } catch (e) {\n    if (current.response) category = current.response.trim();\n  }\n  results.push({\n    json: {\n      ...original,\n      category\n    }\n  });\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst originalItems = $('Clean LinkedIn Content').all();\nfor (let i = 0; i < currentItems.length; i++) {\n  const current = currentItems[i].json;\n  const original = originalItems[i].json;\n  let category = 'Other';\n  let executive_summary = {};\n  const raw = current.response || current.content || '';\n  let jsonStr = raw.trim();\n  const firstBrace = jsonStr.indexOf('{');\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n    jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n  }\n  jsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n  try {\n    const parsed = JSON.parse(jsonStr);\n    category = parsed.category || 'Other';\n    executive_summary = parsed.executive_summary || {};\n  } catch (e) {\n    if (raw) category = raw.trim().substring(0, 50);\n  }\n  results.push({\n    json: {\n      ...original,\n      category,\n      executive_summary: JSON.stringify(executive_summary)\n    }\n  });\n}\nreturn results;"
       },
       "id": "merge-linkedin-category",
       "name": "Merge LinkedIn Category",
@@ -311,7 +311,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO m_staging.substack_posts (id, feed_id, feed_name, author, title, content, cleaned_content, category, content_hash, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.feed_id || 'NULL' }},\n  '{{ $json.feed_name.replace(/'/g, \"''\") }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.content_hash }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
+        "query": "=INSERT INTO m_staging.substack_posts (id, feed_id, feed_name, author, title, content, cleaned_content, category, executive_summary, content_hash, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.feed_id || 'NULL' }},\n  '{{ $json.feed_name.replace(/'/g, \"''\") }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.executive_summary.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.content_hash }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  executive_summary = EXCLUDED.executive_summary,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
       },
       "id": "stage-substack-posts",
       "name": "Stage Substack Posts",
@@ -331,7 +331,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO m_staging.linkedin_posts (id, author, content, cleaned_content, category, content_hash, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.content_hash }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
+        "query": "=INSERT INTO m_staging.linkedin_posts (id, author, content, cleaned_content, category, executive_summary, content_hash, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.executive_summary.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.content_hash }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  executive_summary = EXCLUDED.executive_summary,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
       },
       "id": "stage-linkedin-posts",
       "name": "Stage LinkedIn Posts",
@@ -626,14 +626,14 @@
       "main": [
         [
           {
-            "node": "Categorize Substack",
+            "node": "Categorize & Summarize Substack",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Categorize Substack": {
+    "Categorize & Summarize Substack": {
       "main": [
         [
           {
@@ -681,14 +681,14 @@
       "main": [
         [
           {
-            "node": "Categorize LinkedIn",
+            "node": "Categorize & Summarize LinkedIn",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Categorize LinkedIn": {
+    "Categorize & Summarize LinkedIn": {
       "main": [
         [
           {
