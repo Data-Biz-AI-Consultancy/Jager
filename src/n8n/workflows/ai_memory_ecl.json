@@ -1,0 +1,795 @@
+{
+  "id": "AiMemoryEclWorkflow",
+  "name": "AI Memory / ECL - Distillion Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, database_id, title, content, url, created_time, last_edited_time FROM s_notion.pages WHERE processed = 0 LIMIT 10;"
+      },
+      "id": "get-unprocessed-raw-notion",
+      "name": "Get Unprocessed Raw Notion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        200,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, feed_id, feed_name, author, title, content, url, published_at FROM s_substack.posts WHERE processed = 0 LIMIT 10;"
+      },
+      "id": "get-unprocessed-raw-substack",
+      "name": "Get Unprocessed Raw Substack",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        200,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, author, content, url, published_at FROM s_linkedin.ugc_posts WHERE processed = 0 LIMIT 10;"
+      },
+      "id": "get-unprocessed-raw-linkedin",
+      "name": "Get Unprocessed Raw LinkedIn",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        200,
+        450
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const crypto = require('crypto');\nconst results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const content = data.content || '';\n  // Basic cleaning: trim, normalize spacing\n  const cleaned_content = content.replace(/\\s+/g, ' ').trim();\n  const content_hash = crypto.createHash('sha256').update(cleaned_content).digest('hex');\n  \n  results.push({\n    json: {\n      ...data,\n      cleaned_content,\n      content_hash\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "clean-notion-content",
+      "name": "Clean Notion Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const crypto = require('crypto');\nconst results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const content = data.content || '';\n  const cleaned_content = content.replace(/\\s+/g, ' ').trim();\n  const content_hash = crypto.createHash('sha256').update(cleaned_content).digest('hex');\n  \n  results.push({\n    json: {\n      ...data,\n      cleaned_content,\n      content_hash\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "clean-substack-content",
+      "name": "Clean Substack Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const crypto = require('crypto');\nconst results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const content = data.content || '';\n  const cleaned_content = content.replace(/\\s+/g, ' ').trim();\n  const content_hash = crypto.createHash('sha256').update(cleaned_content).digest('hex');\n  \n  results.push({\n    json: {\n      ...data,\n      cleaned_content,\n      content_hash\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "clean-linkedin-content",
+      "name": "Clean LinkedIn Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze the following text and categorize it under one of these primary categories:\n- Software Engineering\n- AI / ML\n- Business Strategy\n- Data Science & Engineering\n- Product Management\n- Career & Growth\n- Other\n\nReturn a JSON object only:\n{\n  \"category\": \"Category Name\"\n}\n\nText:\n{{ $json.cleaned_content }}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
+      },
+      "id": "categorize-notion",
+      "name": "Categorize Notion",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        600,
+        150
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze the following text and categorize it under one of these primary categories:\n- Software Engineering\n- AI / ML\n- Business Strategy\n- Data Science & Engineering\n- Product Management\n- Career & Growth\n- Other\n\nReturn a JSON object only:\n{\n  \"category\": \"Category Name\"\n}\n\nText:\n{{ $json.cleaned_content }}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
+      },
+      "id": "categorize-substack",
+      "name": "Categorize Substack",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        600,
+        300
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze the following text and categorize it under one of these primary categories:\n- Software Engineering\n- AI / ML\n- Business Strategy\n- Data Science & Engineering\n- Product Management\n- Career & Growth\n- Other\n\nReturn a JSON object only:\n{\n  \"category\": \"Category Name\"\n}\n\nText:\n{{ $json.cleaned_content }}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
+      },
+      "id": "categorize-linkedin",
+      "name": "Categorize LinkedIn",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        600,
+        450
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO m_staging.notion_pages (id, database_id, title, content, cleaned_content, category, content_hash, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $('Clean Notion Content').json.id }}',\n  '{{ $('Clean Notion Content').json.database_id }}',\n  '{{ $('Clean Notion Content').json.title.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Notion Content').json.content.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Notion Content').json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ JSON.parse($json.response || $json.content).category }}',\n  '{{ $('Clean Notion Content').json.content_hash }}',\n  '{{ $('Clean Notion Content').json.created_time }}',\n  '{{ $('Clean Notion Content').json.last_edited_time }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash,\n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;"
+      },
+      "id": "stage-notion-pages",
+      "name": "Stage Notion Pages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO m_staging.substack_posts (id, feed_id, feed_name, author, title, content, cleaned_content, category, content_hash, published_at, processed)\nVALUES (\n  '{{ $('Clean Substack Content').json.id }}',\n  {{ $('Clean Substack Content').json.feed_id || 'NULL' }},\n  '{{ $('Clean Substack Content').json.feed_name.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Substack Content').json.author.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Substack Content').json.title.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Substack Content').json.content.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Substack Content').json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ JSON.parse($json.response || $json.content).category }}',\n  '{{ $('Clean Substack Content').json.content_hash }}',\n  '{{ $('Clean Substack Content').json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
+      },
+      "id": "stage-substack-posts",
+      "name": "Stage Substack Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO m_staging.linkedin_posts (id, author, content, cleaned_content, category, content_hash, published_at, processed)\nVALUES (\n  '{{ $('Clean LinkedIn Content').json.id }}',\n  '{{ $('Clean LinkedIn Content').json.author.replace(/'/g, \"''\") }}',\n  '{{ $('Clean LinkedIn Content').json.content.replace(/'/g, \"''\") }}',\n  '{{ $('Clean LinkedIn Content').json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ JSON.parse($json.response || $json.content).category }}',\n  '{{ $('Clean LinkedIn Content').json.content_hash }}',\n  '{{ $('Clean LinkedIn Content').json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
+      },
+      "id": "stage-linkedin-posts",
+      "name": "Stage LinkedIn Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        450
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE s_notion.pages SET processed = 1 WHERE id = '{{ $json.id }}';"
+      },
+      "id": "mark-raw-notion-processed",
+      "name": "Mark Raw Notion Processed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE s_substack.posts SET processed = 1 WHERE id = '{{ $json.id }}';"
+      },
+      "id": "mark-raw-substack-processed",
+      "name": "Mark Raw Substack Processed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE s_linkedin.ugc_posts SET processed = 1 WHERE id = '{{ $json.id }}';"
+      },
+      "id": "mark-raw-linkedin-processed",
+      "name": "Mark Raw LinkedIn Processed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        450
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 'notion_pages' AS source_table, id, title, cleaned_content, created_time AS event_time FROM m_staging.notion_pages WHERE processed = 0\nUNION ALL\nSELECT 'substack_posts' AS source_table, id, title, cleaned_content, published_at AS event_time FROM m_staging.substack_posts WHERE processed = 0\nUNION ALL\nSELECT 'linkedin_posts' AS source_table, id, '' AS title, cleaned_content, published_at AS event_time FROM m_staging.linkedin_posts WHERE processed = 0 LIMIT 10;"
+      },
+      "id": "get-unprocessed-staging",
+      "name": "Get Unprocessed Staging",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1200,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze the following content and extract long-term facts/entity profiles. Return a JSON object with a single key 'facts' containing a JSON array of facts, each representing a single key entity statement:\n{\n  \"facts\": [\n    {\n      \"entity_name\": \"Name of person, organization, tech stack, or core concept\",\n      \"entity_type\": \"person or organization or technology or concept\",\n      \"fact_details\": \"Clean, static summary of the long term fact or insight learned\",\n      \"confidence\": 0.95\n    }\n  ]\n}\n\nContent:\n{{ $json.cleaned_content }}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
+      },
+      "id": "extract-facts",
+      "name": "Extract Facts",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        200
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze the following content and extract time-bound events, interactions, decisions, or outcomes. Return a JSON object with a single key 'events' containing a JSON array of events:\n{\n  \"events\": [\n    {\n      \"event_name\": \"Action-oriented description of the event\",\n      \"event_description\": \"Detailed context of what happened\",\n      \"event_timestamp\": \"ISO 8601 date-time string if available, otherwise null\",\n      \"actors\": [\"Name of people or entities involved\"],\n      \"outcome\": \"The result, decision, or output of this event\"\n    }\n  ]\n}\n\nContent:\n{{ $json.cleaned_content }}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
+      },
+      "id": "extract-episodic-events",
+      "name": "Extract Episodic Events",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        400
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (const item of items) {\n  const parent = $('Get Unprocessed Staging').json;\n  const responseText = item.json.response || item.json.content || '{}';\n  let parsed;\n  try {\n    parsed = JSON.parse(responseText);\n  } catch(e) {\n    parsed = { facts: [] };\n  }\n  if (parsed.facts && Array.isArray(parsed.facts)) {\n    for (const fact of parsed.facts) {\n      results.push({\n        json: {\n          entity_name: fact.entity_name || '',\n          entity_type: fact.entity_type || 'concept',\n          fact_details: fact.fact_details || '',\n          confidence: fact.confidence || 0.8,\n          source_table: parent.source_table,\n          source_id: parent.id\n        }\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-facts",
+      "name": "Parse Facts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (const item of items) {\n  const parent = $('Get Unprocessed Staging').json;\n  const responseText = item.json.response || item.json.content || '{}';\n  let parsed;\n  try {\n    parsed = JSON.parse(responseText);\n  } catch(e) {\n    parsed = { events: [] };\n  }\n  if (parsed.events && Array.isArray(parsed.events)) {\n    for (const event of parsed.events) {\n      results.push({\n        json: {\n          event_name: event.event_name || '',\n          event_description: event.event_description || '',\n          event_timestamp: event.event_timestamp || parent.event_time || new Date().toISOString(),\n          actors: JSON.stringify(event.actors || []),\n          outcome: event.outcome || '',\n          source_table: parent.source_table,\n          source_id: parent.id\n        }\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-episodic-events",
+      "name": "Parse Episodic Events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO m_fact.memory_facts (entity_name, entity_type, fact_details, source_table, source_id, confidence)\nVALUES (\n  '{{ $json.entity_name.replace(/'/g, \"''\") }}',\n  '{{ $json.entity_type.replace(/'/g, \"''\") }}',\n  '{{ $json.fact_details.replace(/'/g, \"''\") }}',\n  '{{ $json.source_table }}',\n  '{{ $json.source_id }}',\n  {{ $json.confidence }}\n);"
+      },
+      "id": "insert-facts",
+      "name": "Insert Facts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1800,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO m_episodic.memory_events (event_name, event_description, event_timestamp, actors, source_table, source_id, outcome)\nVALUES (\n  '{{ $json.event_name.replace(/'/g, \"''\") }}',\n  '{{ $json.event_description.replace(/'/g, \"''\") }}',\n  '{{ $json.event_timestamp }}',\n  '{{ $json.actors }}'::jsonb,\n  '{{ $json.source_table }}',\n  '{{ $json.source_id }}',\n  '{{ $json.outcome.replace(/'/g, \"''\") }}'\n);"
+      },
+      "id": "insert-episodic-events",
+      "name": "Insert Episodic Events",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1800,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE m_staging.{{ $json.source_table }} SET processed = 1 WHERE id = '{{ $json.id }}';"
+      },
+      "id": "mark-staging-processed",
+      "name": "Mark Staging Processed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        2000,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Unprocessed Raw Notion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Unprocessed Raw Substack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Unprocessed Raw LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unprocessed Raw Notion": {
+      "main": [
+        [
+          {
+            "node": "Clean Notion Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Notion Content": {
+      "main": [
+        [
+          {
+            "node": "Categorize Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Categorize Notion": {
+      "main": [
+        [
+          {
+            "node": "Stage Notion Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage Notion Pages": {
+      "main": [
+        [
+          {
+            "node": "Mark Raw Notion Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Raw Notion Processed": {
+      "main": [
+        [
+          {
+            "node": "Get Unprocessed Staging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unprocessed Raw Substack": {
+      "main": [
+        [
+          {
+            "node": "Clean Substack Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Substack Content": {
+      "main": [
+        [
+          {
+            "node": "Categorize Substack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Categorize Substack": {
+      "main": [
+        [
+          {
+            "node": "Stage Substack Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage Substack Posts": {
+      "main": [
+        [
+          {
+            "node": "Mark Raw Substack Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Raw Substack Processed": {
+      "main": [
+        [
+          {
+            "node": "Get Unprocessed Staging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unprocessed Raw LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Clean LinkedIn Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean LinkedIn Content": {
+      "main": [
+        [
+          {
+            "node": "Categorize LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Categorize LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Stage LinkedIn Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stage LinkedIn Posts": {
+      "main": [
+        [
+          {
+            "node": "Mark Raw LinkedIn Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Raw LinkedIn Processed": {
+      "main": [
+        [
+          {
+            "node": "Get Unprocessed Staging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unprocessed Staging": {
+      "main": [
+        [
+          {
+            "node": "Extract Facts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extract Episodic Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Facts": {
+      "main": [
+        [
+          {
+            "node": "Parse Facts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Facts": {
+      "main": [
+        [
+          {
+            "node": "Insert Facts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Facts": {
+      "main": [
+        [
+          {
+            "node": "Mark Staging Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Episodic Events": {
+      "main": [
+        [
+          {
+            "node": "Parse Episodic Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Episodic Events": {
+      "main": [
+        [
+          {
+            "node": "Insert Episodic Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Episodic Events": {
+      "main": [
+        [
+          {
+            "node": "Mark Staging Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
