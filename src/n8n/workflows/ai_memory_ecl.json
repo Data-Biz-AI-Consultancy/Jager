@@ -18,21 +18,44 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        0,
+        -150,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "start-date-uuid",
+              "name": "start_date",
+              "type": "string",
+              "value": "={{ $now.minus({ days: 1 }).toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "workflow-parameters",
+      "name": "Ingestion Date Range Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        20,
         300
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, database_id, title, content, url, created_time, last_edited_time FROM s_notion.pages WHERE processed = 0 LIMIT 10;"
+        "query": "=SELECT id, database_id, title, content, url, created_time, last_edited_time FROM s_notion.pages WHERE last_edited_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' OR created_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';"
       },
       "id": "get-unprocessed-raw-notion",
       "name": "Get Unprocessed Raw Notion",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        200,
+        220,
         150
       ],
       "credentials": {
@@ -45,14 +68,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, feed_id, feed_name, author, title, content, url, published_at FROM s_substack.posts WHERE processed = 0 LIMIT 10;"
+        "query": "=SELECT id, feed_id, feed_name, author, title, content, url, published_at FROM s_substack.posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';"
       },
       "id": "get-unprocessed-raw-substack",
       "name": "Get Unprocessed Raw Substack",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        200,
+        220,
         300
       ],
       "credentials": {
@@ -65,14 +88,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, author, content, url, published_at FROM s_linkedin.ugc_posts WHERE processed = 0 LIMIT 10;"
+        "query": "=SELECT id, author, content, url, published_at FROM s_linkedin.ugc_posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';"
       },
       "id": "get-unprocessed-raw-linkedin",
       "name": "Get Unprocessed Raw LinkedIn",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        200,
+        220,
         450
       ],
       "credentials": {
@@ -85,14 +108,14 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const crypto = require('crypto');\nconst results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const content = data.content || '';\n  // Basic cleaning: trim, normalize spacing\n  const cleaned_content = content.replace(/\\s+/g, ' ').trim();\n  const content_hash = crypto.createHash('sha256').update(cleaned_content).digest('hex');\n  \n  results.push({\n    json: {\n      ...data,\n      cleaned_content,\n      content_hash\n    }\n  });\n}\nreturn results;"
+        "jsCode": "const crypto = require('crypto');\nconst results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const content = data.content || '';\n  const cleaned_content = content.replace(/\\s+/g, ' ').trim();\n  const content_hash = crypto.createHash('sha256').update(cleaned_content).digest('hex');\n  \n  results.push({\n    json: {\n      ...data,\n      cleaned_content,\n      content_hash\n    }\n  });\n}\nreturn results;"
       },
       "id": "clean-notion-content",
       "name": "Clean Notion Content",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        400,
+        420,
         150
       ]
     },
@@ -106,7 +129,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        400,
+        420,
         300
       ]
     },
@@ -120,7 +143,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        400,
+        420,
         450
       ]
     },
@@ -147,7 +170,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        600,
+        620,
         150
       ],
       "credentials": {
@@ -180,7 +203,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        600,
+        620,
         300
       ],
       "credentials": {
@@ -213,7 +236,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        600,
+        620,
         450
       ],
       "credentials": {
@@ -233,7 +256,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        800,
+        820,
         150
       ],
       "credentials": {
@@ -253,7 +276,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        800,
+        820,
         300
       ],
       "credentials": {
@@ -273,67 +296,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        800,
-        450
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=UPDATE s_notion.pages SET processed = 1 WHERE id = '{{ $json.id }}';"
-      },
-      "id": "mark-raw-notion-processed",
-      "name": "Mark Raw Notion Processed",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1000,
-        150
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=UPDATE s_substack.posts SET processed = 1 WHERE id = '{{ $json.id }}';"
-      },
-      "id": "mark-raw-substack-processed",
-      "name": "Mark Raw Substack Processed",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1000,
-        300
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=UPDATE s_linkedin.ugc_posts SET processed = 1 WHERE id = '{{ $json.id }}';"
-      },
-      "id": "mark-raw-linkedin-processed",
-      "name": "Mark Raw LinkedIn Processed",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1000,
+        820,
         450
       ],
       "credentials": {
@@ -353,7 +316,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1200,
+        1050,
         300
       ],
       "credentials": {
@@ -386,7 +349,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        1400,
+        1250,
         200
       ],
       "credentials": {
@@ -419,7 +382,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        1400,
+        1250,
         400
       ],
       "credentials": {
@@ -439,7 +402,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1600,
+        1450,
         200
       ]
     },
@@ -453,7 +416,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1600,
+        1450,
         400
       ]
     },
@@ -467,7 +430,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1800,
+        1650,
         200
       ],
       "credentials": {
@@ -487,7 +450,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1800,
+        1650,
         400
       ],
       "credentials": {
@@ -507,7 +470,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2000,
+        1850,
         300
       ],
       "credentials": {
@@ -520,6 +483,17 @@
   ],
   "connections": {
     "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Ingestion Date Range Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingestion Date Range Parameters": {
       "main": [
         [
           {
@@ -577,17 +551,6 @@
       "main": [
         [
           {
-            "node": "Mark Raw Notion Processed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Mark Raw Notion Processed": {
-      "main": [
-        [
-          {
             "node": "Get Unprocessed Staging",
             "type": "main",
             "index": 0
@@ -632,17 +595,6 @@
       "main": [
         [
           {
-            "node": "Mark Raw Substack Processed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Mark Raw Substack Processed": {
-      "main": [
-        [
-          {
             "node": "Get Unprocessed Staging",
             "type": "main",
             "index": 0
@@ -684,17 +636,6 @@
       ]
     },
     "Stage LinkedIn Posts": {
-      "main": [
-        [
-          {
-            "node": "Mark Raw LinkedIn Processed",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Mark Raw LinkedIn Processed": {
       "main": [
         [
           {
