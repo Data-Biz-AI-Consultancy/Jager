@@ -513,6 +513,7 @@ CREATE TABLE IF NOT EXISTS m_staging.notion_pages (
   content TEXT,
   cleaned_content TEXT,
   category VARCHAR(255),
+  executive_summary JSONB,
   content_hash VARCHAR(64) PRIMARY KEY,
   created_time TIMESTAMP WITH TIME ZONE,
   last_edited_time TIMESTAMP WITH TIME ZONE,

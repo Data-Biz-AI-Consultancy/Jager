@@ -495,6 +495,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		content TEXT,
 		cleaned_content TEXT,
 		category VARCHAR(255),
+		executive_summary JSONB,
 		content_hash VARCHAR(64) PRIMARY KEY,
 		created_time TIMESTAMP WITH TIME ZONE,
 		last_edited_time TIMESTAMP WITH TIME ZONE,
