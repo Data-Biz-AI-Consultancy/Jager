@@ -7,7 +7,7 @@
         "rule": {
           "interval": [
             {
-              "field": "hours",
+              "field": "days",
               "value": 1
             }
           ]
