@@ -41,6 +41,21 @@ function isEqual(obj1, obj2) {
   return true;
 }
 
+function getJsonFilesRecursively(dir) {
+  let results = [];
+  const list = fs.readdirSync(dir);
+  list.forEach(file => {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+    if (stat && stat.isDirectory()) {
+      results = results.concat(getJsonFilesRecursively(filePath));
+    } else if (file.endsWith('.json')) {
+      results.push(filePath);
+    }
+  });
+  return results;
+}
+
 async function run() {
   await client.connect();
 
@@ -61,10 +76,10 @@ async function run() {
     return;
   }
 
-  const files = fs.readdirSync(workflowsDir).filter(f => f.endsWith('.json'));
+  const filePaths = getJsonFilesRecursively(workflowsDir);
 
-  for (const file of files) {
-    const filePath = path.join(workflowsDir, file);
+  for (const filePath of filePaths) {
+    const file = path.basename(filePath);
     let localWorkflow;
     try {
       localWorkflow = JSON.parse(fs.readFileSync(filePath, 'utf8'));
