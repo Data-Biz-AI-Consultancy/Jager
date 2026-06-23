@@ -1,0 +1,291 @@
+{
+  "id": "AiMemoryDistillionFactsEpisodic",
+  "name": "AI Memory Distillion - Facts & Episodic Events",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "start-date-uuid",
+              "name": "start_date",
+              "type": "string",
+              "value": "={{ $now.minus({ days: 7 }).toISO() }}"
+            }
+          ]
+        }
+      },
+      "id": "workflow-parameters",
+      "name": "Ingestion Date Range Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        150,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=SELECT 'notion_pages' AS source_table, id, title, cleaned_content, created_time AS event_time FROM m_staging.notion_pages WHERE (last_edited_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' OR created_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}')\nUNION ALL\nSELECT 'substack_posts' AS source_table, id, title, cleaned_content, published_at AS event_time FROM m_staging.substack_posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}'\nUNION ALL\nSELECT 'linkedin_posts' AS source_table, id, '' AS title, cleaned_content, published_at AS event_time FROM m_staging.linkedin_posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' LIMIT 10;"
+      },
+      "id": "get-unprocessed-staging",
+      "name": "Get Unprocessed Staging",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze the following text and extract long-term facts/entity profiles. Return a JSON object with a single key 'facts' containing a JSON array of facts, each representing a single key entity statement:\n{\n  \"facts\": [\n    {\n      \"entity_name\": \"Name of person, organization, tech stack, or core concept\",\n      \"entity_type\": \"person or organization or technology or concept\",\n      \"fact_details\": \"Clean, static summary of the long term fact or insight learned\",\n      \"confidence\": 0.95\n    }\n  ]\n}\n\nContent:\n{{ $json.cleaned_content }}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
+      },
+      "id": "extract-facts",
+      "name": "Extract Facts",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze the following text and extract time-bound events, interactions, decisions, or outcomes. Return a JSON object with a single key 'events' containing a JSON array of events:\n{\n  \"events\": [\n    {\n      \"event_name\": \"Action-oriented description of the event\",\n      \"event_description\": \"Detailed context of what happened\",\n      \"event_timestamp\": \"ISO 8601 date-time string if available, otherwise null\",\n      \"actors\": [\"Name of people or entities involved\"],\n      \"outcome\": \"The result, decision, or output of this event\"\n    }\n  ]\n}\n\nContent:\n{{ $json.cleaned_content }}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
+      },
+      "id": "extract-episodic-events",
+      "name": "Extract Episodic Events",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (const item of items) {\n  const parent = $('Get Unprocessed Staging').json;\n  const responseText = item.json.response || item.json.content || '{}';\n  let parsed;\n  try {\n    parsed = JSON.parse(responseText);\n  } catch(e) {\n    parsed = { facts: [] };\n  }\n  if (parsed.facts && Array.isArray(parsed.facts)) {\n    for (const fact of parsed.facts) {\n      results.push({\n        json: {\n          entity_name: fact.entity_name || '',\n          entity_type: fact.entity_type || 'concept',\n          fact_details: fact.fact_details || '',\n          confidence: fact.confidence || 0.8,\n          source_table: parent.source_table,\n          source_id: parent.id\n        }\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-facts",
+      "name": "Parse Facts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (const item of items) {\n  const parent = $('Get Unprocessed Staging').json;\n  const responseText = item.json.response || item.json.content || '{}';\n  let parsed;\n  try {\n    parsed = JSON.parse(responseText);\n  } catch(e) {\n    parsed = { events: [] };\n  }\n  if (parsed.events && Array.isArray(parsed.events)) {\n    for (const event of parsed.events) {\n      results.push({\n        json: {\n          event_name: event.event_name || '',\n          event_description: event.event_description || '',\n          event_timestamp: event.event_timestamp || parent.event_time || new Date().toISOString(),\n          actors: JSON.stringify(event.actors || []),\n          outcome: event.outcome || '',\n          source_table: parent.source_table,\n          source_id: parent.id\n        }\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-episodic-events",
+      "name": "Parse Episodic Events",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO m_fact.memory_facts (entity_name, entity_type, fact_details, source_table, source_id, confidence)\nVALUES (\n  '{{ $json.entity_name.replace(/'/g, \"''\") }}',\n  '{{ $json.entity_type.replace(/'/g, \"''\") }}',\n  '{{ $json.fact_details.replace(/'/g, \"''\") }}',\n  '{{ $json.source_table }}',\n  '{{ $json.source_id }}',\n  {{ $json.confidence }}\n);"
+      },
+      "id": "insert-facts",
+      "name": "Insert Facts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO m_episodic.memory_events (event_name, event_description, event_timestamp, actors, source_table, source_id, outcome)\nVALUES (\n  '{{ $json.event_name.replace(/'/g, \"''\") }}',\n  '{{ $json.event_description.replace(/'/g, \"''\") }}',\n  '{{ $json.event_timestamp }}',\n  '{{ $json.actors }}'::jsonb,\n  '{{ $json.source_table }}',\n  '{{ $json.source_id }}',\n  '{{ $json.outcome.replace(/'/g, \"''\") }}'\n);"
+      },
+      "id": "insert-episodic-events",
+      "name": "Insert Episodic Events",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Ingestion Date Range Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingestion Date Range Parameters": {
+      "main": [
+        [
+          {
+            "node": "Get Unprocessed Staging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unprocessed Staging": {
+      "main": [
+        [
+          {
+            "node": "Extract Facts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Extract Episodic Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Facts": {
+      "main": [
+        [
+          {
+            "node": "Parse Facts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Facts": {
+      "main": [
+        [
+          {
+            "node": "Insert Facts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Episodic Events": {
+      "main": [
+        [
+          {
+            "node": "Parse Episodic Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Episodic Events": {
+      "main": [
+        [
+          {
+            "node": "Insert Episodic Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
