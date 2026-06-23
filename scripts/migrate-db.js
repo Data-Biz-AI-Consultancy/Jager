@@ -507,13 +507,13 @@ CREATE SCHEMA IF NOT EXISTS m_fact;
 CREATE SCHEMA IF NOT EXISTS m_episodic;
 
 CREATE TABLE IF NOT EXISTS m_staging.notion_pages (
-  id VARCHAR(255) PRIMARY KEY,
+  id VARCHAR(255),
   database_id VARCHAR(255),
   title VARCHAR(1024),
   content TEXT,
   cleaned_content TEXT,
   category VARCHAR(255),
-  content_hash VARCHAR(64) UNIQUE,
+  content_hash VARCHAR(64) PRIMARY KEY,
   created_time TIMESTAMP WITH TIME ZONE,
   last_edited_time TIMESTAMP WITH TIME ZONE,
   processed INTEGER DEFAULT 0,
@@ -521,7 +521,7 @@ CREATE TABLE IF NOT EXISTS m_staging.notion_pages (
 );
 
 CREATE TABLE IF NOT EXISTS m_staging.substack_posts (
-  id VARCHAR(255) PRIMARY KEY,
+  id VARCHAR(255),
   feed_id INTEGER,
   feed_name VARCHAR(255),
   author VARCHAR(255),
@@ -529,19 +529,19 @@ CREATE TABLE IF NOT EXISTS m_staging.substack_posts (
   content TEXT,
   cleaned_content TEXT,
   category VARCHAR(255),
-  content_hash VARCHAR(64) UNIQUE,
+  content_hash VARCHAR(64) PRIMARY KEY,
   published_at TIMESTAMP WITH TIME ZONE,
   processed INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS m_staging.linkedin_posts (
-  id VARCHAR(255) PRIMARY KEY,
+  id VARCHAR(255),
   author VARCHAR(255),
   content TEXT,
   cleaned_content TEXT,
   category VARCHAR(255),
-  content_hash VARCHAR(64) UNIQUE,
+  content_hash VARCHAR(64) PRIMARY KEY,
   published_at TIMESTAMP WITH TIME ZONE,
   processed INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

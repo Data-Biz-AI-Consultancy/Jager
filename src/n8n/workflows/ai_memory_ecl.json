@@ -248,15 +248,57 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst originalItems = $('Clean Notion Content').all();\nfor (let i = 0; i < currentItems.length; i++) {\n  const current = currentItems[i].json;\n  const original = originalItems[i].json;\n  let category = 'Other';\n  try {\n    const parsed = JSON.parse(current.response || current.content || '{}');\n    category = parsed.category || 'Other';\n  } catch (e) {\n    if (current.response) category = current.response.trim();\n  }\n  results.push({\n    json: {\n      ...original,\n      category\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "merge-notion-category",
+      "name": "Merge Notion Category",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst originalItems = $('Clean Substack Content').all();\nfor (let i = 0; i < currentItems.length; i++) {\n  const current = currentItems[i].json;\n  const original = originalItems[i].json;\n  let category = 'Other';\n  try {\n    const parsed = JSON.parse(current.response || current.content || '{}');\n    category = parsed.category || 'Other';\n  } catch (e) {\n    if (current.response) category = current.response.trim();\n  }\n  results.push({\n    json: {\n      ...original,\n      category\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "merge-substack-category",
+      "name": "Merge Substack Category",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst originalItems = $('Clean LinkedIn Content').all();\nfor (let i = 0; i < currentItems.length; i++) {\n  const current = currentItems[i].json;\n  const original = originalItems[i].json;\n  let category = 'Other';\n  try {\n    const parsed = JSON.parse(current.response || current.content || '{}');\n    category = parsed.category || 'Other';\n  } catch (e) {\n    if (current.response) category = current.response.trim();\n  }\n  results.push({\n    json: {\n      ...original,\n      category\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "merge-linkedin-category",
+      "name": "Merge LinkedIn Category",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        450
+      ]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO m_staging.notion_pages (id, database_id, title, content, cleaned_content, category, content_hash, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $('Clean Notion Content').json.id }}',\n  '{{ $('Clean Notion Content').json.database_id }}',\n  '{{ $('Clean Notion Content').json.title.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Notion Content').json.content.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Notion Content').json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ JSON.parse($json.response || $json.content).category }}',\n  '{{ $('Clean Notion Content').json.content_hash }}',\n  '{{ $('Clean Notion Content').json.created_time }}',\n  '{{ $('Clean Notion Content').json.last_edited_time }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash,\n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;"
+        "query": "=INSERT INTO m_staging.notion_pages (id, database_id, title, content, cleaned_content, category, content_hash, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.database_id }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.content_hash }}',\n  '{{ $json.created_time }}',\n  '{{ $json.last_edited_time }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash,\n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;"
       },
       "id": "stage-notion-pages",
       "name": "Stage Notion Pages",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        820,
+        1020,
         150
       ],
       "credentials": {
@@ -269,14 +311,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO m_staging.substack_posts (id, feed_id, feed_name, author, title, content, cleaned_content, category, content_hash, published_at, processed)\nVALUES (\n  '{{ $('Clean Substack Content').json.id }}',\n  {{ $('Clean Substack Content').json.feed_id || 'NULL' }},\n  '{{ $('Clean Substack Content').json.feed_name.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Substack Content').json.author.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Substack Content').json.title.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Substack Content').json.content.replace(/'/g, \"''\") }}',\n  '{{ $('Clean Substack Content').json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ JSON.parse($json.response || $json.content).category }}',\n  '{{ $('Clean Substack Content').json.content_hash }}',\n  '{{ $('Clean Substack Content').json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
+        "query": "=INSERT INTO m_staging.substack_posts (id, feed_id, feed_name, author, title, content, cleaned_content, category, content_hash, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.feed_id || 'NULL' }},\n  '{{ $json.feed_name.replace(/'/g, \"''\") }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.content_hash }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
       },
       "id": "stage-substack-posts",
       "name": "Stage Substack Posts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        820,
+        1020,
         300
       ],
       "credentials": {
@@ -289,14 +331,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO m_staging.linkedin_posts (id, author, content, cleaned_content, category, content_hash, published_at, processed)\nVALUES (\n  '{{ $('Clean LinkedIn Content').json.id }}',\n  '{{ $('Clean LinkedIn Content').json.author.replace(/'/g, \"''\") }}',\n  '{{ $('Clean LinkedIn Content').json.content.replace(/'/g, \"''\") }}',\n  '{{ $('Clean LinkedIn Content').json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ JSON.parse($json.response || $json.content).category }}',\n  '{{ $('Clean LinkedIn Content').json.content_hash }}',\n  '{{ $('Clean LinkedIn Content').json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
+        "query": "=INSERT INTO m_staging.linkedin_posts (id, author, content, cleaned_content, category, content_hash, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.content_hash }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
       },
       "id": "stage-linkedin-posts",
       "name": "Stage LinkedIn Posts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        820,
+        1020,
         450
       ],
       "credentials": {
@@ -316,7 +358,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1050,
+        1250,
         300
       ],
       "credentials": {
@@ -336,7 +378,7 @@
         "messages": {
           "values": [
             {
-              "content": "=Analyze the following content and extract long-term facts/entity profiles. Return a JSON object with a single key 'facts' containing a JSON array of facts, each representing a single key entity statement:\n{\n  \"facts\": [\n    {\n      \"entity_name\": \"Name of person, organization, tech stack, or core concept\",\n      \"entity_type\": \"person or organization or technology or concept\",\n      \"fact_details\": \"Clean, static summary of the long term fact or insight learned\",\n      \"confidence\": 0.95\n    }\n  ]\n}\n\nContent:\n{{ $json.cleaned_content }}"
+              "content": "=Analyze the following text and extract long-term facts/entity profiles. Return a JSON object with a single key 'facts' containing a JSON array of facts, each representing a single key entity statement:\n{\n  \"facts\": [\n    {\n      \"entity_name\": \"Name of person, organization, tech stack, or core concept\",\n      \"entity_type\": \"person or organization or technology or concept\",\n      \"fact_details\": \"Clean, static summary of the long term fact or insight learned\",\n      \"confidence\": 0.95\n    }\n  ]\n}\n\nContent:\n{{ $json.cleaned_content }}"
             }
           ]
         },
@@ -349,7 +391,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        1250,
+        1450,
         200
       ],
       "credentials": {
@@ -369,7 +411,7 @@
         "messages": {
           "values": [
             {
-              "content": "=Analyze the following content and extract time-bound events, interactions, decisions, or outcomes. Return a JSON object with a single key 'events' containing a JSON array of events:\n{\n  \"events\": [\n    {\n      \"event_name\": \"Action-oriented description of the event\",\n      \"event_description\": \"Detailed context of what happened\",\n      \"event_timestamp\": \"ISO 8601 date-time string if available, otherwise null\",\n      \"actors\": [\"Name of people or entities involved\"],\n      \"outcome\": \"The result, decision, or output of this event\"\n    }\n  ]\n}\n\nContent:\n{{ $json.cleaned_content }}"
+              "content": "=Analyze the following text and extract time-bound events, interactions, decisions, or outcomes. Return a JSON object with a single key 'events' containing a JSON array of events:\n{\n  \"events\": [\n    {\n      \"event_name\": \"Action-oriented description of the event\",\n      \"event_description\": \"Detailed context of what happened\",\n      \"event_timestamp\": \"ISO 8601 date-time string if available, otherwise null\",\n      \"actors\": [\"Name of people or entities involved\"],\n      \"outcome\": \"The result, decision, or output of this event\"\n    }\n  ]\n}\n\nContent:\n{{ $json.cleaned_content }}"
             }
           ]
         },
@@ -382,7 +424,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        1250,
+        1450,
         400
       ],
       "credentials": {
@@ -402,7 +444,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1450,
+        1650,
         200
       ]
     },
@@ -416,7 +458,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1450,
+        1650,
         400
       ]
     },
@@ -430,7 +472,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1650,
+        1850,
         200
       ],
       "credentials": {
@@ -450,7 +492,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1650,
+        1850,
         400
       ],
       "credentials": {
@@ -470,7 +512,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1850,
+        2050,
         300
       ],
       "credentials": {
@@ -540,6 +582,17 @@
       "main": [
         [
           {
+            "node": "Merge Notion Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Notion Category": {
+      "main": [
+        [
+          {
             "node": "Stage Notion Pages",
             "type": "main",
             "index": 0
@@ -584,6 +637,17 @@
       "main": [
         [
           {
+            "node": "Merge Substack Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Substack Category": {
+      "main": [
+        [
+          {
             "node": "Stage Substack Posts",
             "type": "main",
             "index": 0
@@ -625,6 +689,17 @@
       ]
     },
     "Categorize LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Merge LinkedIn Category",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge LinkedIn Category": {
       "main": [
         [
           {
