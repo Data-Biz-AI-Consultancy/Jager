@@ -40,7 +40,18 @@ Access your local N8N instance at [http://localhost](http://localhost).
 To clone the production database to your local dev environment, run:
 
 ```bash
-node scripts/clone-db.js "postgresql://YOUR_PROD_USER:YOUR_PROD_PASSWORD@YOUR_PROD_HOST:5432/jager"
+node scripts/clone-db.js "postgresql://YOUR_PROD_USER:YOUR_PROD_PASSWORD@YOUR_PROD_HOST:5432/jager" [options]
+```
+
+### Options
+- `-j`, `--jobs <number>`: Specify the number of parallel dump/restore jobs/threads (default: `4`).
+- `--exclude-history`: Exclude heavy history/execution log tables (specifically `execution_entity` in `n8n`) from the dump, making local runs extremely fast when full production logs are not required.
+- `--skip-n8n`, `--jager-only`: Only clone the `jager` database, skip `n8n`.
+- `--skip-jager`, `--n8n-only`: Only clone the `n8n` database, skip `jager`.
+
+### Example (Fast Clone)
+```bash
+node scripts/clone-db.js "postgresql://YOUR_PROD_USER:YOUR_PROD_PASSWORD@YOUR_PROD_HOST:5432/jager" --jobs 4 --exclude-history
 ```
 
 > [!NOTE]

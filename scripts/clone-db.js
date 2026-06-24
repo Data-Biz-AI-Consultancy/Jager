@@ -10,9 +10,11 @@ Usage: node scripts/clone-db.js <PROD_DATABASE_URL> [options]
 Options:
   --skip-n8n, --jager-only    Only clone the 'jager' database, skip 'n8n' database
   --skip-jager, --n8n-only    Only clone the 'n8n' database, skip 'jager' database
+  -j, --jobs <number>         Number of parallel dump/restore jobs (default: 4)
+  --exclude-history           Exclude large history/execution log tables (e.g. execution_entity in n8n)
 
 Example:
-  node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --skip-n8n
+  node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --skip-n8n --jobs 4 --exclude-history
 `);
   process.exit(1);
 }
@@ -24,7 +26,17 @@ const connectionString = args.find(a => a.startsWith('postgres://') || a.startsW
 const skipN8N = args.includes('--skip-n8n') || args.includes('--jager-only');
 const skipJager = args.includes('--skip-jager') || args.includes('--n8n-only');
 
-if ((!connectionString && args.includes('-h')) || args.includes('--help')) {
+let jobs = 4;
+const jobsIdx = args.findIndex(a => a === '-j' || a === '--jobs');
+if (jobsIdx !== -1 && jobsIdx + 1 < args.length) {
+  const val = parseInt(args[jobsIdx + 1], 10);
+  if (!isNaN(val)) {
+    jobs = val;
+  }
+}
+const excludeHistory = args.includes('--exclude-history');
+
+if ((!connectionString && args.includes('-h')) || args.includes('--help') || (!connectionString && args.length === 0)) {
   usage();
 }
 
@@ -90,11 +102,21 @@ function cloneDatabase(dbName, prodUrl) {
   console.log(`Cloning Database: ${dbName}`);
   console.log('=========================================');
 
-  const tempFile = `/tmp/${dbName}_prod_dump.sql`;
+  const tempDir = `/tmp/${dbName}_prod_dump`;
   try {
+    // Ensure temp directory does not exist or is clean
+    try {
+      execSync(`${dockerComposeCmd} exec -T db rm -rf ${tempDir}`, { stdio: 'ignore' });
+    } catch (e) {}
+
     // Run pg_dump first to ensure it succeeds before we drop/touch local databases
-    console.log(`Dumping from production URL to temporary file...`);
-    execSync(`${dockerComposeCmd} exec -T db pg_dump -d "${prodUrl}" --no-owner --no-privileges -f ${tempFile}`, { stdio: 'inherit' });
+    console.log(`Dumping from production URL to temporary directory...`);
+    let dumpCmd = `${dockerComposeCmd} exec -T db pg_dump -Fd -j ${jobs} -d "${prodUrl}" --no-owner --no-privileges`;
+    if (excludeHistory && dbName === 'n8n') {
+      dumpCmd += ' --exclude-table-data=execution_entity';
+    }
+    dumpCmd += ` -f ${tempDir}`;
+    execSync(dumpCmd, { stdio: 'inherit' });
 
     // Terminate existing connections
     console.log(`Terminating existing connections to local database: ${dbName}...`);
@@ -113,9 +135,9 @@ function cloneDatabase(dbName, prodUrl) {
     execSync(`${dockerComposeCmd} exec -T db psql -U jager -d postgres -c "DROP DATABASE IF EXISTS ${dbName};"`, { stdio: 'inherit' });
     execSync(`${dockerComposeCmd} exec -T db psql -U jager -d postgres -c "CREATE DATABASE ${dbName};"`, { stdio: 'inherit' });
     
-    // Restore from the temp file
+    // Restore from the temp directory
     console.log(`Restoring dump to local ${dbName}...`);
-    execSync(`${dockerComposeCmd} exec -T db psql -U jager -d "${dbName}" -f ${tempFile}`, { stdio: 'inherit' });
+    execSync(`${dockerComposeCmd} exec -T db pg_restore -U jager -d "${dbName}" -j ${jobs} --no-owner --no-privileges ${tempDir}`, { stdio: 'inherit' });
     
     if (dbName === 'n8n') {
       console.log(`Sanitizing cloned n8n database: deactivating workflows and removing production credentials...`);
@@ -133,9 +155,9 @@ function cloneDatabase(dbName, prodUrl) {
     console.error(`Error cloning database ${dbName}:`, error.message);
     throw error;
   } finally {
-    // Clean up temp file
+    // Clean up temp directory
     try {
-      execSync(`${dockerComposeCmd} exec -T db rm -f ${tempFile}`, { stdio: 'ignore' });
+      execSync(`${dockerComposeCmd} exec -T db rm -rf ${tempDir}`, { stdio: 'ignore' });
     } catch (e) {
       // Ignore cleanup errors
     }
