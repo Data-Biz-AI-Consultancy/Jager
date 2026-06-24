@@ -103,6 +103,7 @@ function cloneDatabase(dbName, prodUrl) {
   console.log('=========================================');
 
   const tempDir = `/tmp/${dbName}_prod_dump`;
+
   try {
     // Ensure temp directory does not exist or is clean
     try {
@@ -112,8 +113,11 @@ function cloneDatabase(dbName, prodUrl) {
     // Run pg_dump first to ensure it succeeds before we drop/touch local databases
     console.log(`Dumping from production URL to temporary directory...`);
     let dumpCmd = `${dockerComposeCmd} exec -T db pg_dump -Fd -j ${jobs} -d "${prodUrl}" --no-owner --no-privileges`;
-    if (excludeHistory && dbName === 'n8n') {
-      dumpCmd += ' --exclude-table-data=execution_entity';
+    if (dbName === 'n8n') {
+      dumpCmd += ' --exclude-table-data=credentials_entity --exclude-table-data=shared_credentials';
+      if (excludeHistory) {
+        dumpCmd += ' --exclude-table-data=execution_entity';
+      }
     }
     dumpCmd += ` -f ${tempDir}`;
     execSync(dumpCmd, { stdio: 'inherit' });
