@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 const { execSync } = require('child_process');
 
 const pgPath = require.resolve('pg', { paths: ['/usr/local/lib/node_modules/n8n'] });
