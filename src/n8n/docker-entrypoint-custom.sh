@@ -14,9 +14,9 @@ if [ -f /etc/n8n/migrate-db.js ]; then
 fi
 
 # Import credentials if they exist
-if [ -f /etc/n8n/credentials.json ]; then
-  echo "Importing/updating N8N credentials..."
-  n8n import:credentials --input /etc/n8n/credentials.json
+if [ -f /etc/n8n/import-credentials.js ]; then
+  echo "Checking and importing new credentials..."
+  node /etc/n8n/import-credentials.js
 fi
 
 # Import workflows using comparison script to preserve active state of unchanged workflows
