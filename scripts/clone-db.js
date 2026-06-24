@@ -97,6 +97,14 @@ if (!dbStatus) {
   execSync('sleep 5');
 }
 
+// Stop n8n and ml containers to prevent connection locks during db recreation
+console.log('Stopping dependent containers (n8n, ml) to release database connections...');
+try {
+  execSync(`${dockerComposeCmd} stop n8n ml`, { stdio: 'inherit' });
+} catch (e) {
+  // Ignore error if containers aren't created/running
+}
+
 function cloneDatabase(dbName, prodUrl) {
   console.log('=========================================');
   console.log(`Cloning Database: ${dbName}`);
@@ -112,9 +120,19 @@ function cloneDatabase(dbName, prodUrl) {
 
     // Run pg_dump first to ensure it succeeds before we drop/touch local databases
     console.log(`Dumping from production URL to temporary directory...`);
-    let dumpCmd = `${dockerComposeCmd} exec -T db pg_dump -Fd -j ${jobs} -d "${prodUrl}" --no-owner --no-privileges`;
+    let dumpCmd = `${dockerComposeCmd} exec -T db pg_dump -Fd -j ${jobs} -Z 0 -d "${prodUrl}" --no-owner --no-privileges`;
     if (dbName === 'n8n') {
-      dumpCmd += ' --exclude-table-data=credentials_entity --exclude-table-data=shared_credentials';
+      dumpCmd += ' --exclude-table-data=credentials_entity'
+        + ' --exclude-table-data=shared_credentials'
+        + ' --exclude-table-data=chat_hub_sessions'
+        + ' --exclude-table-data=chat_hub_agents'
+        + ' --exclude-table-data=credential_dependency'
+        + ' --exclude-table-data=dynamic_credential_entry'
+        + ' --exclude-table-data=dynamic_credential_user_entry'
+        + ' --exclude-table-data=instance_ai_mcp_registry_connections'
+        + ' --exclude-table-data=chat_hub_agent_tools'
+        + ' --exclude-table-data=chat_hub_messages'
+        + ' --exclude-table-data=chat_hub_session_tools';
       if (excludeHistory) {
         dumpCmd += ' --exclude-table-data=execution_entity';
       }
@@ -190,15 +208,23 @@ if (!skipN8N) {
   console.log("Skipping 'n8n' database clone.");
 }
 
-// Restart n8n container if we cloned n8n database, or if we want to ensure fresh connections
-if (!skipN8N) {
-  console.log('Restarting n8n container to apply changes and re-import credentials...');
-  try {
-    execSync(`${dockerComposeCmd} restart n8n`, { stdio: 'inherit' });
-    console.log('n8n container restarted successfully.');
-  } catch (e) {
-    console.error('Failed to restart n8n container:', e.message);
+// Start/Restart dependent containers (n8n, ml) to restore connections
+console.log('Starting/Restarting dependent containers (n8n, ml)...');
+try {
+  if (!skipJager) {
+    execSync(`${dockerComposeCmd} start ml`, { stdio: 'inherit' });
   }
+  if (!skipN8N) {
+    execSync(`${dockerComposeCmd} start n8n`, { stdio: 'inherit' });
+    console.log('Restarting n8n container to apply changes and re-import credentials...');
+    execSync(`${dockerComposeCmd} restart n8n`, { stdio: 'inherit' });
+  } else {
+    // If we skipped n8n clone, but stopped it, we should start it back up
+    execSync(`${dockerComposeCmd} start n8n`, { stdio: 'inherit' });
+  }
+  console.log('Dependent containers started successfully.');
+} catch (e) {
+  console.error('Failed to start/restart dependent containers:', e.message);
 }
 
 console.log('Database clone process completed.');
