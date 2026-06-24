@@ -11,6 +11,7 @@ RUN chmod +x /docker-entrypoint-custom.sh
 RUN mkdir -p /etc/n8n/workflows
 COPY src/n8n/workflows/ /etc/n8n/workflows/
 COPY src/n8n/credentials.json /etc/n8n/credentials.json
+COPY src/n8n/import-credentials.js /etc/n8n/import-credentials.js
 COPY src/n8n/bella.md /etc/n8n/bella.md
 COPY src/n8n/giusy.md /etc/n8n/giusy.md
 COPY src/n8n/kowalski.md /etc/n8n/kowalski.md
