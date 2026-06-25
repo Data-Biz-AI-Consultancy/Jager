@@ -213,7 +213,7 @@
       "id": "default-data-loader-notion",
       "name": "Default Data Loader - Notion",
       "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
-      "typeVersion": 1,
+      "typeVersion": 1.1,
       "position": [
         500,
         50
@@ -250,7 +250,7 @@
       "id": "default-data-loader-substack",
       "name": "Default Data Loader - Substack",
       "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
-      "typeVersion": 1,
+      "typeVersion": 1.1,
       "position": [
         500,
         200
@@ -287,7 +287,7 @@
       "id": "default-data-loader-linkedin",
       "name": "Default Data Loader - LinkedIn",
       "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
-      "typeVersion": 1,
+      "typeVersion": 1.1,
       "position": [
         500,
         350
