@@ -1,0 +1,13 @@
+{
+  "name": "jager",
+  "version": "1.0.0",
+  "description": "Jager - AI-native leads generator",
+  "private": true,
+  "scripts": {
+    "clone-db": "node scripts/clone-db.js",
+    "migrate-db": "node scripts/migrate-db.js"
+  },
+  "dependencies": {
+    "pg": "^8.12.0"
+  }
+}

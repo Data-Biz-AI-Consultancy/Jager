@@ -48,6 +48,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	);
 
 	CREATE EXTENSION IF NOT EXISTS pgcrypto;
+	CREATE EXTENSION IF NOT EXISTS vector;
 
 	CREATE TABLE IF NOT EXISTS s_slack.workspaces_monitored (
 		id SERIAL PRIMARY KEY,
