@@ -49,24 +49,17 @@ node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --inclu
 2. **Starts** the local `db` container if it is not running.
 3. **Waits** for PostgreSQL to be ready using `pg_isready` (polls every 1s, 30s timeout).
 4. **Dumps** each database in directory format (`-Fd`) with `-j N` parallel workers.
-   - For `n8n`, optionally excludes execution log table data with `--exclude-history`.
+   - For `n8n`, `credentials_entity` data is **always excluded** (credentials stay in production, never cloned locally).
+   - Execution log tables (`execution_entity`, `execution_data`, `execution_metadata`) are excluded by default — pass `--include-history` to include them.
 5. **Drops** the local database using `DROP DATABASE WITH (FORCE)` (PG 13+) to atomically terminate connections and drop, with automatic fallback to `DROP DATABASE` for older versions.
 6. **Recreates** and **restores** the database using `pg_restore -Fd -j N`.
-7. **Sanitizes** the cloned `n8n` database:
-   - Deactivates all workflows (`UPDATE workflow_entity SET active = false`).
-   - Removes production credentials (`TRUNCATE credentials_entity CASCADE`).
-8. **Restarts** the local `n8n` Docker container.
+7. **Restarts** the local `n8n` Docker container.
 
 ### Performance Notes
 - Both `jager` and `n8n` clones run **in parallel** via `Promise.all`. Total wall time is `max(jager_time, n8n_time)` instead of the sum.
 - Directory format (`-Fd`) combined with `-j N` workers leverages multiple CPU cores for both dump and restore, offering significant speedups on multi-core machines and larger databases.
 - Log output is prefixed with `[jager]` / `[n8n]` tags so interleaved parallel output stays readable.
 
-### Post-Clone Sanitization
-To prevent accidents in development, when the `n8n` database is cloned:
-1. All workflows are **deactivated** (`UPDATE workflow_entity SET active = false`).
-2. Production credentials are **deleted** (`TRUNCATE credentials_entity CASCADE`).
-3. The local `n8n` Docker service is **restarted** to apply database updates.
 
 ---
 

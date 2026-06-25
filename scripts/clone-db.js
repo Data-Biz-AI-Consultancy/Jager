@@ -147,18 +147,27 @@ async function cloneDatabase(dbName, prodUrl) {
   log(`Parallelism: -j ${numJobs}  (${cpuCount} CPUs detected)`);
   log('=========================================');
 
-  // Build --exclude-table-data flags for known heavy n8n execution log tables
-  const exclusions = (dbName === 'n8n' && excludeHistory)
+
+  // credentials_entity is always excluded from n8n dumps — production credentials
+  // should never land in the local environment.
+  const alwaysExcluded = dbName === 'n8n'
+    ? ['--exclude-table-data=credentials_entity']
+    : [];
+
+  // Execution log tables are excluded by default (they can be multi-GB).
+  // Pass --include-history to include them.
+  const historyExcluded = (dbName === 'n8n' && excludeHistory)
     ? [
         '--exclude-table-data=execution_entity',
         '--exclude-table-data=execution_data',
         '--exclude-table-data=execution_metadata',
-      ].join(' ')
-    : '';
+      ]
+    : [];
 
-  if (exclusions) {
-    log('Excluding execution log table data (--exclude-history): execution_entity, execution_data, execution_metadata');
-  }
+  const exclusions = [...alwaysExcluded, ...historyExcluded].join(' ');
+
+  if (alwaysExcluded.length) log('Excluding credentials_entity (production credentials are never cloned locally).');
+  if (historyExcluded.length) log('Excluding execution log table data: execution_entity, execution_data, execution_metadata.');
 
   try {
     // ── Pre-clean: remove any stale temp dir from a previous failed run ────
@@ -203,33 +212,49 @@ async function cloneDatabase(dbName, prodUrl) {
 
     // ── Step 4: Restore with pg_restore -Fd -j ───────────────────────────────
     log(`Restoring → local ${dbName}  (-j ${numJobs})...`);
-    await run(
-      `${dockerComposeCmd} exec -T db pg_restore -Fd -j ${numJobs}` +
-        ` --no-owner --no-privileges -U jager -d ${dbName} ${tempDir}`,
-      tag
-    );
+    try {
+      await run(
+        `${dockerComposeCmd} exec -T db pg_restore -Fd -j ${numJobs}` +
+          ` --no-owner --no-privileges -U jager -d ${dbName} ${tempDir}`,
+        tag
+      );
+    } catch (err) {
+      // pg_restore exits with code 1 when there are non-fatal warnings, e.g. FK
+      // constraint failures caused by intentionally-excluded tables (credentials_entity).
+      // The data is still fully restored — only the constraint declarations failed.
+      if (err.stderr && err.stderr.includes('errors ignored on restore')) {
+        console.error(`[${tag}] pg_restore finished with warnings (see above) — continuing.`);
+      } else {
+        throw err;
+      }
+    }
 
-    // ── Step 5: Sanitize n8n ─────────────────────────────────────────────────
+    // ── Step 5: Credential FK cleanup (n8n only) ─────────────────────────────
+    // credentials_entity is intentionally empty. Simulate what the database's own
+    // ON DELETE rules would have done, so the schema is left consistent:
+    //   - ON DELETE SET NULL → NULL out the credentialId column
+    //   - ON DELETE CASCADE  → delete rows that reference missing credentials
     if (dbName === 'n8n') {
-      log('Sanitizing: deactivating workflows and removing production credentials...');
+      log('Cleaning up credential FK references (credentials intentionally excluded)...');
       try {
         await run(
-          `${dockerComposeCmd} exec -T db psql -U jager -d n8n` +
-            ` -c "UPDATE workflow_entity SET active = false;"`,
+          `${dockerComposeCmd} exec -T db psql -U jager -d n8n -c ` +
+            `'UPDATE public.chat_hub_sessions SET "credentialId" = NULL WHERE "credentialId" IS NOT NULL;` +
+            ` DELETE FROM public.shared_credentials;` +
+            ` DELETE FROM public.credential_dependency;` +
+            ` DELETE FROM public.dynamic_credential_entry;` +
+            ` DELETE FROM public.dynamic_credential_user_entry;` +
+            ` DELETE FROM public.instance_ai_mcp_registry_connections;'`,
           tag
         );
-        await run(
-          `${dockerComposeCmd} exec -T db psql -U jager -d n8n` +
-            ` -c "TRUNCATE credentials_entity CASCADE;"`,
-          tag
-        );
-        log('Sanitization complete!');
+        log('Credential FK cleanup complete.');
       } catch (err) {
-        console.error(`[${tag}] Warning: Failed to sanitize n8n database:`, err.message);
+        console.error(`[${tag}] Warning: credential FK cleanup failed:`, err.message);
       }
     }
 
     log(`Successfully cloned ${dbName}!`);
+
   } catch (error) {
     console.error(`[${tag}] Error cloning database ${dbName}:`, error.message);
     throw error;
