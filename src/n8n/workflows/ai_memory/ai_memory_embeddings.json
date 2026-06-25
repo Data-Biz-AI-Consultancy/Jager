@@ -165,7 +165,7 @@
     },
     {
       "parameters": {
-        "modelName": "nomic-embed-text"
+        "model": "nomic-embed-text"
       },
       "id": "embeddings-ollama",
       "name": "Embeddings Ollama",
