@@ -49,9 +49,9 @@ Usage: node scripts/clone-db.js <PROD_DATABASE_URL> [options]
 Options:
   --skip-n8n, --jager-only    Only clone the 'jager' database, skip 'n8n' database
   --skip-jager, --n8n-only    Only clone the 'n8n' database, skip 'jager' database
-  --exclude-history           Exclude n8n execution log table data (execution_entity,
-                              execution_data, execution_metadata). Significantly speeds
-                              up the n8n clone when those tables are large.
+  --include-history           Include n8n execution log table data (execution_entity,
+                              execution_data, execution_metadata). By default these
+                              tables are skipped as they can be very large.
   --jobs <N>                  Number of parallel pg_dump/pg_restore jobs per database.
                               Defaults to floor(cpu_count / 2), min 2, max 8.
 
@@ -74,7 +74,8 @@ const connectionString = args.find(
 );
 const skipN8N        = args.includes('--skip-n8n')    || args.includes('--jager-only');
 const skipJager      = args.includes('--skip-jager')   || args.includes('--n8n-only');
-const excludeHistory = args.includes('--exclude-history');
+const includeHistory = args.includes('--include-history');
+const excludeHistory = !includeHistory; // excluded by default; use --include-history to opt in
 
 // --jobs N: auto-detect sensible default from CPU count
 const jobsIdx    = args.findIndex(a => a === '--jobs');

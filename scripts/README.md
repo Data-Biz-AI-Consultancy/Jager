@@ -29,19 +29,19 @@ node scripts/clone-db.js <PROD_DATABASE_URL> [options]
 |---|---|
 | `--skip-n8n`, `--jager-only` | Clone only the `jager` database, skip `n8n` |
 | `--skip-jager`, `--n8n-only` | Clone only the `n8n` database, skip `jager` |
-| `--exclude-history` | Exclude n8n execution log table **data** (`execution_entity`, `execution_data`, `execution_metadata`). Schema is still restored. Significantly speeds up the clone when those tables are large. |
+| `--include-history` | Include n8n execution log table data (`execution_entity`, `execution_data`, `execution_metadata`). **By default these tables are skipped** as they can be very large. |
 | `--jobs <N>` | Number of parallel pg_dump/pg_restore workers per database. Defaults to `floor(cpu_count / 2)`, min 2, max 8. |
 
 ### Examples
 ```bash
-# Clone both databases in parallel (default)
+# Clone both databases in parallel (default — execution logs excluded)
 node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager"
 
 # Clone only the jager database
 node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --skip-n8n
 
-# Clone both, skip heavy n8n execution logs, use 4 parallel workers
-node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --exclude-history --jobs 4
+# Clone both, including n8n execution history (slow for large databases)
+node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --include-history --jobs 4
 ```
 
 ### What It Does (Step by Step)
