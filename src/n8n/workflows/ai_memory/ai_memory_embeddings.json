@@ -25,14 +25,34 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT 'substack_posts' AS source_table, id, title, cleaned_content FROM m_staging.substack_posts WHERE embedding IS NULL\nUNION ALL\nSELECT 'notion_pages' AS source_table, id, title, cleaned_content FROM m_staging.notion_pages WHERE embedding IS NULL\nUNION ALL\nSELECT 'linkedin_posts' AS source_table, id, '' AS title, cleaned_content FROM m_staging.linkedin_posts WHERE embedding IS NULL;"
+        "query": "SELECT id, title, cleaned_content, category, executive_summary FROM m_staging.notion_pages s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.notion_pages e WHERE e.id = s.id);"
       },
-      "id": "get-unembedded-staging",
-      "name": "Get Unembedded Staging",
+      "id": "get-unembedded-notion",
+      "name": "Get Unembedded Notion",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        300,
+        350,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, title, cleaned_content, category, executive_summary FROM m_staging.substack_posts s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.substack_posts e WHERE e.id = s.id);"
+      },
+      "id": "get-unembedded-substack",
+      "name": "Get Unembedded Substack",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        350,
         300
       ],
       "credentials": {
@@ -44,35 +64,121 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nconst promises = items.map(async (item) => {\n  const data = item.json;\n  const title = data.title || '';\n  const content = data.cleaned_content || '';\n  const textToEmbed = title ? `Title: ${title}\\n\\nContent: ${content}` : `Content: ${content}`;\n  \n  try {\n    const response = await fetch('https://ollama.com/api/embeddings', {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Authorization': `Bearer ${process.env.OLLAMA_API_KEY}`\n      },\n      body: JSON.stringify({\n        model: 'nomic-embed-text',\n        prompt: textToEmbed\n      })\n    });\n    \n    if (response.ok) {\n      const resJson = await response.json();\n      if (resJson.embedding) {\n        return {\n          json: {\n            source_table: data.source_table,\n            id: data.id,\n            embedding: `[${resJson.embedding.join(',')}]`\n          }\n        };\n      }\n    }\n  } catch (err) {\n    console.error(`Failed to generate embedding for ${data.source_table} (${data.id}):`, err.message);\n  }\n  return null;\n});\n\nconst resolved = await Promise.all(promises);\nreturn resolved.filter(x => x !== null);"
-      },
-      "id": "generate-embeddings",
-      "name": "Generate Embeddings",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        500,
-        300
-      ]
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE m_staging.{{ $json.source_table }} SET embedding = '{{ $json.embedding }}'::vector WHERE id = '{{ $json.id }}';"
+        "query": "SELECT id, '' AS title, cleaned_content, category, executive_summary FROM m_staging.linkedin_posts s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.linkedin_posts e WHERE e.id = s.id);"
       },
-      "id": "update-postgres-embeddings",
-      "name": "Update Postgres Embeddings",
+      "id": "get-unembedded-linkedin",
+      "name": "Get Unembedded LinkedIn",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        700,
+        350,
+        450
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "schemaName": "m_embeddings",
+        "tableNameOption": "custom",
+        "tableNameCustom": "notion_pages",
+        "columnId": "id",
+        "columnContent": "content",
+        "columnMetadata": "metadata",
+        "columnEmbedding": "embedding",
+        "options": {}
+      },
+      "id": "pgvector-store-notion",
+      "name": "PGVector Store - Notion",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        650,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "schemaName": "m_embeddings",
+        "tableNameOption": "custom",
+        "tableNameCustom": "substack_posts",
+        "columnId": "id",
+        "columnContent": "content",
+        "columnMetadata": "metadata",
+        "columnEmbedding": "embedding",
+        "options": {}
+      },
+      "id": "pgvector-store-substack",
+      "name": "PGVector Store - Substack",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        650,
         300
       ],
       "credentials": {
         "postgres": {
           "id": "postgres-db",
           "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "schemaName": "m_embeddings",
+        "tableNameOption": "custom",
+        "tableNameCustom": "linkedin_posts",
+        "columnId": "id",
+        "columnContent": "content",
+        "columnMetadata": "metadata",
+        "columnEmbedding": "embedding",
+        "options": {}
+      },
+      "id": "pgvector-store-linkedin",
+      "name": "PGVector Store - LinkedIn",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        650,
+        450
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "nomic-embed-text"
+      },
+      "id": "embeddings-ollama",
+      "name": "Embeddings Ollama",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [
+        600,
+        600
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
         }
       }
     }
@@ -82,30 +188,72 @@
       "main": [
         [
           {
-            "node": "Get Unembedded Staging",
+            "node": "Get Unembedded Notion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Unembedded Substack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Unembedded LinkedIn",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Unembedded Staging": {
+    "Get Unembedded Notion": {
       "main": [
         [
           {
-            "node": "Generate Embeddings",
+            "node": "PGVector Store - Notion",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate Embeddings": {
+    "Get Unembedded Substack": {
       "main": [
         [
           {
-            "node": "Update Postgres Embeddings",
+            "node": "PGVector Store - Substack",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unembedded LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "PGVector Store - LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Ollama": {
+      "ai_embedding": [
+        [
+          {
+            "node": "PGVector Store - Notion",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "PGVector Store - Substack",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "PGVector Store - LinkedIn",
+            "type": "ai_embedding",
             "index": 0
           }
         ]

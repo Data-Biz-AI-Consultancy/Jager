@@ -514,7 +514,6 @@ CREATE TABLE IF NOT EXISTS m_staging.notion_pages (
   cleaned_content TEXT,
   category VARCHAR(255),
   executive_summary JSONB,
-  embedding vector,
   content_hash VARCHAR(64) PRIMARY KEY,
   created_time TIMESTAMP WITH TIME ZONE,
   last_edited_time TIMESTAMP WITH TIME ZONE,
@@ -532,7 +531,6 @@ CREATE TABLE IF NOT EXISTS m_staging.substack_posts (
   cleaned_content TEXT,
   category VARCHAR(255),
   executive_summary JSONB,
-  embedding vector,
   content_hash VARCHAR(64) PRIMARY KEY,
   published_at TIMESTAMP WITH TIME ZONE,
   processed INTEGER DEFAULT 0,
@@ -546,11 +544,33 @@ CREATE TABLE IF NOT EXISTS m_staging.linkedin_posts (
   cleaned_content TEXT,
   category VARCHAR(255),
   executive_summary JSONB,
-  embedding vector,
   content_hash VARCHAR(64) PRIMARY KEY,
   published_at TIMESTAMP WITH TIME ZONE,
   processed INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE SCHEMA IF NOT EXISTS m_embeddings;
+
+CREATE TABLE IF NOT EXISTS m_embeddings.notion_pages (
+  id VARCHAR(255) PRIMARY KEY,
+  content TEXT,
+  metadata JSONB,
+  embedding vector(768)
+);
+
+CREATE TABLE IF NOT EXISTS m_embeddings.substack_posts (
+  id VARCHAR(255) PRIMARY KEY,
+  content TEXT,
+  metadata JSONB,
+  embedding vector(768)
+);
+
+CREATE TABLE IF NOT EXISTS m_embeddings.linkedin_posts (
+  id VARCHAR(255) PRIMARY KEY,
+  content TEXT,
+  metadata JSONB,
+  embedding vector(768)
 );
 
 CREATE TABLE IF NOT EXISTS m_fact.memory_facts (
