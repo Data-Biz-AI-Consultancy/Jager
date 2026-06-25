@@ -12,6 +12,7 @@ Options:
   --skip-jager, --n8n-only    Only clone the 'n8n' database, skip 'jager' database
   -j, --jobs <number>         Number of parallel dump/restore jobs (default: 4)
   --exclude-history           Exclude large history/execution log tables (e.g. execution_entity in n8n)
+  --quiet, --silent           Suppress verbose progress output during dump and restore
 
 Example:
   node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --skip-n8n --jobs 4 --exclude-history
@@ -35,6 +36,7 @@ if (jobsIdx !== -1 && jobsIdx + 1 < args.length) {
   }
 }
 const excludeHistory = args.includes('--exclude-history');
+const quiet = args.includes('--quiet') || args.includes('--silent');
 
 if ((!connectionString && args.includes('-h')) || args.includes('--help') || (!connectionString && args.length === 0)) {
   usage();
@@ -120,7 +122,7 @@ function cloneDatabase(dbName, prodUrl) {
 
     // Run pg_dump first to ensure it succeeds before we drop/touch local databases
     console.log(`Dumping from production URL to temporary directory...`);
-    let dumpCmd = `${dockerComposeCmd} exec -T db pg_dump -Fd -j ${jobs} -Z 0 -d "${prodUrl}" --no-owner --no-privileges`;
+    let dumpCmd = `${dockerComposeCmd} exec -T db pg_dump -Fd ${quiet ? '' : '-v '} -j ${jobs} -Z 0 -d "${prodUrl}" --no-owner --no-privileges`;
     if (dbName === 'n8n') {
       dumpCmd += ' --exclude-table-data=credentials_entity'
         + ' --exclude-table-data=shared_credentials'
@@ -159,7 +161,7 @@ function cloneDatabase(dbName, prodUrl) {
     
     // Restore from the temp directory
     console.log(`Restoring dump to local ${dbName}...`);
-    execSync(`${dockerComposeCmd} exec -T db pg_restore -U jager -d "${dbName}" -j ${jobs} --no-owner --no-privileges ${tempDir}`, { stdio: 'inherit' });
+    execSync(`${dockerComposeCmd} exec -T db pg_restore -U jager -d "${dbName}" ${quiet ? '' : '-v '} -j ${jobs} --no-owner --no-privileges ${tempDir}`, { stdio: 'inherit' });
     
     if (dbName === 'n8n') {
       console.log(`Sanitizing cloned n8n database: deactivating workflows and removing production credentials...`);
