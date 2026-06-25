@@ -11,11 +11,12 @@ This directory contains utility scripts to manage database migration and product
 
 ## 1. Database Cloning Script (`clone-db.js`)
 
-This script copies production databases to your local development environment. By default, it looks for the production `jager` database URL, derives the production `n8n` database URL, runs dumps using `pg_dump`, drops/recreates local databases in Docker, restores the data, and runs post-clone sanitization.
+This script copies production databases to your local development environment. It clones both the `jager` and `n8n` databases **in parallel** by default, using `pg_dump` in directory format (`-Fd`) with multi-threaded dump and restore (`-j N`).
 
 ### Prerequisites
 - Docker and Docker Compose (either `docker compose` or `docker-compose`) must be installed and running.
 - Must be executed from the project root directory.
+- PostgreSQL 13+ is recommended (for `DROP DATABASE WITH (FORCE)`); older versions are supported via automatic fallback.
 
 ### Usage
 ```bash
@@ -23,23 +24,49 @@ node scripts/clone-db.js <PROD_DATABASE_URL> [options]
 ```
 
 ### Options
-- `--skip-n8n` or `--jager-only`: Clones only the `jager` database, skipping `n8n`.
-- `--skip-jager` or `--n8n-only`: Clones only the `n8n` database, skipping `jager`.
+
+| Flag | Description |
+|---|---|
+| `--skip-n8n`, `--jager-only` | Clone only the `jager` database, skip `n8n` |
+| `--skip-jager`, `--n8n-only` | Clone only the `n8n` database, skip `jager` |
+| `--exclude-history` | Exclude n8n execution log table **data** (`execution_entity`, `execution_data`, `execution_metadata`). Schema is still restored. Significantly speeds up the clone when those tables are large. |
+| `--jobs <N>` | Number of parallel pg_dump/pg_restore workers per database. Defaults to `floor(cpu_count / 2)`, min 2, max 8. |
 
 ### Examples
 ```bash
-# Clone both databases using connection string
+# Clone both databases in parallel (default)
 node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager"
 
 # Clone only the jager database
 node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --skip-n8n
+
+# Clone both, skip heavy n8n execution logs, use 4 parallel workers
+node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --exclude-history --jobs 4
 ```
+
+### What It Does (Step by Step)
+1. **Detects** `docker compose` or `docker-compose` automatically.
+2. **Starts** the local `db` container if it is not running.
+3. **Waits** for PostgreSQL to be ready using `pg_isready` (polls every 1s, 30s timeout).
+4. **Dumps** each database in directory format (`-Fd`) with `-j N` parallel workers.
+   - For `n8n`, optionally excludes execution log table data with `--exclude-history`.
+5. **Drops** the local database using `DROP DATABASE WITH (FORCE)` (PG 13+) to atomically terminate connections and drop, with automatic fallback to `DROP DATABASE` for older versions.
+6. **Recreates** and **restores** the database using `pg_restore -Fd -j N`.
+7. **Sanitizes** the cloned `n8n` database:
+   - Deactivates all workflows (`UPDATE workflow_entity SET active = false`).
+   - Removes production credentials (`TRUNCATE credentials_entity CASCADE`).
+8. **Restarts** the local `n8n` Docker container.
+
+### Performance Notes
+- Both `jager` and `n8n` clones run **in parallel** via `Promise.all`. Total wall time is `max(jager_time, n8n_time)` instead of the sum.
+- Directory format (`-Fd`) combined with `-j N` workers leverages multiple CPU cores for both dump and restore, offering significant speedups on multi-core machines and larger databases.
+- Log output is prefixed with `[jager]` / `[n8n]` tags so interleaved parallel output stays readable.
 
 ### Post-Clone Sanitization
 To prevent accidents in development, when the `n8n` database is cloned:
-1. All workflows are deactivated (`UPDATE workflow_entity SET active = false`).
-2. Production credentials are deleted (`TRUNCATE credentials_entity CASCADE`).
-3. The local `n8n` Docker service is restarted to apply database updates.
+1. All workflows are **deactivated** (`UPDATE workflow_entity SET active = false`).
+2. Production credentials are **deleted** (`TRUNCATE credentials_entity CASCADE`).
+3. The local `n8n` Docker service is **restarted** to apply database updates.
 
 ---
 
