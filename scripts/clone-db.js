@@ -291,19 +291,43 @@ async function cloneDatabase(dbName, prodUrl) {
   // database (lives in the same pgdata volume — no temp files, survives restarts).
   let credBackupExists = false;
   if (!skipN8N && PROD_N8N_URL) {
-    console.log('Backing up local n8n credentials into n8n_backup database...');
     try {
-      await execAsync(
-        `${dockerComposeCmd} exec -T db sh -c "` +
-          `psql -U jager -d postgres -c 'DROP DATABASE IF EXISTS n8n_backup; CREATE DATABASE n8n_backup;' && ` +
-          `pg_dump -U jager -d n8n --table=credentials_entity --table=shared_credentials | ` +
-          `psql -U jager -d n8n_backup"`,
-        { maxBuffer: 50 * 1024 * 1024 }
+      // Check how many credentials exist locally before bothering with a backup
+      const { stdout: countOut } = await execAsync(
+        `${dockerComposeCmd} exec -T db psql -U jager -d n8n -tAc "SELECT COUNT(*) FROM credentials_entity;"`,
+        { maxBuffer: 1 * 1024 * 1024 }
       );
-      credBackupExists = true;
-      console.log('Dev credentials backed up to n8n_backup.');
-    } catch {
-      console.log('No existing dev n8n credentials to back up (fresh environment). Will seed from credentials.json after clone.');
+      const credCount = parseInt(countOut.trim(), 10) || 0;
+
+      if (credCount > 0) {
+        console.log(`Backing up ${credCount} dev credential(s) into n8n_backup database...`);
+        // 1. Recreate the backup database
+        await execAsync(
+          `${dockerComposeCmd} exec -T db psql -U jager -d postgres ` +
+            `-c "DROP DATABASE IF EXISTS n8n_backup;" ` +
+            `-c "CREATE DATABASE n8n_backup;"`,
+          { maxBuffer: 1 * 1024 * 1024 }
+        );
+        // 2. Dump credentials tables (schema + data) to a file inside the container
+        await execAsync(
+          `${dockerComposeCmd} exec -T db pg_dump -U jager -d n8n ` +
+            `--table=credentials_entity --table=shared_credentials ` +
+            `-f /tmp/n8n_cred_backup.sql`,
+          { maxBuffer: 50 * 1024 * 1024 }
+        );
+        // 3. Load into n8n_backup
+        await execAsync(
+          `${dockerComposeCmd} exec -T db psql -U jager -d n8n_backup -f /tmp/n8n_cred_backup.sql`,
+          { maxBuffer: 50 * 1024 * 1024 }
+        );
+        credBackupExists = true;
+        console.log('Dev credentials backed up to n8n_backup.');
+      } else {
+        console.log('No dev credentials to back up. Will seed from credentials.json after clone.');
+      }
+    } catch (e) {
+      console.error('Warning: credential backup failed:', e.stderr?.trim() || e.message);
+      console.log('Proceeding without backup — will seed from credentials.json after clone.');
     }
   }
 
