@@ -53,7 +53,7 @@ node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --inclu
    - Execution log tables (`execution_entity`, `execution_data`, `execution_metadata`) are excluded by default — pass `--include-history` to include them.
 5. **Drops** the local database using `DROP DATABASE WITH (FORCE)` (PG 13+) to atomically terminate connections and drop, with automatic fallback to `DROP DATABASE` for older versions.
 6. **Recreates** and **restores** the database using `pg_restore -Fd -j N`.
-7. **Restarts** the local `n8n` Docker container.
+7. **Done** — n8n reads from PostgreSQL per-query and picks up the new data immediately. Just refresh the browser tab.
 
 ### Performance Notes
 - Both `jager` and `n8n` clones run **in parallel** via `Promise.all`. Total wall time is `max(jager_time, n8n_time)` instead of the sum.

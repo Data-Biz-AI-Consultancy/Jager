@@ -285,6 +285,28 @@ async function cloneDatabase(dbName, prodUrl) {
     await waitForPostgres(dockerComposeCmd);
   }
 
+  // ── Backup dev n8n credentials before clone ───────────────────────────────
+  // credentials_entity is excluded from the production dump (security).
+  // We snapshot the local dev credentials into a dedicated `n8n_backup` PostgreSQL
+  // database (lives in the same pgdata volume — no temp files, survives restarts).
+  let credBackupExists = false;
+  if (!skipN8N && PROD_N8N_URL) {
+    console.log('Backing up local n8n credentials into n8n_backup database...');
+    try {
+      await execAsync(
+        `${dockerComposeCmd} exec -T db sh -c "` +
+          `psql -U jager -d postgres -c 'DROP DATABASE IF EXISTS n8n_backup; CREATE DATABASE n8n_backup;' && ` +
+          `pg_dump -U jager -d n8n --table=credentials_entity --table=shared_credentials | ` +
+          `psql -U jager -d n8n_backup"`,
+        { maxBuffer: 50 * 1024 * 1024 }
+      );
+      credBackupExists = true;
+      console.log('Dev credentials backed up to n8n_backup.');
+    } catch {
+      console.log('No existing dev n8n credentials to back up (fresh environment). Will seed from credentials.json after clone.');
+    }
+  }
+
   // ── Build list of clone tasks ─────────────────────────────────────────────
   const tasks = [];
 
@@ -312,6 +334,7 @@ async function cloneDatabase(dbName, prodUrl) {
   // Use allSettled so every clone runs to completion (including finally cleanup)
   // even if one fails — then we collect and report failures at the end.
   console.log(`Starting ${tasks.length} clone job(s) in parallel (-j ${numJobs} each)...`);
+
   const results = await Promise.allSettled(tasks);
   const failures = results.filter(r => r.status === 'rejected');
   if (failures.length > 0) {
@@ -319,18 +342,39 @@ async function cloneDatabase(dbName, prodUrl) {
     process.exit(1);
   }
 
-  // ── Restart n8n container after clone ─────────────────────────────────────
+  // ── Restore dev n8n credentials after clone ───────────────────────────────
   if (!skipN8N && PROD_N8N_URL) {
-    console.log('Restarting n8n container...');
-    try {
-      execSync(`${dockerComposeCmd} restart n8n`, { stdio: 'inherit' });
-      console.log('n8n container restarted successfully.');
-    } catch (e) {
-      console.error('Failed to restart n8n container:', e.message);
+    if (credBackupExists) {
+      console.log('Restoring dev credentials from n8n_backup...');
+      try {
+        await execAsync(
+          `${dockerComposeCmd} exec -T db sh -c "` +
+            `pg_dump -U jager -d n8n_backup --data-only | psql -U jager -d n8n"`,
+          { maxBuffer: 50 * 1024 * 1024 }
+        );
+        console.log('Dev credentials restored.');
+      } catch (e) {
+        console.error('Warning: failed to restore dev credentials:', e.message);
+      }
+    } else {
+      // Fresh environment — seed from credentials.json via n8n's own import
+      console.log('Seeding credentials from credentials.json...');
+      try {
+        await execAsync(
+          `${dockerComposeCmd} exec -T n8n n8n import:credentials --input /etc/n8n/credentials.json`,
+          { maxBuffer: 10 * 1024 * 1024 }
+        );
+        console.log('credentials.json imported.');
+      } catch (e) {
+        console.error('Warning: failed to import credentials.json:', e.message);
+      }
     }
+    console.log('n8n database updated. Refresh the n8n browser tab to see the new data.');
   }
 
   console.log('Database clone process completed.');
+
+
 })().catch(err => {
   console.error('Fatal error:', err.message);
   process.exit(1);
