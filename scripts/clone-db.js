@@ -160,6 +160,13 @@ async function cloneDatabase(dbName, prodUrl) {
   }
 
   try {
+    // ── Pre-clean: remove any stale temp dir from a previous failed run ────
+    try {
+      await run(`${dockerComposeCmd} exec -T db rm -rf ${tempDir}`, tag);
+    } catch {
+      // Ignore — dir may not exist yet
+    }
+
     // ── Step 1: Dump into directory format ──────────────────────────────────
     log(`Dumping production → ${tempDir}  (format: directory, -j ${numJobs})...`);
     await run(
@@ -197,7 +204,7 @@ async function cloneDatabase(dbName, prodUrl) {
     log(`Restoring → local ${dbName}  (-j ${numJobs})...`);
     await run(
       `${dockerComposeCmd} exec -T db pg_restore -Fd -j ${numJobs}` +
-        ` --no-owner --no-privileges -d ${dbName} ${tempDir}`,
+        ` --no-owner --no-privileges -U jager -d ${dbName} ${tempDir}`,
       tag
     );
 
@@ -275,9 +282,16 @@ async function cloneDatabase(dbName, prodUrl) {
     console.log("Skipping 'n8n' database clone.");
   }
 
-  // ── Run all clone jobs in parallel ────────────────────────────────────────
+  // ── Run all clone jobs in parallel ────────────────────────────────────
+  // Use allSettled so every clone runs to completion (including finally cleanup)
+  // even if one fails — then we collect and report failures at the end.
   console.log(`Starting ${tasks.length} clone job(s) in parallel (-j ${numJobs} each)...`);
-  await Promise.all(tasks);
+  const results = await Promise.allSettled(tasks);
+  const failures = results.filter(r => r.status === 'rejected');
+  if (failures.length > 0) {
+    failures.forEach(f => console.error('Clone failed:', f.reason?.message ?? f.reason));
+    process.exit(1);
+  }
 
   // ── Restart n8n container after clone ─────────────────────────────────────
   if (!skipN8N && PROD_N8N_URL) {
