@@ -54,17 +54,22 @@ async function run() {
       const res = await client.query('SELECT id FROM credentials_entity');
       const existingIds = new Set(res.rows.map(row => row.id));
 
+      // If the table already has credentials, skip the import entirely.
+      // This preserves production credentials after a clone and prevents
+      // the repo's default credentials.json from overwriting a configured environment.
+      if (existingIds.size > 0) {
+        console.log(`credentials_entity already has ${existingIds.size} credential(s). Skipping import to preserve existing configuration.`);
+        await client.end();
+        return;
+      }
+
       for (const cred of localCredentials) {
         if (!cred.id) {
           console.warn('Skipping credential entry with missing ID:', cred);
           continue;
         }
-        if (existingIds.has(cred.id)) {
-          console.log(`Credential with ID "${cred.id}" already exists. Skipping.`);
-        } else {
-          console.log(`Credential with ID "${cred.id}" is new. Adding to import list.`);
-          newCredentials.push(cred);
-        }
+        // Table is empty, so all local credentials are new
+        newCredentials.push(cred);
       }
     } catch (err) {
       console.error('Error querying credentials from database:', err.message);

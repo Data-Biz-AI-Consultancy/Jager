@@ -321,7 +321,7 @@ async function cloneDatabase(dbName, prodUrl) {
 
   // ── Restart n8n container after clone ─────────────────────────────────────
   if (!skipN8N && PROD_N8N_URL) {
-    console.log('Restarting n8n container to apply changes and re-import credentials...');
+    console.log('Restarting n8n container...');
     try {
       execSync(`${dockerComposeCmd} restart n8n`, { stdio: 'inherit' });
       console.log('n8n container restarted successfully.');
