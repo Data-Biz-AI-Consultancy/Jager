@@ -1,0 +1,119 @@
+{
+  "id": "AiMemoryEmbeddingsGenerator",
+  "name": "AI Memory - Embeddings Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT 'substack_posts' AS source_table, id, title, cleaned_content FROM m_staging.substack_posts WHERE embedding IS NULL\nUNION ALL\nSELECT 'notion_pages' AS source_table, id, title, cleaned_content FROM m_staging.notion_pages WHERE embedding IS NULL\nUNION ALL\nSELECT 'linkedin_posts' AS source_table, id, '' AS title, cleaned_content FROM m_staging.linkedin_posts WHERE embedding IS NULL;"
+      },
+      "id": "get-unembedded-staging",
+      "name": "Get Unembedded Staging",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nconst promises = items.map(async (item) => {\n  const data = item.json;\n  const title = data.title || '';\n  const content = data.cleaned_content || '';\n  const textToEmbed = title ? `Title: ${title}\\n\\nContent: ${content}` : `Content: ${content}`;\n  \n  try {\n    const response = await fetch('https://ollama.com/api/embeddings', {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        'Authorization': `Bearer ${process.env.OLLAMA_API_KEY}`\n      },\n      body: JSON.stringify({\n        model: 'nomic-embed-text',\n        prompt: textToEmbed\n      })\n    });\n    \n    if (response.ok) {\n      const resJson = await response.json();\n      if (resJson.embedding) {\n        return {\n          json: {\n            source_table: data.source_table,\n            id: data.id,\n            embedding: `[${resJson.embedding.join(',')}]`\n          }\n        };\n      }\n    }\n  } catch (err) {\n    console.error(`Failed to generate embedding for ${data.source_table} (${data.id}):`, err.message);\n  }\n  return null;\n});\n\nconst resolved = await Promise.all(promises);\nreturn resolved.filter(x => x !== null);"
+      },
+      "id": "generate-embeddings",
+      "name": "Generate Embeddings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE m_staging.{{ $json.source_table }} SET embedding = '{{ $json.embedding }}'::vector WHERE id = '{{ $json.id }}';"
+      },
+      "id": "update-postgres-embeddings",
+      "name": "Update Postgres Embeddings",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Unembedded Staging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unembedded Staging": {
+      "main": [
+        [
+          {
+            "node": "Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Update Postgres Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
