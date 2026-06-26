@@ -57,19 +57,17 @@ async function run() {
       // If the table already has credentials, skip the import entirely.
       // This preserves production credentials after a clone and prevents
       // the repo's default credentials.json from overwriting a configured environment.
-      if (existingIds.size > 0) {
-        console.log(`credentials_entity already has ${existingIds.size} credential(s). Skipping import to preserve existing configuration.`);
-        await client.end();
-        return;
-      }
-
       for (const cred of localCredentials) {
         if (!cred.id) {
           console.warn('Skipping credential entry with missing ID:', cred);
           continue;
         }
-        // Table is empty, so all local credentials are new
-        newCredentials.push(cred);
+        if (!existingIds.has(cred.id)) {
+          newCredentials.push(cred);
+        }
+      }
+      if (newCredentials.length > 0) {
+        console.log(`Found ${newCredentials.length} new credential(s) to import. Existing credentials in DB will be preserved.`);
       }
     } catch (err) {
       console.error('Error querying credentials from database:', err.message);
