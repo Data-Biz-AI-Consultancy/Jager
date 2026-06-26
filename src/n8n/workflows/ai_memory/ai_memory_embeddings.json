@@ -85,14 +85,17 @@
     {
       "parameters": {
         "mode": "insert",
-        "schemaName": "m_embeddings",
-        "tableNameOption": "custom",
-        "tableNameCustom": "notion_pages",
-        "columnId": "id",
-        "columnContent": "content",
-        "columnMetadata": "metadata",
-        "columnEmbedding": "embedding",
-        "options": {}
+        "tableName": "notion_pages",
+        "options": {
+          "columnNames": {
+            "values": {
+              "idColumnName": "id",
+              "contentColumnName": "content",
+              "metadataColumnName": "metadata",
+              "vectorColumnName": "embedding"
+            }
+          }
+        }
       },
       "id": "pgvector-store-notion",
       "name": "PGVector Store - Notion",
@@ -112,14 +115,17 @@
     {
       "parameters": {
         "mode": "insert",
-        "schemaName": "m_embeddings",
-        "tableNameOption": "custom",
-        "tableNameCustom": "substack_posts",
-        "columnId": "id",
-        "columnContent": "content",
-        "columnMetadata": "metadata",
-        "columnEmbedding": "embedding",
-        "options": {}
+        "tableName": "substack_posts",
+        "options": {
+          "columnNames": {
+            "values": {
+              "idColumnName": "id",
+              "contentColumnName": "content",
+              "metadataColumnName": "metadata",
+              "vectorColumnName": "embedding"
+            }
+          }
+        }
       },
       "id": "pgvector-store-substack",
       "name": "PGVector Store - Substack",
@@ -139,14 +145,17 @@
     {
       "parameters": {
         "mode": "insert",
-        "schemaName": "m_embeddings",
-        "tableNameOption": "custom",
-        "tableNameCustom": "linkedin_posts",
-        "columnId": "id",
-        "columnContent": "content",
-        "columnMetadata": "metadata",
-        "columnEmbedding": "embedding",
-        "options": {}
+        "tableName": "linkedin_posts",
+        "options": {
+          "columnNames": {
+            "values": {
+              "idColumnName": "id",
+              "contentColumnName": "content",
+              "metadataColumnName": "metadata",
+              "vectorColumnName": "embedding"
+            }
+          }
+        }
       },
       "id": "pgvector-store-linkedin",
       "name": "PGVector Store - LinkedIn",
@@ -165,7 +174,7 @@
     },
     {
       "parameters": {
-        "model": "sentence-transformers/all-MiniLM-L6-v2"
+        "model": "sentence-transformers/all-mpnet-base-v2"
       },
       "id": "embeddings-hugging-face-inference",
       "name": "Embeddings Hugging Face Inference",

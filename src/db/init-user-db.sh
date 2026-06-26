@@ -535,22 +535,22 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 
 	CREATE SCHEMA IF NOT EXISTS m_embeddings;
 
-	CREATE TABLE IF NOT EXISTS m_embeddings.notion_pages (
-		id VARCHAR(255) PRIMARY KEY,
+ 	CREATE TABLE IF NOT EXISTS m_embeddings.notion_pages (
+		id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
 		content TEXT,
 		metadata JSONB,
 		embedding vector(768)
 	);
 
 	CREATE TABLE IF NOT EXISTS m_embeddings.substack_posts (
-		id VARCHAR(255) PRIMARY KEY,
+		id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
 		content TEXT,
 		metadata JSONB,
 		embedding vector(768)
 	);
 
 	CREATE TABLE IF NOT EXISTS m_embeddings.linkedin_posts (
-		id VARCHAR(255) PRIMARY KEY,
+		id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
 		content TEXT,
 		metadata JSONB,
 		embedding vector(768)
