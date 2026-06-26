@@ -100,34 +100,40 @@ async function run() {
     if (tableExists) {
       try {
         const res = await client.query(
-          'SELECT name, nodes, connections, settings, "updatedAt" FROM workflow_entity WHERE id = $1',
+          'SELECT name, nodes, connections, settings, "updatedAt", active FROM workflow_entity WHERE id = $1',
           [workflowId]
         );
 
         if (res.rows.length > 0) {
           const dbWorkflow = res.rows[0];
-          const nodesMatch = isEqual(localWorkflow.nodes, dbWorkflow.nodes);
-          const connectionsMatch = isEqual(localWorkflow.connections, dbWorkflow.connections);
-          const settingsMatch = isEqual(localWorkflow.settings || {}, dbWorkflow.settings || {});
-          const nameMatch = localWorkflow.name === dbWorkflow.name;
-
-          if (nodesMatch && connectionsMatch && settingsMatch && nameMatch) {
-            console.log(`Workflow "${localWorkflow.name}" (${workflowId}) already exists in database and is up-to-date. Skipping import.`);
+          
+          if (dbWorkflow.active) {
+            console.log(`Workflow "${localWorkflow.name}" (${workflowId}) is active in database. Skipping import.`);
             shouldImport = false;
           } else {
-            const isProduction = process.env.N8N_ENV === 'production';
-            if (!isProduction) {
-              console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local changes. In development, forcing import.`);
-            } else {
-              const dbUpdatedAt = dbWorkflow.updatedAt ? new Date(dbWorkflow.updatedAt) : new Date(0);
-              const fileStats = fs.statSync(filePath);
-              const fileMtime = new Date(fileStats.mtime);
+            const nodesMatch = isEqual(localWorkflow.nodes, dbWorkflow.nodes);
+            const connectionsMatch = isEqual(localWorkflow.connections, dbWorkflow.connections);
+            const settingsMatch = isEqual(localWorkflow.settings || {}, dbWorkflow.settings || {});
+            const nameMatch = localWorkflow.name === dbWorkflow.name;
 
-              if (fileMtime > dbUpdatedAt) {
-                console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local changes and Git file is newer (File: ${fileMtime.toISOString()} > DB: ${dbUpdatedAt.toISOString()}). Importing.`);
+            if (nodesMatch && connectionsMatch && settingsMatch && nameMatch) {
+              console.log(`Workflow "${localWorkflow.name}" (${workflowId}) already exists in database and is up-to-date. Skipping import.`);
+              shouldImport = false;
+            } else {
+              const isProduction = process.env.N8N_ENV === 'production';
+              if (!isProduction) {
+                console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local changes. In development, forcing import.`);
               } else {
-                console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local differences but database version is newer (DB: ${dbUpdatedAt.toISOString()} >= File: ${fileMtime.toISOString()}). Skipping import to preserve newer changes.`);
-                shouldImport = false;
+                const dbUpdatedAt = dbWorkflow.updatedAt ? new Date(dbWorkflow.updatedAt) : new Date(0);
+                const fileStats = fs.statSync(filePath);
+                const fileMtime = new Date(fileStats.mtime);
+
+                if (fileMtime > dbUpdatedAt) {
+                  console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local changes and Git file is newer (File: ${fileMtime.toISOString()} > DB: ${dbUpdatedAt.toISOString()}). Importing.`);
+                } else {
+                  console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local differences but database version is newer (DB: ${dbUpdatedAt.toISOString()} >= File: ${fileMtime.toISOString()}). Skipping import to preserve newer changes.`);
+                  shouldImport = false;
+                }
               }
             }
           }
