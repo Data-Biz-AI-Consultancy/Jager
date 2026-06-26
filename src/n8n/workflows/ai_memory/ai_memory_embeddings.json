@@ -165,20 +165,20 @@
     },
     {
       "parameters": {
-        "model": "nomic-embed-text"
+        "model": "sentence-transformers/all-MiniLM-L6-v2"
       },
-      "id": "embeddings-ollama",
-      "name": "Embeddings Ollama",
-      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
+      "id": "embeddings-hugging-face-inference",
+      "name": "Embeddings Hugging Face Inference",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
       "typeVersion": 1,
       "position": [
         600,
         600
       ],
       "credentials": {
-        "ollamaApi": {
-          "id": "ollama-cloud-api",
-          "name": "Ollama Cloud API"
+        "huggingFaceApi": {
+          "id": "hugging-face-api",
+          "name": "Hugging Face API"
         }
       }
     },
@@ -349,7 +349,7 @@
         ]
       ]
     },
-    "Embeddings Ollama": {
+    "Embeddings Hugging Face Inference": {
       "ai_embedding": [
         [
           {
