@@ -32,6 +32,9 @@ if (process.env.DB_APPLICATION_URL) {
 console.log(`Database migration script connecting via: ${configLog}`);
 
 const ddl = `
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE SCHEMA IF NOT EXISTS s_reddit;
 CREATE SCHEMA IF NOT EXISTS s_slack;
 CREATE SCHEMA IF NOT EXISTS s_substack;
