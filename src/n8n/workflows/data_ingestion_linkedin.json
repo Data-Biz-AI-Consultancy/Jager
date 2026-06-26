@@ -23,8 +23,8 @@
         "rule": {
           "interval": [
             {
-              "field": "hours",
-              "value": 12
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
             }
           ]
         }
