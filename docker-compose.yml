@@ -22,7 +22,7 @@ services:
     expose:
       - "5678"
     environment:
-      - N8N_ENV=development
+      - N8N_ENV=${N8N_ENV:-production}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=db
       - DB_POSTGRESDB_PORT=5432
