@@ -2,23 +2,34 @@ const pgPath = require.resolve('pg', { paths: ['/usr/local/lib/node_modules/n8n'
 const { Client } = require(pgPath);
 
 let client;
+let configLog = '';
+
 if (process.env.DB_APPLICATION_URL) {
+  configLog = `DB_APPLICATION_URL (connection string)`;
   client = new Client({
     connectionString: process.env.DB_APPLICATION_URL,
   });
-} else if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('/n8n')) {
+} else if (process.env.DATABASE_URL && (process.env.DATABASE_URL.includes('/jager') || !process.env.DATABASE_URL.includes('/n8n'))) {
+  configLog = `DATABASE_URL (connection string)`;
   client = new Client({
     connectionString: process.env.DATABASE_URL,
   });
 } else {
+  const host = process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db';
+  const port = process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432';
+  const database = 'jager';
+  const user = process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager';
+  configLog = `host=${host}, port=${port}, database=${database}, user=${user}`;
   client = new Client({
-    host: process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db',
-    port: parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10),
-    database: 'jager',
-    user: process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager',
+    host,
+    port: parseInt(port, 10),
+    database,
+    user,
     password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',
   });
 }
+
+console.log(`Database migration script connecting via: ${configLog}`);
 
 const ddl = `
 CREATE SCHEMA IF NOT EXISTS s_reddit;
