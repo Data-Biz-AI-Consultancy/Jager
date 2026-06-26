@@ -655,6 +655,30 @@ async function run() {
   console.log('Running application database migrations...');
   await client.query(ddl);
 
+  // Deduplicate and ensure primary key constraints for s_linkedin tables (invitations, messages, connections, searches)
+  const tablesToFix = ['invitations', 'messages', 'connections', 'searches'];
+  for (const table of tablesToFix) {
+    console.log(`Ensuring primary key on s_linkedin.${table}...`);
+    await client.query(`
+      DELETE FROM s_linkedin.${table} a
+      USING s_linkedin.${table} b
+      WHERE a.ctid < b.ctid AND a.id = b.id;
+    `);
+    await client.query(`
+      DO $$
+      BEGIN
+          IF NOT EXISTS (
+              SELECT 1 FROM information_schema.table_constraints 
+              WHERE table_schema = 's_linkedin' 
+              AND table_name = '${table}' 
+              AND constraint_type = 'PRIMARY KEY'
+          ) THEN
+              ALTER TABLE s_linkedin.${table} ADD PRIMARY KEY (id);
+          END IF;
+      END $$;
+    `);
+  }
+
   const migrations = [
     // Parent Tables (Migrated first to resolve FK dependencies)
     { oldTable: 'reddit_subreddits_monitored', newTable: 's_reddit.subreddits_monitored', hasSerial: true },
