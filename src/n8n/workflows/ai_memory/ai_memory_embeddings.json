@@ -1,0 +1,420 @@
+{
+  "id": "AiMemoryEmbeddingsGenerator",
+  "name": "AI Memory - Embeddings Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, title, cleaned_content, category, executive_summary FROM m_staging.notion_pages s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.notion_pages e WHERE e.metadata->>'id' = s.id);"
+      },
+      "id": "get-unembedded-notion",
+      "name": "Get Unembedded Notion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        350,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, title, cleaned_content, category, executive_summary FROM m_staging.substack_posts s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.substack_posts e WHERE e.metadata->>'id' = s.id);"
+      },
+      "id": "get-unembedded-substack",
+      "name": "Get Unembedded Substack",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        350,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, '' AS title, cleaned_content, category, executive_summary FROM m_staging.linkedin_posts s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.linkedin_posts e WHERE e.metadata->>'id' = s.id);"
+      },
+      "id": "get-unembedded-linkedin",
+      "name": "Get Unembedded LinkedIn",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        350,
+        450
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": "notion_pages",
+        "options": {
+          "columnNames": {
+            "values": {
+              "idColumnName": "id",
+              "contentColumnName": "content",
+              "metadataColumnName": "metadata",
+              "vectorColumnName": "embedding"
+            }
+          }
+        }
+      },
+      "id": "pgvector-store-notion",
+      "name": "PGVector Store - Notion",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        650,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": "substack_posts",
+        "options": {
+          "columnNames": {
+            "values": {
+              "idColumnName": "id",
+              "contentColumnName": "content",
+              "metadataColumnName": "metadata",
+              "vectorColumnName": "embedding"
+            }
+          }
+        }
+      },
+      "id": "pgvector-store-substack",
+      "name": "PGVector Store - Substack",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": "linkedin_posts",
+        "options": {
+          "columnNames": {
+            "values": {
+              "idColumnName": "id",
+              "contentColumnName": "content",
+              "metadataColumnName": "metadata",
+              "vectorColumnName": "embedding"
+            }
+          }
+        }
+      },
+      "id": "pgvector-store-linkedin",
+      "name": "PGVector Store - LinkedIn",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        650,
+        450
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "sentence-transformers/all-mpnet-base-v2"
+      },
+      "id": "embeddings-hugging-face-inference",
+      "name": "Embeddings Hugging Face Inference",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        600,
+        600
+      ],
+      "credentials": {
+        "huggingFaceApi": {
+          "id": "hugging-face-api",
+          "name": "Hugging Face API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "json",
+        "mode": "loadSpecificData",
+        "text": "={{ $json.cleaned_content }}",
+        "options": {
+          "metadata": {
+            "metadata": [
+              {
+                "key": "id",
+                "value": "={{ $json.id }}"
+              },
+              {
+                "key": "title",
+                "value": "={{ $json.title }}"
+              },
+              {
+                "key": "category",
+                "value": "={{ $json.category }}"
+              },
+              {
+                "key": "executive_summary",
+                "value": "={{ $json.executive_summary }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "default-data-loader-notion",
+      "name": "Default Data Loader - Notion",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        500,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "json",
+        "mode": "loadSpecificData",
+        "text": "={{ $json.cleaned_content }}",
+        "options": {
+          "metadata": {
+            "metadata": [
+              {
+                "key": "id",
+                "value": "={{ $json.id }}"
+              },
+              {
+                "key": "title",
+                "value": "={{ $json.title }}"
+              },
+              {
+                "key": "category",
+                "value": "={{ $json.category }}"
+              },
+              {
+                "key": "executive_summary",
+                "value": "={{ $json.executive_summary }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "default-data-loader-substack",
+      "name": "Default Data Loader - Substack",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "json",
+        "mode": "loadSpecificData",
+        "text": "={{ $json.cleaned_content }}",
+        "options": {
+          "metadata": {
+            "metadata": [
+              {
+                "key": "id",
+                "value": "={{ $json.id }}"
+              },
+              {
+                "key": "title",
+                "value": "={{ $json.title }}"
+              },
+              {
+                "key": "category",
+                "value": "={{ $json.category }}"
+              },
+              {
+                "key": "executive_summary",
+                "value": "={{ $json.executive_summary }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "default-data-loader-linkedin",
+      "name": "Default Data Loader - LinkedIn",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        500,
+        350
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Unembedded Notion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Unembedded Substack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Unembedded LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unembedded Notion": {
+      "main": [
+        [
+          {
+            "node": "PGVector Store - Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unembedded Substack": {
+      "main": [
+        [
+          {
+            "node": "PGVector Store - Substack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unembedded LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "PGVector Store - LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Hugging Face Inference": {
+      "ai_embedding": [
+        [
+          {
+            "node": "PGVector Store - Notion",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "PGVector Store - Substack",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "PGVector Store - LinkedIn",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader - Notion": {
+      "ai_document": [
+        [
+          {
+            "node": "PGVector Store - Notion",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader - Substack": {
+      "ai_document": [
+        [
+          {
+            "node": "PGVector Store - Substack",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader - LinkedIn": {
+      "ai_document": [
+        [
+          {
+            "node": "PGVector Store - LinkedIn",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

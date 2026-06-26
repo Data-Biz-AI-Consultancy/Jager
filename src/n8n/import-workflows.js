@@ -115,15 +115,20 @@ async function run() {
             console.log(`Workflow "${localWorkflow.name}" (${workflowId}) already exists in database and is up-to-date. Skipping import.`);
             shouldImport = false;
           } else {
-            const dbUpdatedAt = dbWorkflow.updatedAt ? new Date(dbWorkflow.updatedAt) : new Date(0);
-            const fileStats = fs.statSync(filePath);
-            const fileMtime = new Date(fileStats.mtime);
-
-            if (fileMtime > dbUpdatedAt) {
-              console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local changes and Git file is newer (File: ${fileMtime.toISOString()} > DB: ${dbUpdatedAt.toISOString()}). Importing.`);
+            const isProduction = process.env.N8N_ENV === 'production';
+            if (!isProduction) {
+              console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local changes. In development, forcing import.`);
             } else {
-              console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local differences but database version is newer (DB: ${dbUpdatedAt.toISOString()} >= File: ${fileMtime.toISOString()}). Skipping import to preserve newer changes.`);
-              shouldImport = false;
+              const dbUpdatedAt = dbWorkflow.updatedAt ? new Date(dbWorkflow.updatedAt) : new Date(0);
+              const fileStats = fs.statSync(filePath);
+              const fileMtime = new Date(fileStats.mtime);
+
+              if (fileMtime > dbUpdatedAt) {
+                console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local changes and Git file is newer (File: ${fileMtime.toISOString()} > DB: ${dbUpdatedAt.toISOString()}). Importing.`);
+              } else {
+                console.log(`Workflow "${localWorkflow.name}" (${workflowId}) has local differences but database version is newer (DB: ${dbUpdatedAt.toISOString()} >= File: ${fileMtime.toISOString()}). Skipping import to preserve newer changes.`);
+                shouldImport = false;
+              }
             }
           }
         } else {

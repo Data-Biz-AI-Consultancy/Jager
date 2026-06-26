@@ -550,6 +550,29 @@ CREATE TABLE IF NOT EXISTS m_staging.linkedin_posts (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE SCHEMA IF NOT EXISTS m_embeddings;
+
+CREATE TABLE IF NOT EXISTS m_embeddings.notion_pages (
+  id VARCHAR(255) PRIMARY KEY,
+  content TEXT,
+  metadata JSONB,
+  embedding vector(768)
+);
+
+CREATE TABLE IF NOT EXISTS m_embeddings.substack_posts (
+  id VARCHAR(255) PRIMARY KEY,
+  content TEXT,
+  metadata JSONB,
+  embedding vector(768)
+);
+
+CREATE TABLE IF NOT EXISTS m_embeddings.linkedin_posts (
+  id VARCHAR(255) PRIMARY KEY,
+  content TEXT,
+  metadata JSONB,
+  embedding vector(768)
+);
+
 CREATE TABLE IF NOT EXISTS m_fact.memory_facts (
   id SERIAL PRIMARY KEY,
   entity_name VARCHAR(255) NOT NULL,
