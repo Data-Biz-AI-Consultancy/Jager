@@ -189,7 +189,15 @@
         "tableName": "m_embeddings.notion_pages",
         "prompt": "={{ $json.query }}",
         "options": {
-          "limit": 3
+          "limit": 3,
+          "columnNames": {
+            "values": {
+              "idColumnName": "id",
+              "contentColumnName": "content",
+              "metadataColumnName": "metadata",
+              "vectorColumnName": "embedding"
+            }
+          }
         }
       },
       "id": "retrieve-notion-pages",
@@ -213,7 +221,15 @@
         "tableName": "m_embeddings.substack_posts",
         "prompt": "={{ $json.query }}",
         "options": {
-          "limit": 3
+          "limit": 3,
+          "columnNames": {
+            "values": {
+              "idColumnName": "id",
+              "contentColumnName": "content",
+              "metadataColumnName": "metadata",
+              "vectorColumnName": "embedding"
+            }
+          }
         }
       },
       "id": "retrieve-substack-posts",
@@ -237,7 +253,15 @@
         "tableName": "m_embeddings.linkedin_posts",
         "prompt": "={{ $json.query }}",
         "options": {
-          "limit": 3
+          "limit": 3,
+          "columnNames": {
+            "values": {
+              "idColumnName": "id",
+              "contentColumnName": "content",
+              "metadataColumnName": "metadata",
+              "vectorColumnName": "embedding"
+            }
+          }
         }
       },
       "id": "retrieve-linkedin-posts",
