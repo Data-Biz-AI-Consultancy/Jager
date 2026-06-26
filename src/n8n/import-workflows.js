@@ -150,11 +150,31 @@ async function run() {
 }
 
 function importWorkflow(filePath) {
+  let importPath = filePath;
+  let tempPath = null;
+  try {
+    // Strip tags from workflow JSON to avoid FK violations on workflows_tags
+    // (tags are UI-managed state; tag IDs in JSON may not exist in the n8n DB)
+    const workflowData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (workflowData.tags && workflowData.tags.length > 0) {
+      const stripped = { ...workflowData, tags: [] };
+      tempPath = filePath + '.tmp.json';
+      fs.writeFileSync(tempPath, JSON.stringify(stripped));
+      importPath = tempPath;
+    }
+  } catch (err) {
+    console.warn(`Could not strip tags from ${filePath}, importing as-is:`, err.message);
+  }
+
   try {
     console.log(`Importing workflow: ${filePath}`);
-    execSync(`n8n import:workflow --input "${filePath}"`, { stdio: 'inherit' });
+    execSync(`n8n import:workflow --input "${importPath}"`, { stdio: 'inherit' });
   } catch (err) {
     console.error(`Failed to import workflow ${filePath}:`, err.message);
+  } finally {
+    if (tempPath && fs.existsSync(tempPath)) {
+      fs.unlinkSync(tempPath);
+    }
   }
 }
 
