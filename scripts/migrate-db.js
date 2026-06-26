@@ -2,13 +2,13 @@ const pgPath = require.resolve('pg', { paths: ['/usr/local/lib/node_modules/n8n'
 const { Client } = require(pgPath);
 
 let client;
-if (process.env.DATABASE_URL) {
-  client = new Client({
-    connectionString: process.env.DATABASE_URL,
-  });
-} else if (process.env.DB_APPLICATION_URL) {
+if (process.env.DB_APPLICATION_URL) {
   client = new Client({
     connectionString: process.env.DB_APPLICATION_URL,
+  });
+} else if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('/n8n')) {
+  client = new Client({
+    connectionString: process.env.DATABASE_URL,
   });
 } else {
   client = new Client({
@@ -553,21 +553,21 @@ CREATE TABLE IF NOT EXISTS m_staging.linkedin_posts (
 CREATE SCHEMA IF NOT EXISTS m_embeddings;
 
 CREATE TABLE IF NOT EXISTS m_embeddings.notion_pages (
-  id VARCHAR(255) PRIMARY KEY,
+  id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
   content TEXT,
   metadata JSONB,
   embedding vector(768)
 );
 
 CREATE TABLE IF NOT EXISTS m_embeddings.substack_posts (
-  id VARCHAR(255) PRIMARY KEY,
+  id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
   content TEXT,
   metadata JSONB,
   embedding vector(768)
 );
 
 CREATE TABLE IF NOT EXISTS m_embeddings.linkedin_posts (
-  id VARCHAR(255) PRIMARY KEY,
+  id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
   content TEXT,
   metadata JSONB,
   embedding vector(768)
