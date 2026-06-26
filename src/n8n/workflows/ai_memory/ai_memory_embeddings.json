@@ -86,6 +86,7 @@
       "parameters": {
         "mode": "insert",
         "tableName": "notion_pages",
+        "schema": "m_embeddings",
         "options": {
           "columnNames": {
             "values": {
@@ -116,6 +117,7 @@
       "parameters": {
         "mode": "insert",
         "tableName": "substack_posts",
+        "schema": "m_embeddings",
         "options": {
           "columnNames": {
             "values": {
@@ -146,6 +148,7 @@
       "parameters": {
         "mode": "insert",
         "tableName": "linkedin_posts",
+        "schema": "m_embeddings",
         "options": {
           "columnNames": {
             "values": {
