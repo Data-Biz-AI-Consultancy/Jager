@@ -187,7 +187,7 @@
       "parameters": {
         "mode": "load",
         "tableName": "m_embeddings.notion_pages",
-        "prompt": "={{ $json.query }}",
+        "prompt": "={{ $('Prepare RAG Query').first().json.query }}",
         "options": {
           "limit": 3,
           "columnNames": {
@@ -219,7 +219,7 @@
       "parameters": {
         "mode": "load",
         "tableName": "m_embeddings.substack_posts",
-        "prompt": "={{ $json.query }}",
+        "prompt": "={{ $('Prepare RAG Query').first().json.query }}",
         "options": {
           "limit": 3,
           "columnNames": {
@@ -251,7 +251,7 @@
       "parameters": {
         "mode": "load",
         "tableName": "m_embeddings.linkedin_posts",
-        "prompt": "={{ $json.query }}",
+        "prompt": "={{ $('Prepare RAG Query').first().json.query }}",
         "options": {
           "limit": 3,
           "columnNames": {
@@ -491,16 +491,6 @@
             "node": "Retrieve Notion Pages",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Retrieve Substack Posts",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Retrieve LinkedIn Posts",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -509,7 +499,7 @@
       "main": [
         [
           {
-            "node": "Format RAG Context",
+            "node": "Retrieve Substack Posts",
             "type": "main",
             "index": 0
           }
@@ -520,7 +510,7 @@
       "main": [
         [
           {
-            "node": "Format RAG Context",
+            "node": "Retrieve LinkedIn Posts",
             "type": "main",
             "index": 0
           }
