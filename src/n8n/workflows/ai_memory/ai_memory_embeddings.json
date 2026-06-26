@@ -85,8 +85,7 @@
     {
       "parameters": {
         "mode": "insert",
-        "tableName": "notion_pages",
-        "schema": "m_embeddings",
+        "tableName": "m_embeddings.notion_pages",
         "options": {
           "columnNames": {
             "values": {
@@ -116,8 +115,7 @@
     {
       "parameters": {
         "mode": "insert",
-        "tableName": "substack_posts",
-        "schema": "m_embeddings",
+        "tableName": "m_embeddings.substack_posts",
         "options": {
           "columnNames": {
             "values": {
@@ -147,8 +145,7 @@
     {
       "parameters": {
         "mode": "insert",
-        "tableName": "linkedin_posts",
-        "schema": "m_embeddings",
+        "tableName": "m_embeddings.linkedin_posts",
         "options": {
           "columnNames": {
             "values": {
