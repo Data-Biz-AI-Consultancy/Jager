@@ -185,9 +185,9 @@
     },
     {
       "parameters": {
-        "mode": "retrieve",
+        "mode": "load",
         "tableName": "m_embeddings.notion_pages",
-        "query": "={{ $json.query }}",
+        "prompt": "={{ $json.query }}",
         "options": {
           "limit": 3
         }
@@ -209,9 +209,9 @@
     },
     {
       "parameters": {
-        "mode": "retrieve",
+        "mode": "load",
         "tableName": "m_embeddings.substack_posts",
-        "query": "={{ $json.query }}",
+        "prompt": "={{ $json.query }}",
         "options": {
           "limit": 3
         }
@@ -233,9 +233,9 @@
     },
     {
       "parameters": {
-        "mode": "retrieve",
+        "mode": "load",
         "tableName": "m_embeddings.linkedin_posts",
-        "query": "={{ $json.query }}",
+        "prompt": "={{ $json.query }}",
         "options": {
           "limit": 3
         }
