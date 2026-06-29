@@ -41,6 +41,7 @@ services:
       - NOTION_API_KEY=${NOTION_API_KEY}
       - HUGGING_FACE_TOKEN=${HUGGING_FACE_TOKEN}
       - ML_SERVICE_URL=${ML_SERVICE_URL:-http://ml:8000}
+      - GENERIC_TIMEZONE=Europe/Berlin
 
       - N8N_PROXY_HOPS=1
     depends_on:
