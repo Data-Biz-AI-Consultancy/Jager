@@ -193,26 +193,26 @@
     },
     {
       "parameters": {
-        "dataType": "text",
-        "mode": "loadSpecificData",
-        "text": "={{ $json.cleaned_content }}",
+        "dataType": "json",
+        "jsonMode": "expressionData",
+        "jsonData": "={{ { content: $json.cleaned_content } }}",
         "options": {
           "metadata": {
-            "metadata": [
+            "metadataValues": [
               {
-                "key": "id",
+                "name": "id",
                 "value": "={{ $json.id }}"
               },
               {
-                "key": "title",
+                "name": "title",
                 "value": "={{ $json.title }}"
               },
               {
-                "key": "category",
+                "name": "category",
                 "value": "={{ $json.category }}"
               },
               {
-                "key": "executive_summary",
+                "name": "executive_summary",
                 "value": "={{ $json.executive_summary }}"
               }
             ]
@@ -230,26 +230,26 @@
     },
     {
       "parameters": {
-        "dataType": "text",
-        "mode": "loadSpecificData",
-        "text": "={{ $json.cleaned_content }}",
+        "dataType": "json",
+        "jsonMode": "expressionData",
+        "jsonData": "={{ { content: $json.cleaned_content } }}",
         "options": {
           "metadata": {
-            "metadata": [
+            "metadataValues": [
               {
-                "key": "id",
+                "name": "id",
                 "value": "={{ $json.id }}"
               },
               {
-                "key": "title",
+                "name": "title",
                 "value": "={{ $json.title }}"
               },
               {
-                "key": "category",
+                "name": "category",
                 "value": "={{ $json.category }}"
               },
               {
-                "key": "executive_summary",
+                "name": "executive_summary",
                 "value": "={{ $json.executive_summary }}"
               }
             ]
@@ -267,26 +267,26 @@
     },
     {
       "parameters": {
-        "dataType": "text",
-        "mode": "loadSpecificData",
-        "text": "={{ $json.cleaned_content }}",
+        "dataType": "json",
+        "jsonMode": "expressionData",
+        "jsonData": "={{ { content: $json.cleaned_content } }}",
         "options": {
           "metadata": {
-            "metadata": [
+            "metadataValues": [
               {
-                "key": "id",
+                "name": "id",
                 "value": "={{ $json.id }}"
               },
               {
-                "key": "title",
+                "name": "title",
                 "value": "={{ $json.title }}"
               },
               {
-                "key": "category",
+                "name": "category",
                 "value": "={{ $json.category }}"
               },
               {
-                "key": "executive_summary",
+                "name": "executive_summary",
                 "value": "={{ $json.executive_summary }}"
               }
             ]
