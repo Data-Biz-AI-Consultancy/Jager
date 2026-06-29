@@ -570,22 +570,29 @@ CREATE TABLE IF NOT EXISTS m_embeddings.notion_pages (
   id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
   content TEXT,
   metadata JSONB,
-  embedding vector(768)
+  embedding vector(768),
+  source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED
 );
 
 CREATE TABLE IF NOT EXISTS m_embeddings.substack_posts (
   id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
   content TEXT,
   metadata JSONB,
-  embedding vector(768)
+  embedding vector(768),
+  source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED
 );
 
 CREATE TABLE IF NOT EXISTS m_embeddings.linkedin_posts (
   id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid()::text,
   content TEXT,
   metadata JSONB,
-  embedding vector(768)
+  embedding vector(768),
+  source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED
 );
+
+ALTER TABLE m_embeddings.notion_pages ADD COLUMN IF NOT EXISTS source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED;
+ALTER TABLE m_embeddings.substack_posts ADD COLUMN IF NOT EXISTS source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED;
+ALTER TABLE m_embeddings.linkedin_posts ADD COLUMN IF NOT EXISTS source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED;
 
 CREATE TABLE IF NOT EXISTS m_fact.memory_facts (
   id SERIAL PRIMARY KEY,

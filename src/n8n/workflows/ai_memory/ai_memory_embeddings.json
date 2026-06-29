@@ -25,7 +25,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, title, cleaned_content, category, executive_summary FROM m_staging.notion_pages s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.notion_pages e WHERE e.metadata->>'id' = s.id);"
+        "query": "SELECT id, title, cleaned_content, category, executive_summary FROM m_staging.notion_pages s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.notion_pages e WHERE e.source_id = s.id);"
       },
       "id": "get-unembedded-notion",
       "name": "Get Unembedded Notion",
@@ -45,7 +45,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, title, cleaned_content, category, executive_summary FROM m_staging.substack_posts s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.substack_posts e WHERE e.metadata->>'id' = s.id);"
+        "query": "SELECT id, title, cleaned_content, category, executive_summary FROM m_staging.substack_posts s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.substack_posts e WHERE e.source_id = s.id);"
       },
       "id": "get-unembedded-substack",
       "name": "Get Unembedded Substack",
@@ -65,7 +65,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, '' AS title, cleaned_content, category, executive_summary FROM m_staging.linkedin_posts s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.linkedin_posts e WHERE e.metadata->>'id' = s.id);"
+        "query": "SELECT id, '' AS title, cleaned_content, category, executive_summary FROM m_staging.linkedin_posts s WHERE NOT EXISTS (SELECT 1 FROM m_embeddings.linkedin_posts e WHERE e.source_id = s.id);"
       },
       "id": "get-unembedded-linkedin",
       "name": "Get Unembedded LinkedIn",
