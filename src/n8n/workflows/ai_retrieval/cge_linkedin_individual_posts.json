@@ -287,7 +287,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const parentTs = $('Notify Slack').first().json.ts;\nconst parseResult = $('Parse LLM Response').first().json;\nconst sourcesObj = parseResult.sources_obj || {};\n\nconst items = [];\nconst icons = {\n  Notion: '📚',\n  Substack: '✉️',\n  LinkedIn: '🔗'\n};\n\nfor (const [app, titles] of Object.entries(sourcesObj)) {\n  if (titles && titles.length > 0) {\n    const lines = [`${icons[app] || '•'} *${app} Sources Used:*`];\n    titles.forEach(title => {\n      lines.push(`    - ${title}`);\n    });\n    items.push({\n      json: {\n        thread_ts: parentTs,\n        text: lines.join('\\n')\n      }\n    });\n  }\n}\n\nreturn items;"
+        "jsCode": "const parentTs = $('Notify Slack').first().json.ts;\nconst parseResult = $('Parse LLM Response').first().json;\nconst sourcesObj = parseResult.sources_obj || {};\n\nconst items = [];\nconst icons = {\n  Notion: '📚',\n  Substack: '✉️',\n  LinkedIn: '🔗'\n};\n\nfor (const [app, titles] of Object.entries(sourcesObj)) {\n  if (titles && titles.length > 0) {\n    const lines = [`${icons[app] || '•'} *${app} Sources Used:*`];\n    titles.forEach(title => {\n      lines.push(`• ${title}`);\n    });\n    items.push({\n      json: {\n        thread_ts: parentTs,\n        text: lines.join('\\n')\n      }\n    });\n  }\n}\n\nreturn items;"
       },
       "id": "Formulate Slack Thread Messages",
       "name": "Formulate Slack Thread Messages",
