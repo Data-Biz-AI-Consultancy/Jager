@@ -193,7 +193,7 @@
     },
     {
       "parameters": {
-        "dataType": "json",
+        "dataType": "text",
         "mode": "loadSpecificData",
         "text": "={{ $json.cleaned_content }}",
         "options": {
@@ -230,7 +230,7 @@
     },
     {
       "parameters": {
-        "dataType": "json",
+        "dataType": "text",
         "mode": "loadSpecificData",
         "text": "={{ $json.cleaned_content }}",
         "options": {
@@ -267,7 +267,7 @@
     },
     {
       "parameters": {
-        "dataType": "json",
+        "dataType": "text",
         "mode": "loadSpecificData",
         "text": "={{ $json.cleaned_content }}",
         "options": {
