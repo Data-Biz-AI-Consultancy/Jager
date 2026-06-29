@@ -232,7 +232,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO t_content_generation.linkedin_posts (channel, content, original_prompt_or_source, status)\nVALUES ('individual', '{{ $json.linkedin_post.replace(/'/g, \"''\") }}', 'Generated from RAG sources: {{ $json.sources_str.replace(/'/g, \"''\") }}', 'draft')\nRETURNING id, channel, status, content;"
+        "query": "=INSERT INTO t_content_generation.linkedin_posts (channel, content, original_prompt_or_source, status, used_resources)\nVALUES ('individual', '{{ $json.linkedin_post.replace(/'/g, \"''\") }}', 'Generated from RAG sources: {{ $json.sources_str.replace(/'/g, \"''\") }}', 'draft', '{{ JSON.stringify($json.sources_obj).replace(/'/g, \"''\") }}')\nRETURNING id, channel, status, content;"
       },
       "id": "save-proposal-to-db",
       "name": "Save Proposal to DB",

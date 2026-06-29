@@ -470,9 +470,12 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		scheduled_at TIMESTAMP WITH TIME ZONE,
 		published_at TIMESTAMP WITH TIME ZONE,
 		external_post_id VARCHAR(255),
+		used_resources JSONB,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
+
+	ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS used_resources jsonb;
 
 	CREATE TABLE IF NOT EXISTS t_content_generation.substack_articles (
 		id SERIAL PRIMARY KEY,
