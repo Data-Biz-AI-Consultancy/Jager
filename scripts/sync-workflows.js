@@ -42,6 +42,16 @@ const mappings = [
     file: path.join(__dirname, '../src/n8n/workflows/ai_summary/ai_summary_substack.json'),
     jsNodeName: 'Format Posts for LLM',
     llmNodeName: 'Summarize via Ollama Cloud'
+  },
+  {
+    id: 'SlackApprovalCallback',
+    db: path.join(tempDir, 'db_SlackApprovalCallback.json'),
+    file: path.join(__dirname, '../src/n8n/workflows/ai_summary/slack_approval_callback.json')
+  },
+  {
+    id: 'GiusyPendingDraftsReminder',
+    db: path.join(tempDir, 'db_GiusyPendingDraftsReminder.json'),
+    file: path.join(__dirname, '../src/n8n/workflows/ai_summary/giusy_pending_drafts_reminder.json')
   }
 ];
 
@@ -73,6 +83,12 @@ for (const map of mappings) {
 
   const dbWf = JSON.parse(fs.readFileSync(map.db, 'utf8'));
   const fileWf = JSON.parse(fs.readFileSync(map.file, 'utf8'));
+
+  if (!map.jsNodeName || !map.llmNodeName) {
+    fs.writeFileSync(map.file, JSON.stringify(dbWf, null, 2) + '\n');
+    console.log(`Successfully updated ${map.file} directly from DB`);
+    continue;
+  }
 
   const fileJsNode = fileWf.nodes.find(n => n.name.toLowerCase() === map.jsNodeName.toLowerCase());
   const fileLlmNode = fileWf.nodes.find(n => n.name.toLowerCase() === map.llmNodeName.toLowerCase());

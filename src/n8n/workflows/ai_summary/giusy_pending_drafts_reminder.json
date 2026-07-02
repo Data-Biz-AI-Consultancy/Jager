@@ -1,0 +1,125 @@
+{
+  "id": "GiusyPendingDraftsReminder",
+  "name": "Giusy Pending Drafts Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                5
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, channel, content, created_at\nFROM t_content_generation.linkedin_posts\nWHERE status = 'draft' AND is_approved = FALSE\nORDER BY created_at DESC;",
+        "options": {}
+      },
+      "id": "get-pending-drafts",
+      "name": "Get Pending Drafts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        320,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all();\nif (rows.length === 0 || !rows[0].json.id) {\n  return [];\n}\n\nlet messageText = 'Buongiorno Don Jimmy 💡\\n\\nGiusy here! 🤖 Just a reminder that we have some unapproved LinkedIn drafts waiting for your review:\\n\\n';\n\nrows.forEach(row => {\n  const draft = row.json;\n  const snippet = draft.content ? draft.content.substring(0, 120).replace(/\\n/g, ' ') + '...' : 'No content';\n  messageText += `• *Draft ID:* ${draft.id} | *Channel:* ${draft.channel || 'individual'}\\n  _\"${snippet}\"_\\n\\n`;\n});\n\nmessageText += 'Please approve or reject them! Buon lavoro.';\n\nreturn [{ json: { text: messageText } }];"
+      },
+      "id": "build-reminder-message",
+      "name": "Build Reminder Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
+        "text": "={{ $json.text }}",
+        "otherOptions": {},
+        "attachments": []
+      },
+      "id": "post-reminder-to-slack",
+      "name": "Post Reminder to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        760,
+        300
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-giusy-cred",
+          "name": "Slack Giusy Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Drafts": {
+      "main": [
+        [
+          {
+            "node": "Build Reminder Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reminder Message": {
+      "main": [
+        [
+          {
+            "node": "Post Reminder to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}

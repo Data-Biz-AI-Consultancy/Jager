@@ -248,7 +248,9 @@
       "parameters": {
         "channel": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
         "text": "={{ $json.slack_message }}",
-        "otherOptions": {},
+        "otherOptions": {
+          "blocks": "=[\n  {\n    \"type\": \"section\",\n    \"text\": {\n      \"type\": \"mrkdwn\",\n      \"text\": \"{{ $json.slack_message }}\"\n    }\n  },\n  {\n    \"type\": \"actions\",\n    \"elements\": [\n      {\n        \"type\": \"button\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"Approve ✅\"\n        },\n        \"style\": \"primary\",\n        \"value\": \"approve:{{ $('Save Proposal to DB').first().json.id }}\",\n        \"action_id\": \"approve_action\"\n      },\n      {\n        \"type\": \"button\",\n        \"text\": {\n          \"type\": \"plain_text\",\n          \"text\": \"Reject ❌\"\n        },\n        \"style\": \"danger\",\n        \"value\": \"reject:{{ $('Save Proposal to DB').first().json.id }}\",\n        \"action_id\": \"reject_action\"\n      }\n    ]\n  }\n]"
+        },
         "attachments": []
       },
       "id": "notify-slack",

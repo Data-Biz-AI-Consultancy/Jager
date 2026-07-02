@@ -32,6 +32,16 @@ const mappings = [
     id: 'AiSummarySubstack',
     db: path.join(tempDir, 'db_AiSummarySubstack.json'),
     file: path.join(__dirname, '../src/n8n/workflows/ai_summary/ai_summary_substack.json')
+  },
+  {
+    id: 'SlackApprovalCallback',
+    db: path.join(tempDir, 'db_SlackApprovalCallback.json'),
+    file: path.join(__dirname, '../src/n8n/workflows/ai_summary/slack_approval_callback.json')
+  },
+  {
+    id: 'GiusyPendingDraftsReminder',
+    db: path.join(tempDir, 'db_GiusyPendingDraftsReminder.json'),
+    file: path.join(__dirname, '../src/n8n/workflows/ai_summary/giusy_pending_drafts_reminder.json')
   }
 ];
 
