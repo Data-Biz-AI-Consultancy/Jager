@@ -320,9 +320,11 @@
         },
         "options": {
           "limitWaitTime": {
-            "limitType": "afterTimeInterval",
-            "resumeAmount": 45,
-            "resumeUnit": "minutes"
+            "values": {
+              "limitType": "afterTimeInterval",
+              "resumeAmount": 7,
+              "resumeUnit": "days"
+            }
           }
         }
       },
