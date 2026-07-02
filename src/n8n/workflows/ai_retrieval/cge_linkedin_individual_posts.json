@@ -325,17 +325,18 @@
         "approvalOptions": {
           "values": {
             "approvalType": "double",
-            "approveLabel": "Approve",
             "buttonStyle": "primary",
-            "declineLabel": "Decline",
-            "declineButtonStyle": "default"
+            "approveLabel": "Approve",
+            "declineButtonStyle": "default",
+            "declineLabel": "Decline"
           }
         },
         "options": {
-          "limitWaitTime": true,
-          "limitType": "afterTimeInterval",
-          "amount": 45,
-          "unit": "minutes"
+          "limitWaitTime": {
+            "limitType": "afterTimeInterval",
+            "resumeAmount": 45,
+            "resumeUnit": "minutes"
+          }
         }
       },
       "id": "slack-send-and-wait",
@@ -356,18 +357,30 @@
     {
       "parameters": {
         "conditions": {
-          "boolean": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.approved }}",
-              "value2": true
+              "id": "approved-check",
+              "leftValue": "={{ $json.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
       "id": "if-approved",
       "name": "If Approved?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
+      "typeVersion": 2,
       "position": [
         3980,
         112
