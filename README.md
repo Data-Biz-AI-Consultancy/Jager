@@ -51,6 +51,21 @@ node scripts/clone-db.js "postgresql://YOUR_PROD_USER:YOUR_PROD_PASSWORD@YOUR_PR
 
 ---
 
+## Workflow Syncing & Management
+
+If you modify workflows in the N8N UI, or if you clone the production database and want to make sure your local JSON files are in sync with the database workflows (while preserving custom prompt integrations like reading markdown files), use the following utility scripts:
+
+*   **Check for differences between database workflows and local JSON files:**
+    ```bash
+    node scripts/compare-workflows.js
+    ```
+*   **Synchronize database workflows back to local JSON files (merging and preserving custom prompt nodes):**
+    ```bash
+    node scripts/sync-workflows.js
+    ```
+
+---
+
 ## Release Pipeline
 
 We have established a manual trigger release CI pipeline via GitHub Actions.
