@@ -49,9 +49,9 @@ const mappings = [
     file: path.join(__dirname, '../src/n8n/workflows/ai_summary/slack_approval_callback.json')
   },
   {
-    id: 'GiusyPendingDraftsReminder',
-    db: path.join(tempDir, 'db_GiusyPendingDraftsReminder.json'),
-    file: path.join(__dirname, '../src/n8n/workflows/ai_summary/giusy_pending_drafts_reminder.json')
+    id: 'ContentMarketingDraftsReminder',
+    db: path.join(tempDir, 'db_ContentMarketingDraftsReminder.json'),
+    file: path.join(__dirname, '../src/n8n/workflows/ai_summary/content_marketing_drafts_reminder.json')
   }
 ];
 

@@ -1,6 +1,6 @@
 {
-  "id": "GiusyPendingDraftsReminder",
-  "name": "Giusy Pending Drafts Reminder",
+  "id": "ContentMarketingDraftsReminder",
+  "name": "Content Marketing Drafts Reminder",
   "nodes": [
     {
       "parameters": {
@@ -48,7 +48,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const rows = $input.all();\nif (rows.length === 0 || !rows[0].json.id) {\n  return [];\n}\n\nlet messageText = 'Buongiorno Don Jimmy 💡\\n\\nGiusy here! 🤖 Just a reminder that we have some unapproved LinkedIn drafts waiting for your review:\\n\\n';\n\nrows.forEach(row => {\n  const draft = row.json;\n  const snippet = draft.content ? draft.content.substring(0, 120).replace(/\\n/g, ' ') + '...' : 'No content';\n  messageText += `• *Draft ID:* ${draft.id} | *Channel:* ${draft.channel || 'individual'}\\n  _\"${snippet}\"_\\n\\n`;\n});\n\nmessageText += 'Please approve or reject them! Buon lavoro.';\n\nreturn [{ json: { text: messageText } }];"
+        "jsCode": "const rows = $input.all();\nif (rows.length === 0 || !rows[0].json.id) {\n  return [];\n}\n\nlet messageText = 'Buongiorno Don Jimmy 💡\\n\\nJust a reminder that we have some unapproved LinkedIn drafts waiting for your review:\\n\\n';\n\nrows.forEach(row => {\n  const draft = row.json;\n  const snippet = draft.content ? draft.content.substring(0, 120).replace(/\\n/g, ' ') + '...' : 'No content';\n  messageText += `• *Draft ID:* ${draft.id} | *Channel:* ${draft.channel || 'individual'}\\n  _\"${snippet}\"_\\n\\n`;\n});\n\nmessageText += 'Please approve or reject them! Buon lavoro.';\n\nreturn [{ json: { text: messageText } }];"
       },
       "id": "build-reminder-message",
       "name": "Build Reminder Message",
