@@ -1,0 +1,488 @@
+{
+  "id": "eurostat-ingestion-workflow",
+  "name": "Data Ingestion - Eurostat (All Datasets)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "value": 7
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nama_10r_3gdp?format=json&lang=en&geo=DE&geo=DE300&unit=MIO_EUR",
+        "options": {}
+      },
+      "id": "fetch-gdp-api",
+      "name": "Fetch GDP API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/crim_gen_reg?format=json&lang=en&geo=DE&geo=DE300",
+        "options": {}
+      },
+      "id": "fetch-crime-api",
+      "name": "Fetch Crime API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?format=json&lang=en&geo=DE&lastTimePeriod=12",
+        "options": {}
+      },
+      "id": "fetch-inflation-api",
+      "name": "Fetch Inflation API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/namq_10_gdp?format=json&lang=en&geo=DE&lastTimePeriod=8",
+        "options": {}
+      },
+      "id": "fetch-quarterly-gdp-api",
+      "name": "Fetch Quarterly GDP API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_m?format=json&lang=en&geo=DE&lastTimePeriod=12",
+        "options": {}
+      },
+      "id": "fetch-unemployment-api",
+      "name": "Fetch Unemployment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hpi_q?format=json&lang=en&geo=DE&lastTimePeriod=8",
+        "options": {}
+      },
+      "id": "fetch-hpi-api",
+      "name": "Fetch HPI API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst id = data.id;\nconst size = data.size;\nconst values = data.value || {};\nconst dimensions = data.dimension;\n\nconst results = [];\n\nconst freqKeys = Object.keys(dimensions.freq.category.index);\nconst unitKeys = Object.keys(dimensions.unit.category.index);\nconst geoKeys = Object.keys(dimensions.geo.category.index);\nconst timeKeys = Object.keys(dimensions.time.category.index);\n\nfor (const freq of freqKeys) {\n  const i_freq = dimensions.freq.category.index[freq];\n  for (const unit of unitKeys) {\n    const i_unit = dimensions.unit.category.index[unit];\n    for (const geo of geoKeys) {\n      const i_geo = dimensions.geo.category.index[geo];\n      const geoName = dimensions.geo.category.label[geo] || geo;\n      for (const time of timeKeys) {\n        const i_time = dimensions.time.category.index[time];\n        \n        const idx = i_freq * (size[1] * size[2] * size[3]) +\n                    i_unit * (size[2] * size[3]) +\n                    i_geo * size[3] +\n                    i_time;\n                    \n        const val = values[idx.toString()];\n        if (val !== undefined && val !== null) {\n          results.push({\n            geo_code: geo,\n            geo_name: geoName,\n            year: parseInt(time, 10),\n            gdp_value: val,\n            unit: unit\n          });\n        }\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-gdp-jsonstat",
+      "name": "Parse GDP JSON-stat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst id = data.id;\nconst size = data.size;\nconst values = data.value || {};\nconst dimensions = data.dimension;\n\nconst results = [];\n\nconst freqKeys = Object.keys(dimensions.freq.category.index);\nconst unitKeys = Object.keys(dimensions.unit.category.index);\nconst iccsKeys = Object.keys(dimensions.iccs.category.index);\nconst geoKeys = Object.keys(dimensions.geo.category.index);\nconst timeKeys = Object.keys(dimensions.time.category.index);\n\nfor (const freq of freqKeys) {\n  const i_freq = dimensions.freq.category.index[freq];\n  for (const unit of unitKeys) {\n    const i_unit = dimensions.unit.category.index[unit];\n    for (const iccs of iccsKeys) {\n      const i_iccs = dimensions.iccs.category.index[iccs];\n      const iccsLabel = dimensions.iccs.category.label[iccs] || iccs;\n      for (const geo of geoKeys) {\n        const i_geo = dimensions.geo.category.index[geo];\n        const geoName = dimensions.geo.category.label[geo] || geo;\n        for (const time of timeKeys) {\n          const i_time = dimensions.time.category.index[time];\n          \n          const idx = i_freq * (size[1] * size[2] * size[3] * size[4]) +\n                      i_unit * (size[2] * size[3] * size[4]) +\n                      i_iccs * (size[3] * size[4]) +\n                      i_geo * size[4] +\n                      i_time;\n                      \n          const val = values[idx.toString()];\n          if (val !== undefined && val !== null) {\n            results.push({\n              geo_code: geo,\n              geo_name: geoName,\n              year: parseInt(time, 10),\n              offence_category: iccsLabel,\n              crime_count: val,\n              unit: unit\n            });\n          }\n        }\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-crime-jsonstat",
+      "name": "Parse Crime JSON-stat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst size = data.size;\nconst values = data.value || {};\nconst dimensions = data.dimension;\nconst results = [];\n\nconst freqKeys = Object.keys(dimensions.freq.category.index);\nconst unitKeys = Object.keys(dimensions.unit.category.index);\nconst coicopKeys = Object.keys(dimensions.coicop18.category.index);\nconst geoKeys = Object.keys(dimensions.geo.category.index);\nconst timeKeys = Object.keys(dimensions.time.category.index);\n\nfor (const freq of freqKeys) {\n  const i_freq = dimensions.freq.category.index[freq];\n  for (const unit of unitKeys) {\n    const i_unit = dimensions.unit.category.index[unit];\n    for (const coicop of coicopKeys) {\n      const i_coicop = dimensions.coicop18.category.index[coicop];\n      const coicopName = dimensions.coicop18.category.label[coicop] || coicop;\n      for (const geo of geoKeys) {\n        const i_geo = dimensions.geo.category.index[geo];\n        const geoName = dimensions.geo.category.label[geo] || geo;\n        for (const time of timeKeys) {\n          const i_time = dimensions.time.category.index[time];\n          \n          const idx = i_freq * (size[1] * size[2] * size[3] * size[4]) +\n                      i_unit * (size[2] * size[3] * size[4]) +\n                      i_coicop * (size[3] * size[4]) +\n                      i_geo * size[4] +\n                      i_time;\n                      \n          const val = values[idx.toString()];\n          if (val !== undefined && val !== null) {\n            results.push({\n              geo_code: geo,\n              geo_name: geoName,\n              time: time,\n              coicop_code: coicop,\n              coicop_name: coicopName,\n              unit: unit,\n              value: val\n            });\n          }\n        }\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-inflation",
+      "name": "Parse Inflation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst size = data.size;\nconst values = data.value || {};\nconst dimensions = data.dimension;\nconst results = [];\n\nconst freqKeys = Object.keys(dimensions.freq.category.index);\nconst unitKeys = Object.keys(dimensions.unit.category.index);\nconst sadjKeys = Object.keys(dimensions.s_adj.category.index);\nconst naitemKeys = Object.keys(dimensions.na_item.category.index);\nconst geoKeys = Object.keys(dimensions.geo.category.index);\nconst timeKeys = Object.keys(dimensions.time.category.index);\n\nfor (const freq of freqKeys) {\n  const i_freq = dimensions.freq.category.index[freq];\n  for (const unit of unitKeys) {\n    const i_unit = dimensions.unit.category.index[unit];\n    for (const sadj of sadjKeys) {\n      const i_sadj = dimensions.s_adj.category.index[sadj];\n      for (const naitem of naitemKeys) {\n        const i_naitem = dimensions.na_item.category.index[naitem];\n        for (const geo of geoKeys) {\n          const i_geo = dimensions.geo.category.index[geo];\n          const geoName = dimensions.geo.category.label[geo] || geo;\n          for (const time of timeKeys) {\n            const i_time = dimensions.time.category.index[time];\n            \n            const idx = i_freq * (size[1] * size[2] * size[3] * size[4] * size[5]) +\n                        i_unit * (size[2] * size[3] * size[4] * size[5]) +\n                        i_sadj * (size[3] * size[4] * size[5]) +\n                        i_naitem * (size[4] * size[5]) +\n                        i_geo * size[5] +\n                        i_time;\n                        \n            const val = values[idx.toString()];\n            if (val !== undefined && val !== null) {\n              results.push({\n                geo_code: geo,\n                geo_name: geoName,\n                time: time,\n                na_item: naitem,\n                unit: unit,\n                s_adj: sadj,\n                value: val\n              });\n            }\n          }\n        }\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-quarterly-gdp",
+      "name": "Parse Quarterly GDP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst size = data.size;\nconst values = data.value || {};\nconst dimensions = data.dimension;\nconst results = [];\n\nconst freqKeys = Object.keys(dimensions.freq.category.index);\nconst sadjKeys = Object.keys(dimensions.s_adj.category.index);\nconst ageKeys = Object.keys(dimensions.age.category.index);\nconst unitKeys = Object.keys(dimensions.unit.category.index);\nconst sexKeys = Object.keys(dimensions.sex.category.index);\nconst geoKeys = Object.keys(dimensions.geo.category.index);\nconst timeKeys = Object.keys(dimensions.time.category.index);\n\nfor (const freq of freqKeys) {\n  const i_freq = dimensions.freq.category.index[freq];\n  for (const sadj of sadjKeys) {\n    const i_sadj = dimensions.s_adj.category.index[sadj];\n    for (const age of ageKeys) {\n      const i_age = dimensions.age.category.index[age];\n      for (const unit of unitKeys) {\n        const i_unit = dimensions.unit.category.index[unit];\n        for (const sex of sexKeys) {\n          const i_sex = dimensions.sex.category.index[sex];\n          for (const geo of geoKeys) {\n            const i_geo = dimensions.geo.category.index[geo];\n            const geoName = dimensions.geo.category.label[geo] || geo;\n            for (const time of timeKeys) {\n              const i_time = dimensions.time.category.index[time];\n              \n              const idx = i_freq * (size[1] * size[2] * size[3] * size[4] * size[5] * size[6]) +\n                          i_sadj * (size[2] * size[3] * size[4] * size[5] * size[6]) +\n                          i_age * (size[3] * size[4] * size[5] * size[6]) +\n                          i_unit * (size[4] * size[5] * size[6]) +\n                          i_sex * (size[5] * size[6]) +\n                          i_geo * size[6] +\n                          i_time;\n                          \n              const val = values[idx.toString()];\n              if (val !== undefined && val !== null) {\n                results.push({\n                  geo_code: geo,\n                  geo_name: geoName,\n                  time: time,\n                  age: age,\n                  sex: sex,\n                  unit: unit,\n                  s_adj: sadj,\n                  value: val\n                });\n              }\n            }\n          }\n        }\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-unemployment",
+      "name": "Parse Unemployment",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const data = $input.first().json;\nconst size = data.size;\nconst values = data.value || {};\nconst dimensions = data.dimension;\nconst results = [];\n\nconst freqKeys = Object.keys(dimensions.freq.category.index);\nconst purchaseKeys = Object.keys(dimensions.purchase.category.index);\nconst unitKeys = Object.keys(dimensions.unit.category.index);\nconst geoKeys = Object.keys(dimensions.geo.category.index);\nconst timeKeys = Object.keys(dimensions.time.category.index);\n\nfor (const freq of freqKeys) {\n  const i_freq = dimensions.freq.category.index[freq];\n  for (const purchase of purchaseKeys) {\n    const i_purchase = dimensions.purchase.category.index[purchase];\n    for (const unit of unitKeys) {\n      const i_unit = dimensions.unit.category.index[unit];\n      for (const geo of geoKeys) {\n        const i_geo = dimensions.geo.category.index[geo];\n        const geoName = dimensions.geo.category.label[geo] || geo;\n        for (const time of timeKeys) {\n          const i_time = dimensions.time.category.index[time];\n          \n          const idx = i_freq * (size[1] * size[2] * size[3] * size[4]) +\n                      i_purchase * (size[2] * size[3] * size[4]) +\n                      i_unit * (size[3] * size[4]) +\n                      i_geo * size[4] +\n                      i_time;\n                      \n          const val = values[idx.toString()];\n          if (val !== undefined && val !== null) {\n            results.push({\n              geo_code: geo,\n              geo_name: geoName,\n              time: time,\n              purchase: purchase,\n              unit: unit,\n              value: val\n            });\n          }\n        }\n      }\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-hpi",
+      "name": "Parse HPI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_euro_stat.regional_gdp (geo_code, geo_name, year, gdp_value, unit)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', {{ $json.year }}, {{ $json.gdp_value }}, '{{ $json.unit }}')\nON CONFLICT (geo_code, year, unit)\nDO UPDATE SET gdp_value = EXCLUDED.gdp_value, geo_name = EXCLUDED.geo_name;"
+      },
+      "id": "insert-gdp",
+      "name": "Insert GDP",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_euro_stat.regional_crime_rates (geo_code, geo_name, year, offence_category, crime_count, unit)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', {{ $json.year }}, '{{ $json.offence_category.replace(/'/g, \"''\") }}', {{ $json.crime_count }}, '{{ $json.unit }}')\nON CONFLICT (geo_code, year, offence_category, unit)\nDO UPDATE SET crime_count = EXCLUDED.crime_count, geo_name = EXCLUDED.geo_name;"
+      },
+      "id": "insert-crime",
+      "name": "Insert Crime",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_euro_stat.inflation (geo_code, geo_name, time, coicop_code, coicop_name, unit, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.coicop_code }}', '{{ $json.coicop_name.replace(/'/g, \"''\") }}', '{{ $json.unit }}', {{ $json.value }})\nON CONFLICT (geo_code, time, coicop_code, unit)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
+      },
+      "id": "insert-inflation",
+      "name": "Insert Inflation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_euro_stat.quarterly_gdp (geo_code, geo_name, time, na_item, unit, s_adj, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.na_item }}', '{{ $json.unit }}', '{{ $json.s_adj }}', {{ $json.value }})\nON CONFLICT (geo_code, time, na_item, unit, s_adj)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
+      },
+      "id": "insert-quarterly-gdp",
+      "name": "Insert Quarterly GDP",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        700
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_euro_stat.unemployment (geo_code, geo_name, time, age, sex, unit, s_adj, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.age }}', '{{ $json.sex }}', '{{ $json.unit }}', '{{ $json.s_adj }}', {{ $json.value }})\nON CONFLICT (geo_code, time, age, sex, unit, s_adj)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
+      },
+      "id": "insert-unemployment",
+      "name": "Insert Unemployment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        900
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_euro_stat.house_price_index (geo_code, geo_name, time, purchase, unit, value)\nVALUES ('{{ $json.geo_code }}', '{{ $json.geo_name }}', '{{ $json.time }}', '{{ $json.purchase }}', '{{ $json.unit }}', {{ $json.value }})\nON CONFLICT (geo_code, time, purchase, unit)\nDO UPDATE SET value = EXCLUDED.value, geo_name = EXCLUDED.geo_name;"
+      },
+      "id": "insert-hpi",
+      "name": "Insert HPI",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        1100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch GDP API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Crime API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Inflation API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Quarterly GDP API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Unemployment API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch HPI API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch GDP API": {
+      "main": [
+        [
+          {
+            "node": "Parse GDP JSON-stat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Crime API": {
+      "main": [
+        [
+          {
+            "node": "Parse Crime JSON-stat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Inflation API": {
+      "main": [
+        [
+          {
+            "node": "Parse Inflation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Quarterly GDP API": {
+      "main": [
+        [
+          {
+            "node": "Parse Quarterly GDP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Unemployment API": {
+      "main": [
+        [
+          {
+            "node": "Parse Unemployment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch HPI API": {
+      "main": [
+        [
+          {
+            "node": "Parse HPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse GDP JSON-stat": {
+      "main": [
+        [
+          {
+            "node": "Insert GDP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Crime JSON-stat": {
+      "main": [
+        [
+          {
+            "node": "Insert Crime",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Inflation": {
+      "main": [
+        [
+          {
+            "node": "Insert Inflation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Quarterly GDP": {
+      "main": [
+        [
+          {
+            "node": "Insert Quarterly GDP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Unemployment": {
+      "main": [
+        [
+          {
+            "node": "Insert Unemployment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse HPI": {
+      "main": [
+        [
+          {
+            "node": "Insert HPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
