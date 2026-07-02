@@ -7,10 +7,7 @@
         "rule": {
           "interval": [
             {
-              "field": "weeks",
-              "value": 1,
-              "weekday": "monday",
-              "time": "09:00"
+              "field": "weeks"
             }
           ]
         }
@@ -20,22 +17,23 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        100,
-        300
+        112,
+        304
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  sr.id,\n  sr.search_name,\n  sr.title,\n  sr.description,\n  sr.url,\n  sr.published_at\nFROM s_meetup.search_results sr\nINNER JOIN s_meetup.searches_monitored sm ON sm.id = sr.search_id\nWHERE sm.active = TRUE \n  AND sr.published_at >= NOW() \n  AND sr.published_at <= NOW() + INTERVAL '7 days'\nORDER BY sr.search_name, sr.published_at ASC;"
+        "query": "SELECT \n  sr.id,\n  sr.search_name,\n  sr.title,\n  sr.description,\n  sr.url,\n  sr.published_at\nFROM s_meetup.search_results sr\nINNER JOIN s_meetup.searches_monitored sm ON sm.id = sr.search_id\nWHERE sm.active = TRUE \n  AND sr.published_at >= NOW() \n  AND sr.published_at <= NOW() + INTERVAL '7 days'\nORDER BY sr.search_name, sr.published_at ASC;",
+        "options": {}
       },
       "id": "get-latest-events",
       "name": "Get Latest Events",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        300,
-        300
+        336,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -46,7 +44,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const rows = $input.all();\nif (rows.length === 0 || !rows[0].json.search_name) {\n  return [{ json: { text: 'No monitored searches or events found.', event_ids: [], ref_map: {} } }];\n}\n\nconst categories = {};\nconst eventIds = new Set();\n\nrows.forEach(row => {\n  const data = row.json;\n  const category = data.search_name;\n  if (!categories[category]) {\n    categories[category] = [];\n  }\n  if (data.id) {\n    eventIds.add(data.id);\n    categories[category].push({\n      id: data.id,\n      title: data.title,\n      description: data.description,\n      url: data.url,\n      published_at: data.published_at\n    });\n  }\n});\n\nconst refMap = {};\nlet refCounter = 1;\n\nlet text = 'Meetup events to summarize (each has an id number):\\n\\n';\n\nfor (const [category, events] of Object.entries(categories)) {\n  if (events.length === 0) continue;\n\n  text += `Category: ${category}\\n`;\n  events.forEach(event => {\n    const refId = refCounter++;\n    refMap[String(refId)] = { title: event.title || 'Event', url: event.url || '', category: category };\n\n    text += `  id:${refId} | ${event.title || 'No Title'} (at ${event.published_at || 'unknown'})\\n`;\n    text += `  Description: ${(event.description || '').substring(0, 500)}\\n\\n`;\n  });\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/agents/bella.md', 'utf8');\n} catch (e) {\n  persona = 'Warm, charming Italian secretary named Bella.';\n}\n\nlet strategy = '';\ntry {\n  strategy = fs.readFileSync('/etc/n8n/workflows/prompts/content_strategy.md', 'utf8');\n} catch (e) {\n  strategy = '';\n}\n\nlet positioning = '';\ntry {\n  positioning = fs.readFileSync('/etc/n8n/workflows/prompts/usp_market_positioning.md', 'utf8');\n} catch (e) {\n  positioning = '';\n}\n\nreturn [{ json: { text, event_ids: Array.from(eventIds), ref_map: refMap, bella_persona: persona, content_strategy: strategy, usp_positioning: positioning } }];"
       },
       "id": "format-events-for-llm",
@@ -54,8 +51,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
-        300
+        560,
+        304
       ]
     },
     {
@@ -81,8 +78,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        700,
-        300
+        784,
+        304
       ],
       "credentials": {
         "ollamaApi": {
@@ -93,7 +90,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nconst refMap = $('Format Events for LLM').first().json.ref_map || {};\n\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\njsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  try {\n    const cleanedStr = jsonStr.replace(/,\\s*([}\\]])/g, '$1');\n    parsed = JSON.parse(cleanedStr);\n  } catch (err) {\n    return [{ json: { response: raw } }];\n  }\n}\n\nconst greeting = parsed.greeting || '';\nconst signoff = parsed.signoff || '';\nconst summaries = Array.isArray(parsed.summaries) ? parsed.summaries : [];\n\nconst summaryMap = {};\nsummaries.forEach(s => {\n  if (s.event_id) {\n    summaryMap[String(s.event_id)] = s.summary;\n  }\n});\n\nconst categories = {};\nfor (const [id, ref] of Object.entries(refMap)) {\n  const category = ref.category || 'Other';\n  if (!categories[category]) {\n    categories[category] = [];\n  }\n  const summary = summaryMap[id] || 'No summary available.';\n  categories[category].push({\n    title: ref.title,\n    url: ref.url,\n    summary: summary\n  });\n}\n\nlet msg = '';\nif (greeting) msg += `${greeting}\\n\\n`;\nmsg += '✨ *Weekly Meetup Events Summary* ✨\\n\\n';\n\nlet count = 0;\nfor (const [category, events] of Object.entries(categories)) {\n  if (events.length === 0) continue;\n  msg += `*${category}*\\n`;\n  events.forEach(event => {\n    msg += `• <${event.url}|${event.title}>: ${event.summary}\\n`;\n    count++;\n  });\n  msg += '\\n';\n}\n\nif (count === 0) {\n  msg += 'No new events scheduled for this week.\\n\\n';\n}\n\nif (signoff) msg += `${signoff}`;\n\nreturn [{ json: { response: msg.trim() } }];"
       },
       "id": "build-slack-message",
@@ -101,23 +97,24 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
-        300
+        1136,
+        304
       ]
     },
     {
       "parameters": {
         "channel": "events",
         "text": "=🤖 *Weekly Meetup Summary Report* 🤖\n\n{{ $('Build Slack Message').first().json.response }}",
-        "otherOptions": {}
+        "otherOptions": {},
+        "attachments": []
       },
       "id": "post-to-slack",
       "name": "Post to Slack",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        1100,
-        300
+        1360,
+        304
       ],
       "credentials": {
         "slackApi": {
@@ -191,6 +188,7 @@
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }

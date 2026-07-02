@@ -6,10 +6,7 @@
       "parameters": {
         "rule": {
           "interval": [
-            {
-              "field": "days",
-              "value": 1
-            }
+            {}
           ]
         }
       },
@@ -18,13 +15,12 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        100,
-        300
+        112,
+        112
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const queryText = 'personal branding, content marketing, data engineering, artificial intelligence';\nreturn [{ json: { query: queryText } }];"
       },
       "id": "prepare-rag-query",
@@ -32,8 +28,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        300,
-        300
+        336,
+        112
       ]
     },
     {
@@ -42,13 +38,9 @@
         "tableName": "m_embeddings.notion_pages",
         "prompt": "={{ $('Prepare RAG Query').first().json.query }}",
         "options": {
-          "limit": 3,
           "columnNames": {
             "values": {
-              "idColumnName": "id",
-              "contentColumnName": "content",
-              "metadataColumnName": "metadata",
-              "vectorColumnName": "embedding"
+              "contentColumnName": "content"
             }
           }
         }
@@ -58,8 +50,8 @@
       "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
       "typeVersion": 1,
       "position": [
-        550,
-        100
+        560,
+        112
       ],
       "credentials": {
         "postgres": {
@@ -74,13 +66,9 @@
         "tableName": "m_embeddings.substack_posts",
         "prompt": "={{ $('Prepare RAG Query').first().json.query }}",
         "options": {
-          "limit": 3,
           "columnNames": {
             "values": {
-              "idColumnName": "id",
-              "contentColumnName": "content",
-              "metadataColumnName": "metadata",
-              "vectorColumnName": "embedding"
+              "contentColumnName": "content"
             }
           }
         }
@@ -90,8 +78,8 @@
       "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
       "typeVersion": 1,
       "position": [
-        550,
-        300
+        912,
+        112
       ],
       "credentials": {
         "postgres": {
@@ -106,13 +94,9 @@
         "tableName": "m_embeddings.linkedin_posts",
         "prompt": "={{ $('Prepare RAG Query').first().json.query }}",
         "options": {
-          "limit": 3,
           "columnNames": {
             "values": {
-              "idColumnName": "id",
-              "contentColumnName": "content",
-              "metadataColumnName": "metadata",
-              "vectorColumnName": "embedding"
+              "contentColumnName": "content"
             }
           }
         }
@@ -122,8 +106,8 @@
       "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
       "typeVersion": 1,
       "position": [
-        550,
-        500
+        1264,
+        112
       ],
       "credentials": {
         "postgres": {
@@ -144,8 +128,8 @@
       "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
       "typeVersion": 1,
       "position": [
-        550,
-        700
+        640,
+        336
       ],
       "credentials": {
         "huggingFaceApi": {
@@ -156,7 +140,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const notionDocs = $('Retrieve Notion Pages').all();\nconst substackDocs = $('Retrieve Substack Posts').all();\nconst linkedinDocs = $('Retrieve LinkedIn Posts').all();\n\nconst uniqueNotion = Array.from(new Map(notionDocs.map(d => [d.json.document?.pageContent || '', d])).values());\nconst uniqueSubstack = Array.from(new Map(substackDocs.map(d => [d.json.document?.pageContent || '', d])).values());\nconst uniqueLinkedin = Array.from(new Map(linkedinDocs.map(d => [d.json.document?.pageContent || '', d])).values());\n\nlet ragContext = '### RELEVANT HISTORICAL CONTENT & KNOWLEDGE (RAG) ###\\n\\n';\n\nfunction addDocs(docs, sourceName) {\n  if (docs.length === 0) return;\n  docs.forEach((doc, idx) => {\n    const content = doc.json.document?.pageContent || '';\n    if (!content) return;\n    const firstLine = content.split('\\n')[0].trim();\n    const title = firstLine.length > 60 ? `${firstLine.substring(0, 60).trim()}...` : firstLine;\n    ragContext += `[Source: ${sourceName} | Title: ${title || 'Untitled'}]\\n`;\n    ragContext += `Content: ${content.substring(0, 1000)}\\n`;\n    ragContext += `---\\n\\n`;\n  });\n}\n\naddDocs(uniqueNotion, 'Notion');\naddDocs(uniqueSubstack, 'Substack');\naddDocs(uniqueLinkedin, 'LinkedIn');\n\nreturn [{ json: { rag_context: ragContext } }];"
       },
       "id": "format-rag-context",
@@ -164,13 +147,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        800,
-        300
+        1616,
+        112
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const ragContext = $('Format RAG Context').first()?.json?.rag_context || '';\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/agents/giusy.md', 'utf8');\n} catch (e) {\n  persona = 'Warm, brilliant AI Marketing Director named Giusy.';\n}\n\nlet strategy = '';\ntry {\n  strategy = fs.readFileSync('/etc/n8n/workflows/prompts/content_strategy.md', 'utf8');\n} catch (e) {\n  strategy = 'Standard content creation rules.';\n}\n\nlet positioning = '';\ntry {\n  positioning = fs.readFileSync('/etc/n8n/workflows/prompts/usp_market_positioning.md', 'utf8');\n} catch (e) {\n  positioning = 'Standard positioning rules.';\n}\n\nreturn [{ json: { text: ragContext, giusy_persona: persona, content_strategy: strategy, usp_positioning: positioning } }];"
       },
       "id": "format-context-for-llm",
@@ -178,8 +160,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1000,
-        300
+        1840,
+        112
       ]
     },
     {
@@ -191,6 +173,7 @@
         },
         "messages": {
           "values": [
+            {
               "content": "=### YOUR PERSONA & CONTEXT ###\n{{ $json.giusy_persona }}\n\n### CONTENT STRATEGY & GUIDELINES ###\n{{ $json.content_strategy }}\n\n### USP & MARKET POSITIONING ###\n{{ $json.usp_positioning }}\n\n### YOUR TASK ###\nRead the Substack articles, past LinkedIn posts, and Notion notes provided below. Generate a high-impact, professional, and engaging LinkedIn post proposal for Jimmy Pang's individual LinkedIn account.\n\nCRITICAL SPEAKER IDENTITY:\nThe speaking person of the LinkedIn post draft MUST be Jimmy Pang, a prominent data leader and AI consultant who has insightful, strategic thoughts to say in order to demonstrate Thought Leadership. The tone should be authoritative yet accessible, expert, and visionary.\n\nCRITICAL OUTPUT RULES:\n1. Do NOT include any Giusy conversational greetings (such as \"Ciao Don Jimmy\" or \"Carissimo Don Jimmy\") or conversational sign-offs (such as \"Buon lavoro\") anywhere in the output.\n2. The output MUST be a valid JSON object starting with '{' and ending with '}'. Do not include markdown code fences or any conversational filler outside of the JSON.\n3. The 'linkedin_post' field must contain ONLY the actual text of the LinkedIn post written from Jimmy's perspective, with no conversational metadata or greetings.\n\nEnsure you:\n1. Match the formatting style, spacing, hook structures, and tone of his past LinkedIn posts.\n2. Leverage the fresh insights from the Substack articles and Notion notes.\n3. Make sure the post is in English and written from Jimmy Pang's personal perspective as a data leader.\n\nReturn a JSON object with this exact structure:\n\n{\n  \"linkedin_post\": \"The complete, ready-to-publish LinkedIn post content.\",\n  \"brief_strategic_reasoning\": \"A short sentence explaining why you structured/wrote the post this way.\"\n}\n\n### SOURCE DATA ###\n{{ $json.text }}"
             }
           ]
@@ -204,8 +187,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        1200,
-        300
+        2064,
+        112
       ],
       "credentials": {
         "ollamaApi": {
@@ -216,7 +199,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nlet jsonStr = raw.trim();\n\nlet linkedin_post = '';\nlet reasoning = '';\nlet parsed = false;\n\ntry {\n  let cleanStr = jsonStr;\n  const firstBrace = cleanStr.indexOf('{');\n  const lastBrace = cleanStr.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n    cleanStr = cleanStr.substring(firstBrace, lastBrace + 1);\n  }\n  cleanStr = cleanStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n  const obj = JSON.parse(cleanStr);\n  linkedin_post = obj.linkedin_post || '';\n  reasoning = obj.brief_strategic_reasoning || '';\n  parsed = true;\n} catch (e) {\n  // standard parsing failed\n}\n\nif (!parsed) {\n  const postMatch = jsonStr.match(/\"linkedin_post\"\\s*:\\s*\"([\\s\\S]*?)\"\\s*,\\s*\"brief_strategic_reasoning\"/);\n  if (postMatch) {\n    linkedin_post = postMatch[1];\n  } else {\n    const altMatch = jsonStr.match(/\"linkedin_post\"\\s*:\\s*\"([\\s\\S]*?)\"\\s*}/);\n    if (altMatch) {\n      linkedin_post = altMatch[1];\n    } else {\n      linkedin_post = raw.replace(/```json/g, '').replace(/```/g, '').trim();\n    }\n  }\n  const reasonMatch = jsonStr.match(/\"brief_strategic_reasoning\"\\s*:\\s*\"([\\s\\S]*?)\"/);\n  if (reasonMatch) {\n    reasoning = reasonMatch[1];\n  }\n  \n  linkedin_post = linkedin_post\n    .replace(/\\\\n/g, '\\n')\n    .replace(/\\\\\"/g, '\"')\n    .replace(/\\\\'/g, \"'\")\n    .replace(/\\\\\\\\/g, '\\\\');\n  reasoning = reasoning\n    .replace(/\\\\n/g, '\\n')\n    .replace(/\\\\\"/g, '\"')\n    .replace(/\\\\'/g, \"'\")\n    .replace(/\\\\\\\\/g, '\\\\');\n}\n\nconst notionDocs = $('Retrieve Notion Pages').all();\nconst substackDocs = $('Retrieve Substack Posts').all();\nconst linkedinDocs = $('Retrieve LinkedIn Posts').all();\n\nconst fs = require('fs');\ntry {\n  fs.writeFileSync('/tmp/linkedin_doc.json', JSON.stringify(linkedinDocs.map(d => d.json), null, 2));\n  fs.writeFileSync('/tmp/notion_doc.json', JSON.stringify(notionDocs.map(d => d.json), null, 2));\n  fs.writeFileSync('/tmp/substack_doc.json', JSON.stringify(substackDocs.map(d => d.json), null, 2));\n} catch (err) {}\n\nconst uniqueNotion = Array.from(new Map(notionDocs.map(d => [d.json.document?.pageContent || '', d])).values());\nconst uniqueSubstack = Array.from(new Map(substackDocs.map(d => [d.json.document?.pageContent || '', d])).values());\nconst uniqueLinkedin = Array.from(new Map(linkedinDocs.map(d => [d.json.document?.pageContent || '', d])).values());\n\nconst sources = [];\nconst sourcesObj = {\n  Notion: [],\n  Substack: [],\n  LinkedIn: []\n};\n\nfunction addSource(docs, label, key) {\n  docs.forEach(d => {\n    const content = d.json.document?.pageContent || '';\n    if (content) {\n      const firstLine = content.split('\\n')[0].trim();\n      const title = `\"${firstLine}\"`;\n      sources.push(`${label}: ${title}`);\n      sourcesObj[key].push(title);\n    }\n  });\n}\n\naddSource(uniqueNotion, 'Notion', 'Notion');\naddSource(uniqueSubstack, 'Substack', 'Substack');\naddSource(uniqueLinkedin, 'LinkedIn', 'LinkedIn');\n\nconst sourcesStr = sources.length > 0 ? sources.join(', ') : 'None';\n\nreturn [{ json: { linkedin_post, reasoning, sources_str: sourcesStr, sources_obj: sourcesObj } }];"
       },
       "id": "Parse LLM Response",
@@ -224,22 +206,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1400,
-        300
+        2416,
+        112
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO t_content_generation.linkedin_posts (channel, content, original_prompt_or_source, status, used_resources)\nVALUES ('individual', '{{ $json.linkedin_post.replace(/'/g, \"''\") }}', 'Generated from RAG sources: {{ $json.sources_str.replace(/'/g, \"''\") }}', 'draft', '{{ JSON.stringify($json.sources_obj).replace(/'/g, \"''\") }}')\nRETURNING id, channel, status, content;"
+        "query": "INSERT INTO t_content_generation.linkedin_posts (channel, content, original_prompt_or_source, status, used_resources)\nVALUES ('individual', '{{ $json.linkedin_post.replace(/'/g, \"''\") }}', 'Generated from RAG sources: {{ $json.sources_str.replace(/'/g, \"''\") }}', 'draft', '{{ JSON.stringify($json.sources_obj).replace(/'/g, \"''\") }}')\nRETURNING id, channel, status, content;",
+        "options": {}
       },
       "id": "save-proposal-to-db",
       "name": "Save Proposal to DB",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1600,
-        300
+        2640,
+        112
       ],
       "credentials": {
         "postgres": {
@@ -250,7 +233,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const dbResult = $input.first().json;\nconst messageText = '💡 *New LinkedIn Post Proposal (Individual)* 💡\\n\\n*Status:* Draft (Saved in Database, ID: ' + dbResult.id + ')\\n\\n*Proposed Content:*\\n```\\n' + dbResult.content + '\\n```\\n\\n_Generated by Giusy_ 🤖';\nreturn [{ json: { slack_message: messageText } }];"
       },
       "id": "Formulate Slack Message",
@@ -258,23 +240,24 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1800,
-        300
+        2864,
+        112
       ]
     },
     {
       "parameters": {
         "channel": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
         "text": "={{ $json.slack_message }}",
-        "otherOptions": {}
+        "otherOptions": {},
+        "attachments": []
       },
       "id": "notify-slack",
       "name": "Notify Slack",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        2000,
-        300
+        3088,
+        112
       ],
       "credentials": {
         "slackApi": {
@@ -285,7 +268,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const parentTs = $('Notify Slack').first().json.ts;\nconst parseResult = $('Parse LLM Response').first().json;\nconst sourcesObj = parseResult.sources_obj || {};\n\nconst items = [];\nconst icons = {\n  Notion: '📚',\n  Substack: '✉️',\n  LinkedIn: '🔗'\n};\n\nfor (const [app, titles] of Object.entries(sourcesObj)) {\n  if (titles && titles.length > 0) {\n    const lines = [`${icons[app] || '•'} *${app} Sources Used:*`];\n    titles.forEach(title => {\n      lines.push(`• ${title}`);\n    });\n    items.push({\n      json: {\n        thread_ts: parentTs,\n        text: lines.join('\\n')\n      }\n    });\n  }\n}\n\nreturn items;"
       },
       "id": "Formulate Slack Thread Messages",
@@ -293,8 +275,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2200,
-        300
+        3312,
+        112
       ]
     },
     {
@@ -303,15 +285,16 @@
         "text": "={{ $json.text }}",
         "otherOptions": {
           "thread_ts": "={{ $json.thread_ts }}"
-        }
+        },
+        "attachments": []
       },
       "id": "notify-slack-thread",
       "name": "Notify Slack Thread",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        2400,
-        300
+        3536,
+        112
       ],
       "credentials": {
         "slackApi": {
@@ -487,8 +470,9 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }
