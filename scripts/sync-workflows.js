@@ -74,6 +74,12 @@ for (const map of mappings) {
   const dbWf = JSON.parse(fs.readFileSync(map.db, 'utf8'));
   const fileWf = JSON.parse(fs.readFileSync(map.file, 'utf8'));
 
+  if (!map.jsNodeName || !map.llmNodeName) {
+    fs.writeFileSync(map.file, JSON.stringify(dbWf, null, 2) + '\n');
+    console.log(`Successfully updated ${map.file} directly from DB`);
+    continue;
+  }
+
   const fileJsNode = fileWf.nodes.find(n => n.name.toLowerCase() === map.jsNodeName.toLowerCase());
   const fileLlmNode = fileWf.nodes.find(n => n.name.toLowerCase() === map.llmNodeName.toLowerCase());
 
