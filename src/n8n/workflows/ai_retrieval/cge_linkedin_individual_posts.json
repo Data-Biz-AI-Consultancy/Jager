@@ -356,32 +356,19 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nreturn [{\n  json: {\n    ...data,\n    _approved_raw: data.approved,\n    _approved_type: typeof data.approved,\n    _all_keys: Object.keys(data).join(', '),\n    _full_json: JSON.stringify(data)\n  }\n}];"
-      },
-      "id": "inspect-slack-output",
-      "name": "Inspect Slack Output",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3980,
-        112
-      ]
-    },
-    {
-      "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": false,
+            "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose"
+            "typeValidation": "strict"
           },
           "conditions": [
             {
               "id": "approved-check",
-              "leftValue": "={{ ($json._approved_raw ?? '').toString() }}",
-              "rightValue": "true",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
               "operator": {
-                "type": "string",
+                "type": "boolean",
                 "operation": "equals"
               }
             }
@@ -395,7 +382,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        4200,
+        3980,
         112
       ]
     },
@@ -619,17 +606,6 @@
       ]
     },
     "Slack Send and Wait": {
-      "main": [
-        [
-          {
-            "node": "Inspect Slack Output",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Inspect Slack Output": {
       "main": [
         [
           {
