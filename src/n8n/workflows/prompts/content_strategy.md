@@ -18,7 +18,7 @@
 *   **Data Biz Hat (Founder/Consultant):**
     *   "What I'd tell an SME owner about their data stack today."
     *   Short observations on founder pain points.
-*   **Formats:** Text posts, short commentary, polls, reshares with your POV added.
+*   **Formats:** Reshares with your POV added (High Priority), text posts, short commentary, polls.
 
 ### 🔵 SING — Campaign-style (2–3x/month)
 **Goal:** Medium-effort, high-engagement content to drive deeper interactions.
@@ -30,15 +30,16 @@
     *   Mini case studies.
     *   Solving "accidental analyst" pain points.
     *   Repurposed Substack articles (light version).
-*   **Formats:** Carousels, short videos, infographics, newsletter teasers.
+*   **Formats:** Substack articles (Aim for 1 post/month - High Priority), newsletter teasers, infographics, carousels. YouTube videos (e.g., ~20 mins, later addition).
 
 ### 🔴 SHOUT — Cornerstone (1–2x/quarter)
 **Goal:** Big cornerstone pieces to achieve maximum reach.
 *   **Data Leader Hat (Operator/Tech):**
     *   Deep dives on the changing landscape of AI infrastructure (e.g., why clean data and internal context are the real moats).
     *   Contrarian takes on tech leadership and organizational design (e.g., pitfalls of "rightsizing", the culture behind successful AI transformation).
+    *   State of data takes and predictions (e.g., "State of Data in 2026").
 *   **Data Biz Hat (Founder/Consultant):**
     *   Research-backed posts (e.g., "SMEs and data: what's broken").
     *   New service or consultancy launch announcements.
     *   Substack deep-dives.
-*   **Formats:** Long-form posts, document posts, fully repurposed Substack articles.
+*   **Formats:** Fully repurposed Substack articles (High Priority), long-form posts, document posts, deep-dive analysis of YouTube videos.
