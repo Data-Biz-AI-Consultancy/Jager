@@ -317,17 +317,91 @@
     },
     {
       "parameters": {
-        "resume": "webhook",
+        "select": "channel",
+        "channelId": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
+        "operation": "sendAndWait",
+        "messageType": "text",
+        "message": "=Please review the draft above (ID: {{ $('Save Proposal to DB').first().json.id }}). Do you approve it?",
+        "approveLabel": "Approve ✅",
+        "declineLabel": "Reject ❌",
         "options": {}
       },
-      "id": "wait-for-approval",
-      "name": "Wait for Approval",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1,
+      "id": "slack-send-and-wait",
+      "name": "Slack Send and Wait",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
       "position": [
         3760,
         112
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-giusy-cred",
+          "name": "Slack Giusy Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.approved }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-approved",
+      "name": "If Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        3980,
+        112
       ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE t_content_generation.linkedin_posts\nSET status = 'approved',\n    is_approved = TRUE,\n    updated_at = NOW()\nWHERE id = {{ $('Save Proposal to DB').first().json.id }}\nRETURNING id, status;",
+        "options": {}
+      },
+      "id": "update-status-approved",
+      "name": "Update Status to Approved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4200,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE t_content_generation.linkedin_posts\nSET status = 'rejected',\n    is_approved = FALSE,\n    updated_at = NOW()\nWHERE id = {{ $('Save Proposal to DB').first().json.id }}\nRETURNING id, status;",
+        "options": {}
+      },
+      "id": "update-status-rejected",
+      "name": "Update Status to Rejected",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4200,
+        220
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     }
   ],
   "connections": {
@@ -499,7 +573,36 @@
       "main": [
         [
           {
-            "node": "Wait for Approval",
+            "node": "Slack Send and Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Send and Wait": {
+      "main": [
+        [
+          {
+            "node": "If Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Approved?": {
+      "main": [
+        [
+          {
+            "node": "Update Status to Approved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Status to Rejected",
             "type": "main",
             "index": 0
           }
