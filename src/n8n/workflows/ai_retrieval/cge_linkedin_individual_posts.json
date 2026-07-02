@@ -322,9 +322,21 @@
         "operation": "sendAndWait",
         "messageType": "text",
         "message": "=Please review the draft above (ID: {{ $('Save Proposal to DB').first().json.id }}). Do you approve it?",
-        "approveLabel": "Approve ✅",
-        "declineLabel": "Reject ❌",
-        "options": {}
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Approve",
+            "buttonStyle": "primary",
+            "declineLabel": "Decline",
+            "declineButtonStyle": "default"
+          }
+        },
+        "options": {
+          "limitWaitTime": true,
+          "limitType": "afterTimeInterval",
+          "amount": 45,
+          "unit": "minutes"
+        }
       },
       "id": "slack-send-and-wait",
       "name": "Slack Send and Wait",
