@@ -261,7 +261,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"channel\": \"{{ $env.SLACK_MARKETING_CHANNEL || 'content' }}\",\n  \"text\": \"{{ $json.slack_message.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\",\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"{{ $json.slack_message.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\"\n      }\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"Approve ✅\"\n          },\n          \"style\": \"primary\",\n          \"value\": \"approve:{{ $('Save Proposal to DB').first().json.id }}\",\n          \"action_id\": \"approve_action\"\n        },\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"Reject ❌\"\n          },\n          \"style\": \"danger\",\n          \"value\": \"reject:{{ $('Save Proposal to DB').first().json.id }}\",\n          \"action_id\": \"reject_action\"\n        }\n      ]\n    }\n  ]\n}"
+        "jsonBody": "={\n  \"channel\": \"{{ $env.SLACK_MARKETING_CHANNEL || 'content' }}\",\n  \"text\": \"{{ $json.slack_message.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\",\n  \"blocks\": [\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"{{ $json.slack_message.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\"\n      }\n    },\n    {\n      \"type\": \"actions\",\n      \"elements\": [\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"Approve ✅\"\n          },\n          \"style\": \"primary\",\n          \"value\": \"approve:{{ $('Save Proposal to DB').first().json.id }}:{{ $execution.resumeUrl }}\",\n          \"action_id\": \"approve_action\"\n        },\n        {\n          \"type\": \"button\",\n          \"text\": {\n            \"type\": \"plain_text\",\n            \"text\": \"Reject ❌\"\n          },\n          \"style\": \"danger\",\n          \"value\": \"reject:{{ $('Save Proposal to DB').first().json.id }}:{{ $execution.resumeUrl }}\",\n          \"action_id\": \"reject_action\"\n        }\n      ]\n    }\n  ]\n}"
       },
       "id": "notify-slack",
       "name": "Notify Slack",
@@ -314,6 +314,20 @@
           "name": "Slack Giusy Credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {}
+      },
+      "id": "wait-for-approval",
+      "name": "Wait for Approval",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        3760,
+        112
+      ]
     }
   ],
   "connections": {
@@ -475,6 +489,17 @@
         [
           {
             "node": "Notify Slack Thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Slack Thread": {
+      "main": [
+        [
+          {
+            "node": "Wait for Approval",
             "type": "main",
             "index": 0
           }
