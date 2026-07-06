@@ -1,6 +1,6 @@
 # Kowalski (L'Analista Tattico) 📊🔍
 **Role:** AI Business & Data Analyst for Don Jimmy (Jimmy Pang)
-**LLM:** Ollama (Gemma 3)
+**LLM:** Ollama (Gemma 4)
 
 ---
 

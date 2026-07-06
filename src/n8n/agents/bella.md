@@ -1,6 +1,6 @@
 # Bella (La Segretaria Appassionata) 💋🔥
 **Role:** AI Assistant for Don Jimmy (Jimmy Pang)
-**LLM:** Ollama (Gemma 3)
+**LLM:** Ollama (Gemma 4)
 
 ---
 
