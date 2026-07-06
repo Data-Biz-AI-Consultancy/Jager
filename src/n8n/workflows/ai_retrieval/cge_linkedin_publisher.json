@@ -46,19 +46,15 @@
     },
     {
       "parameters": {
-        "url": "https://api.linkedin.com/rest/me",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "https://api.linkedin.com/v2/userinfo",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
               "name": "X-RestLi-Protocol-Version",
               "value": "2.0.0"
-            },
-            {
-              "name": "LinkedIn-Version",
-              "value": "202312"
             }
           ]
         },
@@ -73,9 +69,9 @@
         300
       ],
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "linkedin-member-data-portability-api",
-          "name": "LinkedIn Member Data Portability API"
+        "linkedInOAuth2Api": {
+          "id": "linkedin-oauth2-api",
+          "name": "LinkedIn OAuth2 API"
         }
       }
     },
@@ -83,8 +79,8 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.linkedin.com/rest/posts",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -94,7 +90,7 @@
             },
             {
               "name": "LinkedIn-Version",
-              "value": "202312"
+              "value": "202603"
             },
             {
               "name": "Content-Type",
@@ -104,7 +100,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"author\":\"urn:li:person:{{ $json.id }}\",\"commentary\":\"{{ $('Fetch Due Posts').item.json.content.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\",\"visibility\":\"PUBLIC\",\"distribution\":{\"feedDistribution\":\"MAIN_FEED\",\"targetEntities\":[],\"thirdPartyDistributionChannels\":[]},\"lifecycleState\":\"PUBLISHED\",\"isReshareDisabledByAuthor\":false}",
+        "jsonBody": "={\"author\":\"urn:li:person:{{ $json.sub }}\",\"commentary\":\"{{ $('Fetch Due Posts').item.json.content.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\",\"visibility\":\"PUBLIC\",\"distribution\":{\"feedDistribution\":\"MAIN_FEED\",\"targetEntities\":[],\"thirdPartyDistributionChannels\":[]},\"lifecycleState\":\"PUBLISHED\",\"isReshareDisabledByAuthor\":false}",
         "options": {}
       },
       "id": "publish-to-linkedin",
@@ -116,9 +112,9 @@
         300
       ],
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "linkedin-member-data-portability-api",
-          "name": "LinkedIn Member Data Portability API"
+        "linkedInOAuth2Api": {
+          "id": "linkedin-oauth2-api",
+          "name": "LinkedIn OAuth2 API"
         }
       }
     },
