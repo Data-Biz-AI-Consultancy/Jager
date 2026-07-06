@@ -41,7 +41,7 @@ services:
       - NOTION_API_KEY=${NOTION_API_KEY}
       - HUGGING_FACE_TOKEN=${HUGGING_FACE_TOKEN}
       - ML_SERVICE_URL=${ML_SERVICE_URL:-http://ml:8000}
-      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost/}
+      - WEBHOOK_URL=${WEBHOOK_URL:-https://jager.n8n.com/}
       - GENERIC_TIMEZONE=Europe/Berlin
 
       - N8N_PROXY_HOPS=1
@@ -79,6 +79,15 @@ services:
     depends_on:
       n8n:
         condition: service_healthy
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: always
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    depends_on:
+      - caddy
 
 volumes:
   pgdata:
