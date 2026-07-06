@@ -231,8 +231,8 @@
     },
     {
       "parameters": {
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
         "method": "POST",
         "url": "https://api.notion.com/v1/pages",
         "sendHeaders": true,
@@ -262,7 +262,7 @@
         96
       ],
       "credentials": {
-        "httpHeaderAuth": {
+        "notionApi": {
           "id": "notion-substack-posts-generation-api",
           "name": "Notion Substack Posts Generation API"
         }
@@ -416,8 +416,8 @@
     },
     {
       "parameters": {
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
         "method": "PATCH",
         "url": "=https://api.notion.com/v1/pages/{{ $('Create Notion Page').first().json.id }}",
         "sendHeaders": true,
@@ -438,7 +438,7 @@
         "jsonBody": "{\n  \"properties\": {\n    \"Status\": {\n      \"status\": {\n        \"name\": \"Approved\"\n      }\n    }\n  }\n}",
         "options": {}
       },
-      "id": "update-status-approved",
+      "id": "Update Status to Approved",
       "name": "Update Status to Approved",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
@@ -447,7 +447,7 @@
         0
       ],
       "credentials": {
-        "httpHeaderAuth": {
+        "notionApi": {
           "id": "notion-substack-posts-generation-api",
           "name": "Notion Substack Posts Generation API"
         }
@@ -476,8 +476,8 @@
     },
     {
       "parameters": {
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
         "method": "PATCH",
         "url": "=https://api.notion.com/v1/pages/{{ $('Create Notion Page').first().json.id }}",
         "sendHeaders": true,
@@ -498,7 +498,7 @@
         "jsonBody": "{\n  \"properties\": {\n    \"Status\": {\n      \"status\": {\n        \"name\": \"Rejected\"\n      }\n    }\n  }\n}",
         "options": {}
       },
-      "id": "update-status-rejected",
+      "id": "Update Status to Rejected",
       "name": "Update Status to Rejected",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
@@ -507,7 +507,7 @@
         192
       ],
       "credentials": {
-        "httpHeaderAuth": {
+        "notionApi": {
           "id": "notion-substack-posts-generation-api",
           "name": "Notion Substack Posts Generation API"
         }
@@ -617,17 +617,6 @@
         [
           {
             "node": "Format Context for LLM",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Context for LLM": {
-      "main": [
-        [
-          {
-            "node": "Generate Proposal Post",
             "type": "main",
             "index": 0
           }
