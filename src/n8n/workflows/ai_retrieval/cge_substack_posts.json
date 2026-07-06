@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const queryText = 'personal branding, content marketing, data engineering, artificial intelligence';\nreturn [{ json: { query: queryText } }];"
+        "jsCode": "const queryText = 'thought leadership AI & Data, data leaders, business executives, founders, senior data ICs';\nreturn [{ json: { query: queryText } }];"
       },
       "id": "prepare-rag-query",
       "name": "Prepare RAG Query",
