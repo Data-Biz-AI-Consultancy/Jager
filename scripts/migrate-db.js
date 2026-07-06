@@ -1,5 +1,10 @@
-const pgPath = require.resolve('pg', { paths: ['/usr/local/lib/node_modules/n8n'] });
-const { Client } = require(pgPath);
+let Client;
+try {
+  const pgPath = require.resolve('pg', { paths: ['/usr/local/lib/node_modules/n8n'] });
+  Client = require(pgPath).Client;
+} catch (e) {
+  Client = require('pg').Client;
+}
 
 let client;
 let configLog = '';
@@ -502,11 +507,18 @@ CREATE TABLE IF NOT EXISTS t_content_generation.linkedin_posts (
   published_at TIMESTAMP WITH TIME ZONE,
   external_post_id VARCHAR(255),
   used_resources JSONB,
+  is_scheduled BOOLEAN DEFAULT FALSE,
+  is_published BOOLEAN DEFAULT FALSE,
+  timezone VARCHAR(50) DEFAULT 'Europe/Berlin',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS used_resources jsonb;
+ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS is_scheduled BOOLEAN DEFAULT FALSE;
+ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT FALSE;
+ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'Europe/Berlin';
+ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS published_at TIMESTAMP WITH TIME ZONE;
 
 CREATE TABLE IF NOT EXISTS t_content_generation.substack_articles (
   id SERIAL PRIMARY KEY,
@@ -709,6 +721,14 @@ async function run() {
   console.log('Connecting to jager application database for automated migrations...');
   await client.connect();
   console.log('Running application database migrations...');
+  try {
+    await client.query(`
+      ALTER TABLE t_content_generation.linkedin_posts DROP COLUMN IF EXISTS publish_at;
+      ALTER TABLE t_content_generation.linkedin_posts DROP COLUMN IF EXISTS scheduled_to_publish_at;
+    `);
+  } catch (err) {
+    console.warn('Warning: Failed to drop duplicate scheduling columns:', err.message);
+  }
   await client.query(ddl);
 
   // Deduplicate and ensure primary key constraints for s_linkedin tables (invitations, messages, connections, searches)

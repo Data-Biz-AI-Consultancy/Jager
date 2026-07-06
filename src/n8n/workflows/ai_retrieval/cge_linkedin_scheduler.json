@@ -1,0 +1,156 @@
+{
+  "id": "CgeLinkedinScheduler",
+  "name": "CGE - LinkedIn Scheduler",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT scheduled_at \nFROM t_content_generation.linkedin_posts \nWHERE channel = 'individual'\n  AND is_scheduled = TRUE \n  AND scheduled_at > NOW() \nORDER BY scheduled_at ASC;",
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "fetch-future-scheduled",
+      "name": "Fetch Future Scheduled",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, created_at \nFROM t_content_generation.linkedin_posts \nWHERE channel = 'individual'\n  AND status = 'approved' \n  AND is_approved = TRUE \n  AND is_scheduled = FALSE \nORDER BY id ASC;",
+        "options": {}
+      },
+      "alwaysOutputData": true,
+      "id": "fetch-approved-unscheduled",
+      "name": "Fetch Approved Unscheduled",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const approvedPosts = $('Fetch Approved Unscheduled').all().filter(p => p.json && p.json.id);\nconst futureScheduled = $('Fetch Future Scheduled').all().filter(p => p.json && p.json.scheduled_at);\n\nif (approvedPosts.length === 0) {\n  return [];\n}\n\n// Luxon DateTime is available globally as DateTime\nlet start = DateTime.now().setZone('Europe/Berlin');\n\n// Convert future scheduled times to a Set of strings to check for collisions\nconst scheduledSlots = new Set(futureScheduled.map(p => {\n  if (!p.json.scheduled_at) return '';\n  return DateTime.fromISO(p.json.scheduled_at).setZone('Europe/Berlin').toFormat('yyyy-MM-dd HH:mm');\n}).filter(Boolean));\n\nfunction getNextSlot(dt) {\n  let candidate = dt.set({ hour: 15, minute: 0, second: 0, millisecond: 0 });\n  if (candidate <= dt) {\n    candidate = candidate.plus({ days: 1 });\n  }\n  // Only allow Mon (1), Wed (3), Fri (5), and Sun (7) at 15:00 Berlin time\n  const validDays = [1, 3, 5, 7];\n  while (!validDays.includes(candidate.weekday)) {\n    candidate = candidate.plus({ days: 1 });\n  }\n  return candidate;\n}\n\nconst updates = [];\nlet currentPointer = start;\n\nfor (const post of approvedPosts) {\n  let slot = getNextSlot(currentPointer);\n  while (scheduledSlots.has(slot.toFormat('yyyy-MM-dd HH:mm'))) {\n    slot = getNextSlot(slot);\n  }\n  \n  updates.push({\n    json: {\n      id: post.json.id,\n      scheduled_at: slot.toUTC().toISO(),\n      timezone: 'Europe/Berlin'\n    }\n  });\n  \n  scheduledSlots.add(slot.toFormat('yyyy-MM-dd HH:mm'));\n  currentPointer = slot;\n}\n\nreturn updates;"
+      },
+      "id": "calculate-slots",
+      "name": "Calculate Slots",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE t_content_generation.linkedin_posts\nSET is_scheduled = TRUE,\n    scheduled_at = '{{ $json.scheduled_at }}',\n    timezone = '{{ $json.timezone }}',\n    status = 'scheduled',\n    updated_at = NOW()\nWHERE id = {{ $json.id }};\n",
+        "options": {}
+      },
+      "id": "update-post-schedule",
+      "name": "Update Post Schedule",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Future Scheduled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Future Scheduled": {
+      "main": [
+        [
+          {
+            "node": "Fetch Approved Unscheduled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Approved Unscheduled": {
+      "main": [
+        [
+          {
+            "node": "Calculate Slots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Slots": {
+      "main": [
+        [
+          {
+            "node": "Update Post Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
