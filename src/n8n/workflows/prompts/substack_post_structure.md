@@ -52,6 +52,6 @@ graph TD
 *   Emphasize key takeaways with **bolding** and *italics*.
 *   Use bulleted or numbered lists for step-by-step guides.
 *   Ensure the code snippets or terminal commands are enclosed in fenced code blocks.
-*   **Article Length:** The ideal length per article is 2000-2500 characters.
+*   **Article Length:** The ideal length per article is 2000-2500 words.
 *   **Article Format:** Must be written in valid Markdown syntax.
 
