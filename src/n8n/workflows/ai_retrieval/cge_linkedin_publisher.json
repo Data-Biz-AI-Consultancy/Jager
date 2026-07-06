@@ -26,7 +26,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, content \nFROM t_content_generation.linkedin_posts\nWHERE channel = 'individual'\n  AND is_approved = TRUE\n  AND is_scheduled = TRUE\n  AND published_at IS NULL\n  AND publish_at <= NOW()\nORDER BY publish_at ASC;",
+        "query": "SELECT id, content \nFROM t_content_generation.linkedin_posts\nWHERE channel = 'individual'\n  AND is_approved = TRUE\n  AND is_scheduled = TRUE\n  AND published_at IS NULL\n  AND scheduled_at <= NOW()\nORDER BY scheduled_at ASC;",
         "options": {}
       },
       "id": "fetch-due-posts",
