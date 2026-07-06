@@ -101,7 +101,9 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\"author\":\"urn:li:person:{{ $json.sub }}\",\"commentary\":\"{{ $('Fetch Due Posts').item.json.content.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\",\"visibility\":\"PUBLIC\",\"distribution\":{\"feedDistribution\":\"MAIN_FEED\",\"targetEntities\":[],\"thirdPartyDistributionChannels\":[]},\"lifecycleState\":\"PUBLISHED\",\"isReshareDisabledByAuthor\":false}",
-        "options": {}
+        "options": {
+          "includeResponseHeadersAndStatus": true
+        }
       },
       "id": "publish-to-linkedin",
       "name": "Publish to LinkedIn",
@@ -121,7 +123,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.id || $response.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Fetch Due Posts').item.json.id }};",
+        "query": "=UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Fetch Due Posts').item.json.id }};",
         "options": {}
       },
       "id": "update-db-on-success",
@@ -142,7 +144,7 @@
     {
       "parameters": {
         "channel": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
-        "text": "=🚀 *LinkedIn Post Published!*\n\n*Post ID:* {{ $('Fetch Due Posts').item.json.id }}\n*LinkedIn URN:* {{ $('Publish to LinkedIn').item.json.id || $('Publish to LinkedIn').item.json.headers[\"x-restli-id\"] || \"\" }}\n\n*Content:*\n>>>{{ $('Fetch Due Posts').item.json.content }}\n",
+        "text": "=🚀 *LinkedIn Post Published!*\n\n*Post ID:* {{ $('Fetch Due Posts').item.json.id }}\n\n*Content:*\n>>>{{ $('Fetch Due Posts').item.json.content }}\n",
         "otherOptions": {},
         "attachments": []
       },
