@@ -218,16 +218,68 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO t_content_generation.substack_articles (title, content, original_prompt_or_source, status, used_resources)\nVALUES ('{{ $json.title.replace(/'/g, \"''\") }}', '{{ $json.substack_content.replace(/'/g, \"''\") }}', 'Generated from RAG sources: {{ $json.sources_str.replace(/'/g, \"''\") }}', 'draft', '{{ JSON.stringify($json.sources_obj).replace(/'/g, \"''\") }}')\nRETURNING id, title, status, content;",
+        "jsCode": "const title = $input.first().json.title || 'Untitled Substack Post';\nconst content = $input.first().json.substack_content || '';\nconst reasoning = $input.first().json.reasoning || '';\nconst sources_str = $input.first().json.sources_str || '';\n\nconst lines = content.split('\\n');\nconst children = [];\n\nif (reasoning) {\n  children.push({\n    \"object\": \"block\",\n    \"type\": \"callout\",\n    \"callout\": {\n      \"rich_text\": [\n        {\n          \"type\": \"text\",\n          \"text\": {\n            \"content\": \"Strategic Reasoning: \" + reasoning\n          },\n          \"annotations\": {\n            \"italic\": true,\n            \"bold\": true\n          }\n        }\n      ],\n      \"icon\": {\n        \"emoji\": \"💡\"\n      },\n      \"color\": \"blue_background\"\n    }\n  });\n}\n\nif (sources_str) {\n  children.push({\n    \"object\": \"block\",\n    \"type\": \"callout\",\n    \"callout\": {\n      \"rich_text\": [\n        {\n          \"type\": \"text\",\n          \"text\": {\n            \"content\": \"Sources Used: \" + sources_str\n          }\n        }\n      ],\n      \"icon\": {\n        \"emoji\": \"📚\"\n      },\n      \"color\": \"gray_background\"\n    }\n  });\n}\n\nlet inCodeBlock = false;\nlet codeContent = [];\nlet codeLanguage = 'plain text';\n\nfor (let line of lines) {\n  let trimmed = line.trim();\n  \n  if (trimmed.startsWith('```')) {\n    if (inCodeBlock) {\n      children.push({\n        \"object\": \"block\",\n        \"type\": \"code\",\n        \"code\": {\n          \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": codeContent.join('\\n') } }],\n          \"language\": codeLanguage\n        }\n      });\n      codeContent = [];\n      inCodeBlock = false;\n    } else {\n      inCodeBlock = true;\n      const lang = trimmed.substring(3).trim();\n      codeLanguage = lang || 'plain text';\n    }\n    continue;\n  }\n  \n  if (inCodeBlock) {\n    codeContent.push(line);\n    continue;\n  }\n  \n  if (!trimmed) {\n    continue;\n  }\n  \n  if (trimmed.startsWith('### ')) {\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"heading_3\",\n      \"heading_3\": {\n        \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": trimmed.substring(4) } }]\n      }\n    });\n  } else if (trimmed.startsWith('## ')) {\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"heading_2\",\n      \"heading_2\": {\n        \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": trimmed.substring(3) } }]\n      }\n    });\n  } else if (trimmed.startsWith('# ')) {\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"heading_1\",\n      \"heading_1\": {\n        \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": trimmed.substring(2) } }]\n      }\n    });\n  } else if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"bulleted_list_item\",\n      \"bulleted_list_item\": {\n        \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": trimmed.substring(2) } }]\n      }\n    });\n  } else if (/^\\d+\\.\\s/.test(trimmed)) {\n    const contentStart = trimmed.indexOf(' ') + 1;\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"numbered_list_item\",\n      \"numbered_list_item\": {\n        \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": trimmed.substring(contentStart) } }]\n      }\n    });\n  } else {\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"paragraph\",\n      \"paragraph\": {\n        \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": line } }]\n      }\n    });\n  }\n}\n\nconst chunkedChildren = children.slice(0, 100);\n\nconst payload = {\n  \"parent\": { \"database_id\": \"3956e98d4ef880c3bce5e31729afdf38\" },\n  \"properties\": {\n    \"Name\": {\n      \"title\": [\n        {\n          \"text\": {\n            \"content\": title\n          }\n        }\n      ]\n    },\n    \"Status\": {\n      \"status\": {\n        \"name\": \"Draft\"\n      }\n    }\n  },\n  \"children\": chunkedChildren\n};\n\nreturn [{ json: { payload, title, reasoning } }];"
+      },
+      "id": "Format Notion Page JSON",
+      "name": "Format Notion Page JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
         "options": {}
       },
-      "id": "save-proposal-to-db",
+      "id": "Create Notion Page",
+      "name": "Create Notion Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2864,
+        96
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "notion-substack-posts-generation-api",
+          "name": "Notion Substack Posts Generation API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO t_content_generation.substack_articles (title, content, original_prompt_or_source, status, used_resources, external_post_id)\nVALUES ('{{ $('Parse LLM Response').first().json.title.replace(/'/g, \"''\") }}', '{{ $('Parse LLM Response').first().json.substack_content.replace(/'/g, \"''\") }}', 'Generated from RAG sources: {{ $('Parse LLM Response').first().json.sources_str.replace(/'/g, \"''\") }}', 'draft', '{{ JSON.stringify($('Parse LLM Response').first().json.sources_obj).replace(/'/g, \"''\") }}', '{{ $json.id }}')\nRETURNING id;",
+        "options": {}
+      },
+      "id": "Save Proposal to DB",
       "name": "Save Proposal to DB",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        2640,
+        3088,
         96
       ],
       "credentials": {
@@ -239,45 +291,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const dbResult = $input.first().json;\nconst previewContent = dbResult.content || 'No content generated';\nconst messageText = '💡 *New Substack Post Proposal* 💡\\n\\n*Status:* Draft (Saved in Database, ID: ' + dbResult.id + ')\\n\\n*Title:* ' + dbResult.title + '\\n\\n*Proposed Content:*\\n```\\n' + previewContent + '\\n```\\n\\n_Generated by Giusy_ 🤖';\nreturn [{ json: { slack_message: messageText } }];"
+        "jsCode": "const notionResponse = $('Create Notion Page').first().json;\nconst pageUrl = notionResponse.url || 'https://notion.so';\nconst parsedInfo = $('Format Notion Page JSON').first().json;\n\nconst messageText = '💡 *New Substack Article Draft Created in Notion* 💡\\n\\n*Title:* ' + parsedInfo.title + '\\n\\n*Strategic Reasoning:* ' + parsedInfo.reasoning + '\\n\\n*Notion Page Link:* ' + pageUrl + '\\n\\n_Generated by Giusy_ 🤖';\nreturn [{ json: { slack_message: messageText } }];"
       },
-      "id": "Formulate Slack Message",
-      "name": "Formulate Slack Message",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2864,
-        96
-      ]
-    },
-    {
-      "parameters": {
-        "channel": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
-        "text": "={{ $json.slack_message }}",
-        "otherOptions": {},
-        "attachments": []
-      },
-      "id": "notify-slack",
-      "name": "Notify Slack",
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 1,
-      "position": [
-        3088,
-        96
-      ],
-      "credentials": {
-        "slackApi": {
-          "id": "slack-giusy-cred",
-          "name": "Slack Giusy Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const parentTs = $('Notify Slack').first().json.ts;\nconst parseResult = $('Parse LLM Response').first().json;\nconst sourcesObj = parseResult.sources_obj || {};\n\nconst items = [];\nconst icons = {\n  Notion: '📚',\n  Substack: '✉️',\n  LinkedIn: '🔗'\n};\n\nfor (const [app, titles] of Object.entries(sourcesObj)) {\n  if (titles && titles.length > 0) {\n    const lines = [`${icons[app] || '•'} *${app} Sources Used:*`];\n    titles.forEach(title => {\n      lines.push(`• ${title}`);\n    });\n    items.push({\n      json: {\n        thread_ts: parentTs,\n        text: lines.join('\\n')\n      }\n    });\n  }\n}\n\nreturn items;"
-      },
-      "id": "Formulate Slack Thread Messages",
-      "name": "Formulate Slack Thread Messages",
+      "id": "Formulate Slack Notification",
+      "name": "Formulate Slack Notification",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -288,14 +305,12 @@
     {
       "parameters": {
         "channel": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
-        "text": "={{ $json.text }}",
-        "otherOptions": {
-          "thread_ts": "={{ $json.thread_ts }}"
-        },
+        "text": "={{ $json.slack_message }}",
+        "otherOptions": {},
         "attachments": []
       },
-      "id": "notify-slack-thread",
-      "name": "Notify Slack Thread",
+      "id": "Notify Slack",
+      "name": "Notify Slack",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
@@ -311,10 +326,31 @@
     },
     {
       "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE t_content_generation.substack_articles\nSET slack_ts = '{{ $json.ts }}',\n    updated_at = NOW()\nWHERE external_post_id = '{{ $('Create Notion Page').first().json.id }}'\nRETURNING id;",
+        "options": {}
+      },
+      "id": "Update Slack TS in DB",
+      "name": "Update Slack TS in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3760,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
         "operation": "sendAndWait",
         "select": "channel",
         "channelId": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
-        "message": "=Please review the Substack draft above (ID: {{ $('Save Proposal to DB').first().json.id }}). Do you approve it?",
+        "message": "=Please review the Substack draft above in Notion. Do you approve it?",
         "approvalOptions": {
           "values": {
             "approvalType": "double"
@@ -334,7 +370,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.1,
       "position": [
-        3760,
+        3984,
         96
       ],
       "webhookId": "55af1ae5-aed6-4a6e-9e21-7f6fb9d918a9",
@@ -374,22 +410,61 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        3984,
+        4208,
         96
       ]
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE t_content_generation.substack_articles\nSET status = 'approved',\n    is_approved = TRUE,\n    updated_at = NOW()\nWHERE id = {{ $('Save Proposal to DB').first().json.id }}\nRETURNING id, status;",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $('Create Notion Page').first().json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"properties\": {\n    \"Status\": {\n      \"status\": {\n        \"name\": \"Approved\"\n      }\n    }\n  }\n}",
         "options": {}
       },
       "id": "update-status-approved",
       "name": "Update Status to Approved",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4432,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "notion-substack-posts-generation-api",
+          "name": "Notion Substack Posts Generation API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE t_content_generation.substack_articles\nSET status = 'approved',\n    is_approved = TRUE,\n    updated_at = NOW()\nWHERE external_post_id = '{{ $('Create Notion Page').first().json.id }}'\nRETURNING id, status;",
+        "options": {}
+      },
+      "id": "Update DB Status to Approved",
+      "name": "Update DB Status to Approved",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        4208,
+        4656,
         0
       ],
       "credentials": {
@@ -401,16 +476,55 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE t_content_generation.substack_articles\nSET status = 'rejected',\n    is_approved = FALSE,\n    updated_at = NOW()\nWHERE id = {{ $('Save Proposal to DB').first().json.id }}\nRETURNING id, status;",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $('Create Notion Page').first().json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"properties\": {\n    \"Status\": {\n      \"status\": {\n        \"name\": \"Rejected\"\n      }\n    }\n  }\n}",
         "options": {}
       },
       "id": "update-status-rejected",
       "name": "Update Status to Rejected",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4432,
+        192
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "notion-substack-posts-generation-api",
+          "name": "Notion Substack Posts Generation API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE t_content_generation.substack_articles\nSET status = 'rejected',\n    is_approved = FALSE,\n    updated_at = NOW()\nWHERE external_post_id = '{{ $('Create Notion Page').first().json.id }}'\nRETURNING id, status;",
+        "options": {}
+      },
+      "id": "Update DB Status to Rejected",
+      "name": "Update DB Status to Rejected",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        4208,
+        4656,
         192
       ],
       "credentials": {
@@ -520,6 +634,17 @@
         ]
       ]
     },
+    "Format Context for LLM": {
+      "main": [
+        [
+          {
+            "node": "Generate Proposal Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Generate Proposal Post": {
       "main": [
         [
@@ -535,6 +660,28 @@
       "main": [
         [
           {
+            "node": "Format Notion Page JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Notion Page JSON": {
+      "main": [
+        [
+          {
+            "node": "Create Notion Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion Page": {
+      "main": [
+        [
+          {
             "node": "Save Proposal to DB",
             "type": "main",
             "index": 0
@@ -546,14 +693,14 @@
       "main": [
         [
           {
-            "node": "Formulate Slack Message",
+            "node": "Formulate Slack Notification",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Formulate Slack Message": {
+    "Formulate Slack Notification": {
       "main": [
         [
           {
@@ -568,40 +715,18 @@
       "main": [
         [
           {
-            "node": "Formulate Slack Thread Messages",
+            "node": "Update Slack TS in DB",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Formulate Slack Thread Messages": {
-      "main": [
-        [
-          {
-            "node": "Notify Slack Thread",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Notify Slack Thread": {
+    "Update Slack TS in DB": {
       "main": [
         [
           {
             "node": "Slack Send and Wait",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Slack Send and Wait": {
-      "main": [
-        [
-          {
-            "node": "If Approved?",
             "type": "main",
             "index": 0
           }
@@ -631,6 +756,28 @@
         [
           {
             "node": "Update Status to Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status to Approved": {
+      "main": [
+        [
+          {
+            "node": "Update DB Status to Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status to Rejected": {
+      "main": [
+        [
+          {
+            "node": "Update DB Status to Rejected",
             "type": "main",
             "index": 0
           }
