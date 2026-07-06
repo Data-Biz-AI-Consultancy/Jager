@@ -7,7 +7,11 @@
         "rule": {
           "interval": [
             {
-              "field": "weeks"
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
             }
           ]
         }
