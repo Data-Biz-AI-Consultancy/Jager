@@ -65,7 +65,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/agents/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst schemaRows = $('Scan DB Structure').all();\nconst directiveRows = $('Get Directives').all();\nconst directives = directiveRows.length > 0 ? directiveRows.map((r, i) => (i + 1) + '. ' + r.json.directive).join('\\n') : 'No directives provided.';\n\nif (schemaRows.length === 0) {\n  return [{ json: { text: 'No database tables found.', directives, kowalski_persona: persona } }];\n}\n\nconst schemas = {};\nschemaRows.forEach(row => {\n  const d = row.json;\n  if (!schemas[d.schema_name]) {\n    schemas[d.schema_name] = {};\n  }\n  if (!schemas[d.schema_name][d.table_name]) {\n    schemas[d.schema_name][d.table_name] = [];\n  }\n  schemas[d.schema_name][d.table_name].push({\n    column: d.column_name,\n    type: d.data_type,\n    description: d.column_description || ''\n  });\n});\n\nlet text = 'PostgreSQL Database Schema and Column Documentation:\\n\\n';\nfor (const [schemaName, tables] of Object.entries(schemas)) {\n  text += `Schema: ${schemaName}\\n`;\n  for (const [tableName, columns] of Object.entries(tables)) {\n    text += `  Table: ${tableName}\\n`;\n    columns.forEach(col => {\n      text += `    - ${col.column} (${col.type})${col.description ? ' // ' + col.description : ''}\\n`;\n    });\n  }\n  text += '\\n';\n}\n\n// Cap schema to avoid overwhelming small LLMs (gemma3:4b context limit)\nconst MAX_SCHEMA_CHARS = 6000;\nif (text.length > MAX_SCHEMA_CHARS) {\n  text = text.substring(0, MAX_SCHEMA_CHARS) + '\\n...[schema truncated for LLM context limit]';\n}\n\nreturn [{ json: { text, directives, kowalski_persona: persona } }];"
+        "jsCode": "const fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/agents/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst schemaRows = $('Scan DB Structure').all();\nconst directiveRows = $('Get Directives').all();\nconst directives = directiveRows.length > 0 ? directiveRows.map((r, i) => (i + 1) + '. ' + r.json.directive).join('\\n') : 'No directives provided.';\n\nif (schemaRows.length === 0) {\n  return [{ json: { text: 'No database tables found.', directives, kowalski_persona: persona } }];\n}\n\nconst schemas = {};\nschemaRows.forEach(row => {\n  const d = row.json;\n  if (!schemas[d.schema_name]) {\n    schemas[d.schema_name] = {};\n  }\n  if (!schemas[d.schema_name][d.table_name]) {\n    schemas[d.schema_name][d.table_name] = [];\n  }\n  schemas[d.schema_name][d.table_name].push({\n    column: d.column_name,\n    type: d.data_type,\n    description: d.column_description || ''\n  });\n});\n\nlet text = 'PostgreSQL Database Schema and Column Documentation:\\n\\n';\nfor (const [schemaName, tables] of Object.entries(schemas)) {\n  text += `Schema: ${schemaName}\\n`;\n  for (const [tableName, columns] of Object.entries(tables)) {\n    text += `  Table: ${tableName}\\n`;\n    columns.forEach(col => {\n      text += `    - ${col.column} (${col.type})${col.description ? ' // ' + col.description : ''}\\n`;\n    });\n  }\n  text += '\\n';\n}\n\n// Cap schema to avoid overwhelming small LLMs (gemma4:31b context limit)\nconst MAX_SCHEMA_CHARS = 6000;\nif (text.length > MAX_SCHEMA_CHARS) {\n  text = text.substring(0, MAX_SCHEMA_CHARS) + '\\n...[schema truncated for LLM context limit]';\n}\n\nreturn [{ json: { text, directives, kowalski_persona: persona } }];"
       },
       "id": "format-schema-for-llm",
       "name": "Format Schema for LLM",
@@ -80,7 +80,7 @@
       "parameters": {
         "modelId": {
           "__rl": true,
-          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma4:31b' }}",
           "mode": "id"
         },
         "messages": {
@@ -161,7 +161,7 @@
       "parameters": {
         "modelId": {
           "__rl": true,
-          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma4:31b' }}",
           "mode": "id"
         },
         "messages": {

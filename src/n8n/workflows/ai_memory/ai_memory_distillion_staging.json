@@ -151,7 +151,7 @@
       "parameters": {
         "modelId": {
           "__rl": true,
-          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma4:31b' }}",
           "mode": "id"
         },
         "messages": {
@@ -184,7 +184,7 @@
       "parameters": {
         "modelId": {
           "__rl": true,
-          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma4:31b' }}",
           "mode": "id"
         },
         "messages": {
@@ -217,7 +217,7 @@
       "parameters": {
         "modelId": {
           "__rl": true,
-          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma3:4b' }}",
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma4:31b' }}",
           "mode": "id"
         },
         "messages": {
