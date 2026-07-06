@@ -472,6 +472,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		external_post_id VARCHAR(255),
 		used_resources JSONB,
 		is_scheduled BOOLEAN DEFAULT FALSE,
+		is_published BOOLEAN DEFAULT FALSE,
 		timezone VARCHAR(50) DEFAULT 'Europe/Berlin',
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -479,6 +480,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 
 	ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS used_resources jsonb;
 	ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS is_scheduled BOOLEAN DEFAULT FALSE;
+	ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS is_published BOOLEAN DEFAULT FALSE;
 	ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'Europe/Berlin';
 	ALTER TABLE t_content_generation.linkedin_posts ADD COLUMN IF NOT EXISTS published_at TIMESTAMP WITH TIME ZONE;
 

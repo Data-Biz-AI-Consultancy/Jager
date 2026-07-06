@@ -26,7 +26,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, content \nFROM t_content_generation.linkedin_posts\nWHERE channel = 'individual'\n  AND is_approved = TRUE\n  AND is_scheduled = TRUE\n  AND published_at IS NULL\n  AND scheduled_at <= NOW()\nORDER BY scheduled_at ASC;",
+        "query": "SELECT id, content \nFROM t_content_generation.linkedin_posts\nWHERE channel = 'individual'\n  AND is_approved = TRUE\n  AND is_scheduled = TRUE\n  AND is_published = FALSE\n  AND published_at IS NULL\n  AND scheduled_at <= NOW()\nORDER BY scheduled_at ASC;",
         "options": {}
       },
       "id": "fetch-due-posts",
@@ -125,7 +125,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    published_at = NOW(),\n    external_post_id = '{{ $json.id || $response.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Fetch Due Posts').item.json.id }};",
+        "query": "=UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.id || $response.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Fetch Due Posts').item.json.id }};",
         "options": {}
       },
       "id": "update-db-on-success",
