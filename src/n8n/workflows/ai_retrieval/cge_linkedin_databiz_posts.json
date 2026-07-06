@@ -23,7 +23,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const queryText = 'fractional CDO, AI voice agents, CRM automation, Snowflake, dbt, BigQuery, data infrastructure ROI, dashboard fatigue, customer acquisition, data strategy';\nreturn [{ json: { query: queryText } }];"
+        "jsCode": "const queryText = 'fractional CDO roadmapping governance audit SaaS vendor negotiation, 0-to-1 data infrastructure dbt Snowflake BigQuery, customer acquisition CRM automation, AI voice agent, dashboard fatigue KPI operational metrics EBITDA, principal coaching pipeline tuning event-driven design';\nreturn [{ json: { query: queryText } }];"
       },
       "id": "prepare-rag-query",
       "name": "Prepare RAG Query",
