@@ -29,6 +29,7 @@
         "query": "SELECT publish_at \nFROM t_content_generation.linkedin_posts \nWHERE channel = 'individual'\n  AND is_scheduled = TRUE \n  AND publish_at > NOW() \nORDER BY publish_at ASC;",
         "options": {}
       },
+      "alwaysOutputData": true,
       "id": "fetch-future-scheduled",
       "name": "Fetch Future Scheduled",
       "type": "n8n-nodes-base.postgres",
@@ -50,6 +51,7 @@
         "query": "SELECT id, created_at \nFROM t_content_generation.linkedin_posts \nWHERE channel = 'individual'\n  AND status = 'approved' \n  AND is_approved = TRUE \n  AND is_scheduled = FALSE \nORDER BY id ASC;",
         "options": {}
       },
+      "alwaysOutputData": true,
       "id": "fetch-approved-unscheduled",
       "name": "Fetch Approved Unscheduled",
       "type": "n8n-nodes-base.postgres",
@@ -68,7 +70,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const approvedPosts = $('Fetch Approved Unscheduled').all();\nconst futureScheduled = $('Fetch Future Scheduled').all();\n\nif (approvedPosts.length === 0) {\n  return [];\n}\n\n// Luxon DateTime is available globally as DateTime\nlet start = DateTime.now().setZone('Europe/Berlin');\n\n// Convert future scheduled times to a Set of strings to check for collisions\nconst scheduledSlots = new Set(futureScheduled.map(p => {\n  if (!p.json.publish_at) return '';\n  return DateTime.fromISO(p.json.publish_at).setZone('Europe/Berlin').toFormat('yyyy-MM-dd HH:mm');\n}).filter(Boolean));\n\nfunction getNextSlot(dt) {\n  // Candidate 1: today at 09:00\n  let c1 = dt.set({ hour: 9, minute: 0, second: 0, millisecond: 0 });\n  if (c1 > dt) return c1;\n  \n  // Candidate 2: today at 15:00\n  let c2 = dt.set({ hour: 15, minute: 0, second: 0, millisecond: 0 });\n  if (c2 > dt) return c2;\n  \n  // Candidate 3: tomorrow at 09:00\n  return dt.plus({ days: 1 }).set({ hour: 9, minute: 0, second: 0, millisecond: 0 });\n}\n\nconst updates = [];\nlet currentPointer = start;\n\nfor (const post of approvedPosts) {\n  let slot = getNextSlot(currentPointer);\n  while (scheduledSlots.has(slot.toFormat('yyyy-MM-dd HH:mm'))) {\n    slot = getNextSlot(slot);\n  }\n  \n  updates.push({\n    json: {\n      id: post.json.id,\n      publish_at: slot.toUTC().toISO(),\n      timezone: 'Europe/Berlin'\n    }\n  });\n  \n  scheduledSlots.add(slot.toFormat('yyyy-MM-dd HH:mm'));\n  currentPointer = slot;\n}\n\nreturn updates;"
+        "jsCode": "const approvedPosts = $('Fetch Approved Unscheduled').all().filter(p => p.json && p.json.id);\nconst futureScheduled = $('Fetch Future Scheduled').all().filter(p => p.json && p.json.publish_at);\n\nif (approvedPosts.length === 0) {\n  return [];\n}\n\n// Luxon DateTime is available globally as DateTime\nlet start = DateTime.now().setZone('Europe/Berlin');\n\n// Convert future scheduled times to a Set of strings to check for collisions\nconst scheduledSlots = new Set(futureScheduled.map(p => {\n  if (!p.json.publish_at) return '';\n  return DateTime.fromISO(p.json.publish_at).setZone('Europe/Berlin').toFormat('yyyy-MM-dd HH:mm');\n}).filter(Boolean));\n\nfunction getNextSlot(dt) {\n  // Candidate 1: today at 09:00\n  let c1 = dt.set({ hour: 9, minute: 0, second: 0, millisecond: 0 });\n  if (c1 > dt) return c1;\n  \n  // Candidate 2: today at 15:00\n  let c2 = dt.set({ hour: 15, minute: 0, second: 0, millisecond: 0 });\n  if (c2 > dt) return c2;\n  \n  // Candidate 3: tomorrow at 09:00\n  return dt.plus({ days: 1 }).set({ hour: 9, minute: 0, second: 0, millisecond: 0 });\n}\n\nconst updates = [];\nlet currentPointer = start;\n\nfor (const post of approvedPosts) {\n  let slot = getNextSlot(currentPointer);\n  while (scheduledSlots.has(slot.toFormat('yyyy-MM-dd HH:mm'))) {\n    slot = getNextSlot(slot);\n  }\n  \n  updates.push({\n    json: {\n      id: post.json.id,\n      publish_at: slot.toUTC().toISO(),\n      timezone: 'Europe/Berlin'\n    }\n  });\n  \n  scheduledSlots.add(slot.toFormat('yyyy-MM-dd HH:mm'));\n  currentPointer = slot;\n}\n\nreturn updates;"
       },
       "id": "calculate-slots",
       "name": "Calculate Slots",
