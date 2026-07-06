@@ -9,6 +9,13 @@ if (!fs.existsSync(tempDir)) {
 
 const mappings = [
   {
+    id: 'CgeLinkedinDatabizPosts',
+    db: path.join(tempDir, 'db_CgeLinkedinDatabizPosts.json'),
+    file: path.join(__dirname, '../src/n8n/workflows/ai_retrieval/cge_linkedin_databiz_posts.json'),
+    jsNodeName: 'Format Context for LLM',
+    llmNodeName: 'Generate Proposal Post'
+  },
+  {
     id: 'CgeLinkedinIndividualPosts',
     db: path.join(tempDir, 'db_CgeLinkedinIndividualPosts.json'),
     file: path.join(__dirname, '../src/n8n/workflows/ai_retrieval/cge_linkedin_individual_posts.json'),
