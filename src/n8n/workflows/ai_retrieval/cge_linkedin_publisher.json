@@ -1,0 +1,197 @@
+{
+  "id": "CgeLinkedinPublisher",
+  "name": "CGE - LinkedIn Publisher",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/15 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, content \nFROM t_content_generation.linkedin_posts\nWHERE channel = 'individual'\n  AND is_approved = TRUE\n  AND is_scheduled = TRUE\n  AND published_at IS NULL\n  AND publish_at <= NOW()\nORDER BY publish_at ASC;",
+        "options": {}
+      },
+      "id": "fetch-due-posts",
+      "name": "Fetch Due Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.linkedin.com/rest/me",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RestLi-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202312"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-member-urn",
+      "name": "Get Member URN",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "linkedin-member-data-portability-api",
+          "name": "LinkedIn Member Data Portability API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/rest/posts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-RestLi-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "LinkedIn-Version",
+              "value": "202312"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"author\":\"urn:li:person:{{ $json.id }}\",\"commentary\":\"{{ $('Fetch Due Posts').item.json.content.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\",\"visibility\":\"PUBLIC\",\"distribution\":{\"feedDistribution\":\"MAIN_FEED\",\"targetEntities\":[],\"thirdPartyDistributionChannels\":[]},\"lifecycleState\":\"PUBLISHED\",\"isReshareDisabledByAuthor\":false}",
+        "options": {}
+      },
+      "id": "publish-to-linkedin",
+      "name": "Publish to LinkedIn",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "linkedin-member-data-portability-api",
+          "name": "LinkedIn Member Data Portability API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    published_at = NOW(),\n    external_post_id = '{{ $json.id || $response.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Fetch Due Posts').item.json.id }};",
+        "options": {}
+      },
+      "id": "update-db-on-success",
+      "name": "Update DB on Success",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Due Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Due Posts": {
+      "main": [
+        [
+          {
+            "node": "Get Member URN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Member URN": {
+      "main": [
+        [
+          {
+            "node": "Publish to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish to LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Update DB on Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
