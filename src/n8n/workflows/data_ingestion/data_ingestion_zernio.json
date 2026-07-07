@@ -316,7 +316,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const data = item.json;\n  const acc = data.accounts && data.accounts[0];\n  if (!acc) continue;\n  const accountId = acc._id || acc.accountId;\n  const timeline = data.stats && data.stats[accountId] || [];\n  results.push({\n    json: {\n      accountId: accountId,\n      currentFollowers: acc.currentFollowers || 0,\n      growth: acc.growth || 0,\n      growthPercentage: acc.growthPercentage || 0,\n      lastUpdated: acc.lastUpdated || new Date().toISOString(),\n      timeline: timeline\n    }\n  });\n}\nreturn results;"
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const data = item.json;\n  const accountsList = data.accounts || [];\n  for (const acc of accountsList) {\n    const accountId = acc._id || acc.accountId;\n    if (!accountId) continue;\n    const lastUpdatedDate = acc.lastUpdated ? acc.lastUpdated.split('T')[0] : new Date().toISOString().split('T')[0];\n    results.push({\n      json: {\n        accountId: accountId,\n        date: lastUpdatedDate,\n        followersCount: acc.currentFollowers || 0,\n        growth: acc.growth || 0,\n        growthPercentage: acc.growthPercentage || 0\n      }\n    });\n    const timeline = data.stats && data.stats[accountId] || [];\n    for (const point of timeline) {\n      const pointDate = point.date ? point.date.split('T')[0] : null;\n      if (!pointDate || pointDate === lastUpdatedDate) continue;\n      results.push({\n        json: {\n          accountId: accountId,\n          date: pointDate,\n          followersCount: point.followersCount || point.followers || 0,\n          growth: point.growth || 0,\n          growthPercentage: point.growthPercentage || 0\n        }\n      });\n    }\n  }\n}\nreturn results;"
       },
       "id": "parse-follower-stats",
       "name": "Parse Follower Stats",
@@ -330,48 +330,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_zernio.linkedin_follower_stats (account_id, current_followers, growth, growth_percentage, last_updated, fetched_at)\nVALUES (\n  '{{ $json.accountId }}',\n  {{ $json.currentFollowers }},\n  {{ $json.growth }},\n  {{ $json.growthPercentage }},\n  '{{ $json.lastUpdated }}',\n  NOW()\n)\nON CONFLICT (account_id)\nDO UPDATE SET\n  current_followers = EXCLUDED.current_followers,\n  growth = EXCLUDED.growth,\n  growth_percentage = EXCLUDED.growth_percentage,\n  last_updated = EXCLUDED.last_updated,\n  fetched_at = EXCLUDED.fetched_at\nRETURNING account_id AS \"accountId\";"
-      },
-      "id": "upsert-follower-stats-summary",
-      "name": "Upsert Follower Stats Summary",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        850,
-        500
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const accountId = item.json.accountId || $('Parse Follower Stats').first().json.accountId;\n  const timeline = $('Parse Follower Stats').first().json.timeline || [];\n  for (const point of timeline) {\n    results.push({\n      json: {\n        accountId: accountId,\n        date: point.date,\n        followersCount: point.followersCount || point.followers || 0\n      }\n    });\n  }\n}\nreturn results;"
-      },
-      "id": "prepare-follower-timeline-tasks",
-      "name": "Prepare Follower Timeline Tasks",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1000,
-        500
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO s_zernio.linkedin_follower_stats_timeline (account_id, date, followers_count)\nVALUES (\n  '{{ $json.accountId }}',\n  '{{ $json.date }}',\n  {{ $json.followersCount }}\n)\nON CONFLICT (account_id, date)\nDO UPDATE SET\n  followers_count = EXCLUDED.followers_count;"
+        "query": "=INSERT INTO s_zernio.linkedin_follower_stats_timeline (account_id, date, followers_count, growth, growth_percentage, fetched_at)\nVALUES (\n  '{{ $json.accountId }}',\n  '{{ $json.date }}',\n  {{ $json.followersCount }},\n  {{ $json.growth }},\n  {{ $json.growthPercentage }},\n  NOW()\n)\nON CONFLICT (account_id, date)\nDO UPDATE SET\n  followers_count = EXCLUDED.followers_count,\n  growth = EXCLUDED.growth,\n  growth_percentage = EXCLUDED.growth_percentage,\n  fetched_at = EXCLUDED.fetched_at;"
       },
       "id": "upsert-follower-stats-timeline",
       "name": "Upsert Follower Stats Timeline",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1150,
+        850,
         500
       ],
       "credentials": {
@@ -611,28 +577,6 @@
       ]
     },
     "Parse Follower Stats": {
-      "main": [
-        [
-          {
-            "node": "Upsert Follower Stats Summary",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upsert Follower Stats Summary": {
-      "main": [
-        [
-          {
-            "node": "Prepare Follower Timeline Tasks",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Follower Timeline Tasks": {
       "main": [
         [
           {

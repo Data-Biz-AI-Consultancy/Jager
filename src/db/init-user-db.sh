@@ -356,19 +356,13 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 	);
 
-	CREATE TABLE IF NOT EXISTS s_zernio.linkedin_follower_stats (
-		account_id VARCHAR(255) PRIMARY KEY,
-		current_followers INTEGER DEFAULT 0,
-		growth INTEGER DEFAULT 0,
-		growth_percentage NUMERIC(5,2) DEFAULT 0.00,
-		last_updated TIMESTAMP WITH TIME ZONE,
-		fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-	);
-
 	CREATE TABLE IF NOT EXISTS s_zernio.linkedin_follower_stats_timeline (
 		account_id VARCHAR(255),
 		date DATE,
 		followers_count INTEGER DEFAULT 0,
+		growth INTEGER DEFAULT 0,
+		growth_percentage NUMERIC(5,2) DEFAULT 0.00,
+		fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (account_id, date)
 	);
 
