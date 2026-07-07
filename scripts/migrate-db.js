@@ -151,11 +151,11 @@ CREATE TABLE IF NOT EXISTS s_substack.posts (
   language VARCHAR(50),
   post_date TIMESTAMP WITH TIME ZONE,
   updated_at TIMESTAMP WITH TIME ZONE,
+  reaction_count INTEGER DEFAULT 0,
+  reactions JSONB DEFAULT '{}'::jsonb,
   comment_count INTEGER DEFAULT 0,
   child_comment_count INTEGER DEFAULT 0,
   restacks INTEGER DEFAULT 0,
-  reactions JSONB DEFAULT '{}'::jsonb,
-  reaction_count INTEGER DEFAULT 0,
   cover_image VARCHAR(2048),
   cover_image_is_square BOOLEAN DEFAULT FALSE,
   cover_image_is_explicit BOOLEAN DEFAULT FALSE,
@@ -182,11 +182,11 @@ ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS wordcount INTEGER;
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS language VARCHAR(50);
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS post_date TIMESTAMP WITH TIME ZONE;
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS reaction_count INTEGER DEFAULT 0;
+ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS reactions JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS comment_count INTEGER DEFAULT 0;
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS child_comment_count INTEGER DEFAULT 0;
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS restacks INTEGER DEFAULT 0;
-ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS reactions JSONB DEFAULT '{}'::jsonb;
-ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS reaction_count INTEGER DEFAULT 0;
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS cover_image VARCHAR(2048);
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS cover_image_is_square BOOLEAN DEFAULT FALSE;
 ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS cover_image_is_explicit BOOLEAN DEFAULT FALSE;
