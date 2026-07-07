@@ -356,6 +356,41 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 	);
 
+	CREATE TABLE IF NOT EXISTS s_zernio.linkedin_follower_stats_timeline (
+		account_id VARCHAR(255),
+		date DATE,
+		followers_count INTEGER DEFAULT 0,
+		growth INTEGER DEFAULT 0,
+		growth_percentage NUMERIC(5,2) DEFAULT 0.00,
+		fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (account_id, date)
+	);
+
+	CREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_timeline (
+		post_id VARCHAR(255),
+		date DATE,
+		impressions INTEGER DEFAULT 0,
+		reach INTEGER DEFAULT 0,
+		likes INTEGER DEFAULT 0,
+		comments INTEGER DEFAULT 0,
+		shares INTEGER DEFAULT 0,
+		saves INTEGER DEFAULT 0,
+		clicks INTEGER DEFAULT 0,
+		views INTEGER DEFAULT 0,
+		fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (post_id, date)
+	);
+
+	CREATE TABLE IF NOT EXISTS s_zernio.linkedin_content_decay (
+		platform VARCHAR(50),
+		bucket_order INTEGER,
+		bucket_label VARCHAR(50),
+		avg_pct_of_final NUMERIC(5,2),
+		post_count INTEGER,
+		fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (platform, bucket_order)
+	);
+
 
 	CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
 		id SERIAL PRIMARY KEY,

@@ -7,8 +7,7 @@
         "rule": {
           "interval": [
             {
-              "field": "hours",
-              "value": 24
+              "field": "days"
             }
           ]
         }
@@ -73,7 +72,7 @@
       "typeVersion": 4.2,
       "position": [
         550,
-        200
+        100
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -92,8 +91,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        680,
-        200
+        700,
+        100
       ]
     },
     {
@@ -106,8 +105,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        820,
-        200
+        850,
+        100
       ],
       "credentials": {
         "postgres": {
@@ -130,7 +129,7 @@
       "typeVersion": 4.2,
       "position": [
         550,
-        400
+        300
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -150,7 +149,7 @@
       "typeVersion": 2,
       "position": [
         700,
-        400
+        300
       ]
     },
     {
@@ -164,7 +163,7 @@
       "typeVersion": 2.5,
       "position": [
         850,
-        400
+        300
       ],
       "credentials": {
         "postgres": {
@@ -187,14 +186,15 @@
       "typeVersion": 4.2,
       "position": [
         1000,
-        400
+        300
       ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "zernio-api-cred",
           "name": "Zernio API Credential"
         }
-      }
+      },
+      "onError": "continueRegularRef"
     },
     {
       "parameters": {
@@ -207,13 +207,13 @@
       "typeVersion": 2,
       "position": [
         1150,
-        400
+        300
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_zernio.linkedin_post_analytics (\n  post_id, impressions, likes, comments, shares, clicks, saves, sends, fetched_at\n)\nVALUES (\n  '{{ $json.post_id }}',\n  {{ $json.impressions }},\n  {{ $json.likes }},\n  {{ $json.comments }},\n  {{ $json.shares }},\n  {{ $json.clicks }},\n  {{ $json.saves }},\n  {{ $json.sends }},\n  NOW()\n)\nON CONFLICT (post_id) \nDO UPDATE SET \n  impressions = EXCLUDED.impressions,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  clicks = EXCLUDED.clicks,\n  saves = EXCLUDED.saves,\n  sends = EXCLUDED.sends,\n  fetched_at = EXCLUDED.fetched_at;"
+        "query": "=INSERT INTO s_zernio.linkedin_post_analytics (\n  post_id, impressions, likes, comments, shares, clicks, saves, sends, fetched_at\n)\nVALUES (\n  '{{ $json.post_id }}',\n  {{ $json.impressions }},\n  {{ $json.likes }},\n  {{ $json.comments }},\n  {{ $json.shares }},\n  {{ $json.clicks }},\n  {{ $json.saves }},\n  {{ $json.sends }},\n  NOW()\n)\nON CONFLICT (post_id) \nDO UPDATE SET \n  impressions = EXCLUDED.impressions,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  clicks = EXCLUDED.clicks,\n  saves = EXCLUDED.saves,\n  sends = EXCLUDED.sends,\n  fetched_at = EXCLUDED.fetched_at\nRETURNING post_id;"
       },
       "id": "upsert-post-analytics",
       "name": "Upsert Post Analytics",
@@ -221,7 +221,181 @@
       "typeVersion": 2.5,
       "position": [
         1300,
-        400
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://zernio.com/api/v1/analytics/post-timeline?postId={{ $json.post_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "options": {}
+      },
+      "id": "fetch-post-timeline",
+      "name": "Fetch Post Timeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1450,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zernio-api-cred",
+          "name": "Zernio API Credential"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const data = item.json;\n  const postId = data.postId || item.json.post_id;\n  const timeline = data.timeline || [];\n  for (const point of timeline) {\n    results.push({\n      json: {\n        post_id: postId,\n        date: point.date,\n        impressions: point.impressions || 0,\n        reach: point.reach || 0,\n        likes: point.likes || 0,\n        comments: point.comments || 0,\n        shares: point.shares || 0,\n        saves: point.saves || 0,\n        clicks: point.clicks || 0,\n        views: point.views || 0\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-post-timeline",
+      "name": "Parse Post Timeline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_zernio.linkedin_post_timeline (\n  post_id, date, impressions, reach, likes, comments, shares, saves, clicks, views, fetched_at\n)\nVALUES (\n  '{{ $json.post_id }}',\n  '{{ $json.date }}',\n  {{ $json.impressions }},\n  {{ $json.reach }},\n  {{ $json.likes }},\n  {{ $json.comments }},\n  {{ $json.shares }},\n  {{ $json.saves }},\n  {{ $json.clicks }},\n  {{ $json.views }},\n  NOW()\n)\nON CONFLICT (post_id, date)\nDO UPDATE SET\n  impressions = EXCLUDED.impressions,\n  reach = EXCLUDED.reach,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  saves = EXCLUDED.saves,\n  clicks = EXCLUDED.clicks,\n  views = EXCLUDED.views,\n  fetched_at = EXCLUDED.fetched_at;"
+      },
+      "id": "upsert-post-timeline",
+      "name": "Upsert Post Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1750,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://zernio.com/api/v1/accounts/follower-stats?accountIds={{ $json.accountId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "options": {}
+      },
+      "id": "fetch-follower-stats",
+      "name": "Fetch Follower Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        550,
+        500
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zernio-api-cred",
+          "name": "Zernio API Credential"
+        }
+      },
+      "onError": "continueRegularRef"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const data = item.json;\n  const accountsList = data.accounts || [];\n  for (const acc of accountsList) {\n    const accountId = acc._id || acc.accountId;\n    if (!accountId) continue;\n    const lastUpdatedDate = acc.lastUpdated ? acc.lastUpdated.split('T')[0] : new Date().toISOString().split('T')[0];\n    results.push({\n      json: {\n        accountId: accountId,\n        date: lastUpdatedDate,\n        followersCount: acc.currentFollowers || 0,\n        growth: acc.growth || 0,\n        growthPercentage: acc.growthPercentage || 0\n      }\n    });\n    const timeline = data.stats && data.stats[accountId] || [];\n    for (const point of timeline) {\n      const pointDate = point.date ? point.date.split('T')[0] : null;\n      if (!pointDate || pointDate === lastUpdatedDate) continue;\n      results.push({\n        json: {\n          accountId: accountId,\n          date: pointDate,\n          followersCount: point.followersCount || point.followers || 0,\n          growth: point.growth || 0,\n          growthPercentage: point.growthPercentage || 0\n        }\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-follower-stats",
+      "name": "Parse Follower Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_zernio.linkedin_follower_stats_timeline (account_id, date, followers_count, growth, growth_percentage, fetched_at)\nVALUES (\n  '{{ $json.accountId }}',\n  '{{ $json.date }}',\n  {{ $json.followersCount }},\n  {{ $json.growth }},\n  {{ $json.growthPercentage }},\n  NOW()\n)\nON CONFLICT (account_id, date)\nDO UPDATE SET\n  followers_count = EXCLUDED.followers_count,\n  growth = EXCLUDED.growth,\n  growth_percentage = EXCLUDED.growth_percentage,\n  fetched_at = EXCLUDED.fetched_at;"
+      },
+      "id": "upsert-follower-stats-timeline",
+      "name": "Upsert Follower Stats Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        850,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://zernio.com/api/v1/analytics/content-decay?platform=linkedin",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "options": {}
+      },
+      "id": "fetch-content-decay",
+      "name": "Fetch Content Decay",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        550,
+        700
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zernio-api-cred",
+          "name": "Zernio API Credential"
+        }
+      },
+      "onError": "continueRegularRef"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const data = item.json;\n  const buckets = data.buckets || [];\n  for (const b of buckets) {\n    results.push({\n      json: {\n        platform: 'linkedin',\n        bucket_order: b.bucket_order || b.bucketOrder,\n        bucket_label: b.bucket_label || b.bucketLabel,\n        avg_pct_of_final: b.avg_pct_of_final || b.avgPctOfFinal || 0,\n        post_count: b.post_count || b.postCount || 0\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-content-decay",
+      "name": "Parse Content Decay",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_zernio.linkedin_content_decay (\n  platform, bucket_order, bucket_label, avg_pct_of_final, post_count, fetched_at\n)\nVALUES (\n  '{{ $json.platform }}',\n  {{ $json.bucket_order }},\n  '{{ $json.bucket_label }}',\n  {{ $json.avg_pct_of_final }},\n  {{ $json.post_count }},\n  NOW()\n)\nON CONFLICT (platform, bucket_order)\nDO UPDATE SET\n  bucket_label = EXCLUDED.bucket_label,\n  avg_pct_of_final = EXCLUDED.avg_pct_of_final,\n  post_count = EXCLUDED.post_count,\n  fetched_at = EXCLUDED.fetched_at;"
+      },
+      "id": "upsert-content-decay",
+      "name": "Upsert Content Decay",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        850,
+        700
       ],
       "credentials": {
         "postgres": {
@@ -264,6 +438,16 @@
           },
           {
             "node": "Fetch Zernio Posts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Follower Stats",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Content Decay",
             "type": "main",
             "index": 0
           }
@@ -341,6 +525,83 @@
         [
           {
             "node": "Upsert Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Post Analytics": {
+      "main": [
+        [
+          {
+            "node": "Fetch Post Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Post Timeline": {
+      "main": [
+        [
+          {
+            "node": "Parse Post Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Post Timeline": {
+      "main": [
+        [
+          {
+            "node": "Upsert Post Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Follower Stats": {
+      "main": [
+        [
+          {
+            "node": "Parse Follower Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Follower Stats": {
+      "main": [
+        [
+          {
+            "node": "Upsert Follower Stats Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Content Decay": {
+      "main": [
+        [
+          {
+            "node": "Parse Content Decay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Content Decay": {
+      "main": [
+        [
+          {
+            "node": "Upsert Content Decay",
             "type": "main",
             "index": 0
           }
