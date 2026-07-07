@@ -322,6 +322,14 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		processed INTEGER DEFAULT 0
 	);
 
+	CREATE TABLE IF NOT EXISTS s_zernio.linkedin_posts (
+		id VARCHAR(255) PRIMARY KEY,
+		content TEXT,
+		url VARCHAR(2048),
+		published_at TIMESTAMP WITH TIME ZONE,
+		fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+
 	CREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_analytics (
 		post_id VARCHAR(255) PRIMARY KEY,
 		impressions INTEGER DEFAULT 0,
