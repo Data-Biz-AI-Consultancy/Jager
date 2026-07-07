@@ -14,6 +14,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE SCHEMA IF NOT EXISTS s_wordpress;
 	CREATE SCHEMA IF NOT EXISTS s_linkedin;
 	CREATE SCHEMA IF NOT EXISTS s_notion;
+	CREATE SCHEMA IF NOT EXISTS s_zernio;
+
 
 	CREATE TABLE IF NOT EXISTS s_reddit.subreddits_monitored (
 		id SERIAL PRIMARY KEY,
@@ -319,6 +321,33 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		processed INTEGER DEFAULT 0
 	);
+
+	CREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_analytics (
+		post_id VARCHAR(255) PRIMARY KEY,
+		impressions INTEGER DEFAULT 0,
+		likes INTEGER DEFAULT 0,
+		comments INTEGER DEFAULT 0,
+		shares INTEGER DEFAULT 0,
+		clicks INTEGER DEFAULT 0,
+		saves INTEGER DEFAULT 0,
+		sends INTEGER DEFAULT 0,
+		fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS s_zernio.linkedin_account_analytics (
+		account_id VARCHAR(255) PRIMARY KEY,
+		platform VARCHAR(50) DEFAULT 'linkedin',
+		username VARCHAR(255),
+		impressions INTEGER DEFAULT 0,
+		members_reached INTEGER DEFAULT 0,
+		reactions INTEGER DEFAULT 0,
+		comments INTEGER DEFAULT 0,
+		reshares INTEGER DEFAULT 0,
+		post_saves INTEGER DEFAULT 0,
+		post_sends INTEGER DEFAULT 0,
+		fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+	);
+
 
 	CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
 		id SERIAL PRIMARY KEY,

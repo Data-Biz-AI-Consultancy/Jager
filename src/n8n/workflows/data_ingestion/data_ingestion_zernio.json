@@ -1,0 +1,292 @@
+{
+  "id": "zernio-linkedin-ingestion-workflow",
+  "name": "Data Ingestion - Zernio LinkedIn Analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 24
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://zernio.com/api/v1/accounts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "options": {}
+      },
+      "id": "fetch-zernio-accounts",
+      "name": "Fetch Zernio Accounts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        250,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zernio-api-cred",
+          "name": "Zernio API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst linkedinAccounts = [];\nfor (const item of items) {\n  const accounts = Array.isArray(item.json) ? item.json : [item.json];\n  for (const acc of accounts) {\n    if (acc.platform === 'linkedin') {\n      linkedinAccounts.push({ json: acc });\n    }\n  }\n}\nreturn linkedinAccounts;"
+      },
+      "id": "filter-linkedin-accounts",
+      "name": "Filter LinkedIn Accounts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://zernio.com/api/v1/accounts/{{ $json.accountId }}/linkedin-aggregate-analytics?aggregation=TOTAL",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "options": {}
+      },
+      "id": "fetch-account-analytics",
+      "name": "Fetch Account Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        550,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zernio-api-cred",
+          "name": "Zernio API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_zernio.linkedin_account_analytics (\n  account_id, platform, username, impressions, members_reached, reactions, comments, reshares, post_saves, post_sends, fetched_at\n)\nVALUES (\n  '{{ $json.accountId }}',\n  '{{ $json.platform }}',\n  '{{ ($json.username || \"\").replace(/'/g, \"''\") }}',\n  {{ $json.metrics.IMPRESSION || 0 }},\n  {{ $json.metrics.MEMBERS_REACHED || 0 }},\n  {{ $json.metrics.REACTION || 0 }},\n  {{ $json.metrics.COMMENT || 0 }},\n  {{ $json.metrics.RESHARE || 0 }},\n  {{ $json.metrics.POST_SAVE || 0 }},\n  {{ $json.metrics.POST_SEND || 0 }},\n  NOW()\n)\nON CONFLICT (account_id) \nDO UPDATE SET \n  username = EXCLUDED.username,\n  impressions = EXCLUDED.impressions,\n  members_reached = EXCLUDED.members_reached,\n  reactions = EXCLUDED.reactions,\n  comments = EXCLUDED.comments,\n  reshares = EXCLUDED.reshares,\n  post_saves = EXCLUDED.post_saves,\n  post_sends = EXCLUDED.post_sends,\n  fetched_at = EXCLUDED.fetched_at;"
+      },
+      "id": "upsert-account-analytics",
+      "name": "Upsert Account Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        750,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id AS post_id FROM s_linkedin.ugc_posts WHERE published_at > NOW() - INTERVAL '30 days';"
+      },
+      "id": "fetch-recent-posts",
+      "name": "Fetch Recent Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        550,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const accounts = $('Filter LinkedIn Accounts').all();\nconst posts = $('Fetch Recent Posts').all();\nconst results = [];\nfor (const acc of accounts) {\n  const accountId = acc.json.accountId;\n  for (const post of posts) {\n    results.push({\n      json: {\n        accountId: accountId,\n        postId: post.json.post_id\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "prepare-post-analytics-tasks",
+      "name": "Prepare Post Analytics Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        750,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://zernio.com/api/v1/accounts/{{ $json.accountId }}/linkedin-post-analytics?urn={{ $json.postId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "options": {}
+      },
+      "id": "fetch-post-analytics",
+      "name": "Fetch Post Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zernio-api-cred",
+          "name": "Zernio API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const data = item.json;\n  const postId = item.json.postId || (data.analytics && data.analytics[0] && data.analytics[0].postId) || data.postId;\n  \n  let metrics = {};\n  if (data.metrics) {\n    metrics = data.metrics;\n  } else if (data.analytics && data.analytics[0] && data.analytics[0].metrics) {\n    metrics = data.analytics[0].metrics;\n  }\n  \n  if (postId) {\n    results.push({\n      json: {\n        post_id: postId,\n        impressions: metrics.impressions || metrics.IMPRESSION || 0,\n        likes: metrics.likes || metrics.REACTION || 0,\n        comments: metrics.comments || metrics.COMMENT || 0,\n        shares: metrics.shares || metrics.RESHARE || 0,\n        clicks: metrics.clicks || metrics.CLICK || 0,\n        saves: metrics.saves || metrics.POST_SAVE || 0,\n        sends: metrics.sends || metrics.POST_SEND || 0\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-post-analytics",
+      "name": "Parse Post Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1050,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_zernio.linkedin_post_analytics (\n  post_id, impressions, likes, comments, shares, clicks, saves, sends, fetched_at\n)\nVALUES (\n  '{{ $json.post_id }}',\n  {{ $json.impressions }},\n  {{ $json.likes }},\n  {{ $json.comments }},\n  {{ $json.shares }},\n  {{ $json.clicks }},\n  {{ $json.saves }},\n  {{ $json.sends }},\n  NOW()\n)\nON CONFLICT (post_id) \nDO UPDATE SET \n  impressions = EXCLUDED.impressions,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  clicks = EXCLUDED.clicks,\n  saves = EXCLUDED.saves,\n  sends = EXCLUDED.sends,\n  fetched_at = EXCLUDED.fetched_at;"
+      },
+      "id": "upsert-post-analytics",
+      "name": "Upsert Post Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1200,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Zernio Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Zernio Accounts": {
+      "main": [
+        [
+          {
+            "node": "Filter LinkedIn Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter LinkedIn Accounts": {
+      "main": [
+        [
+          {
+            "node": "Fetch Account Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Recent Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Account Analytics": {
+      "main": [
+        [
+          {
+            "node": "Upsert Account Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Posts": {
+      "main": [
+        [
+          {
+            "node": "Prepare Post Analytics Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Post Analytics Tasks": {
+      "main": [
+        [
+          {
+            "node": "Fetch Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Post Analytics": {
+      "main": [
+        [
+          {
+            "node": "Parse Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Post Analytics": {
+      "main": [
+        [
+          {
+            "node": "Upsert Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
