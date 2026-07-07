@@ -95,15 +95,29 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const https = require('https');\n\nfunction fetchJson(url) {\n  return new Promise((resolve, reject) => {\n    const options = {\n      headers: {\n        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',\n        'Accept': 'application/json'\n      },\n      timeout: 5000\n    };\n    const req = https.get(url, options, (res) => {\n      let data = '';\n      res.on('data', (chunk) => { data += chunk; });\n      res.on('end', () => {\n        if (res.statusCode === 200) {\n          try {\n            resolve(JSON.parse(data));\n          } catch (e) {\n            reject(new Error('Invalid JSON'));\n          }\n        } else {\n          reject(new Error(`Status ${res.statusCode}`));\n        }\n      });\n    });\n    req.on('error', (err) => reject(err));\n    req.on('timeout', () => {\n      req.destroy();\n      reject(new Error('Timeout'));\n    });\n  });\n}\n\nconst results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i].json;\n  const url = item.url;\n  \n  let comment_count = 0;\n  let child_comment_count = 0;\n  let restacks = 0;\n  let reactions = {};\n  let reaction_count = 0;\n  let subtitle = '';\n  let slug = '';\n  let canonical_url = '';\n  let audience = '';\n  let is_published = false;\n  let type = '';\n  let meter_type = '';\n  let teaser_post_eligible = false;\n  let wordcount = 0;\n  let language = '';\n  let post_date = null;\n  let updated_at = null;\n  let cover_image = '';\n  let cover_image_is_square = false;\n  let cover_image_is_explicit = false;\n  let body_html = '';\n  let truncated_body_text = '';\n  let section_id = null;\n  let audio_items = [];\n  let podcast_fields = {};\n  let theme_variables = {};\n  let comments = [];\n  let inbox_item = {};\n\n  if (url && url.includes('/p/')) {\n    const apiUrl = url.split('?')[0].replace('/p/', '/api/v1/posts/');\n    try {\n      if (i > 0) {\n        await new Promise(r => setTimeout(r, 500));\n      }\n      const data = await fetchJson(apiUrl);\n      comment_count = data.comment_count || 0;\n      child_comment_count = data.child_comment_count || 0;\n      restacks = data.restacks || 0;\n      reactions = data.reactions || {};\n      reaction_count = data.reaction_count || 0;\n      subtitle = data.subtitle || '';\n      slug = data.slug || '';\n      canonical_url = data.canonical_url || '';\n      audience = data.audience || '';\n      is_published = data.is_published !== undefined ? data.is_published : false;\n      type = data.type || '';\n      meter_type = data.meter_type || '';\n      teaser_post_eligible = data.teaser_post_eligible !== undefined ? data.teaser_post_eligible : false;\n      wordcount = data.wordcount || 0;\n      language = data.language || '';\n      post_date = data.post_date || null;\n      updated_at = data.updated_at || null;\n      cover_image = data.cover_image || '';\n      cover_image_is_square = data.cover_image_is_square || false;\n      cover_image_is_explicit = data.cover_image_is_explicit || false;\n      body_html = data.body_html || '';\n      truncated_body_text = data.truncated_body_text || '';\n      section_id = data.section_id || null;\n      audio_items = data.audio_items || [];\n      podcast_fields = data.podcastFields || {};\n      theme_variables = data.themeVariables || {};\n      comments = data.comments || [];\n      inbox_item = data.inboxItem || {};\n    } catch (error) {\n      console.error(`Error fetching analytics for ${url}:`, error.message);\n    }\n  }\n\n  results.push({\n    ...item,\n    comment_count,\n    child_comment_count,\n    restacks,\n    reactions,\n    reaction_count,\n    subtitle,\n    slug,\n    canonical_url,\n    audience,\n    is_published,\n    type,\n    meter_type,\n    teaser_post_eligible,\n    wordcount,\n    language,\n    post_date,\n    updated_at,\n    cover_image,\n    cover_image_is_square,\n    cover_image_is_explicit,\n    body_html,\n    truncated_body_text,\n    section_id,\n    audio_items,\n    podcast_fields,\n    theme_variables,\n    comments,\n    inbox_item\n  });\n}\nreturn results;"
+      },
+      "id": "fetch-post-analytics",
+      "name": "Fetch Post Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_substack.posts (id, feed_id, feed_name, author, title, content, url, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  (SELECT id FROM s_substack.feeds_monitored WHERE name = '{{ $json.feed_name }}' LIMIT 1),\n  '{{ $json.feed_name }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET title = EXCLUDED.title, content = EXCLUDED.content\nRETURNING id, feed_id;"
+        "query": "=INSERT INTO s_substack.posts (id, feed_id, feed_name, author, title, content, url, published_at, processed, subtitle, slug, canonical_url, audience, is_published, type, meter_type, teaser_post_eligible, wordcount, language, post_date, updated_at, cover_image, cover_image_is_square, cover_image_is_explicit, body_html, truncated_body_text, section_id, audio_items, podcast_fields, theme_variables, comments, inbox_item, reaction_count, reactions, comment_count, child_comment_count, restacks)\nVALUES (\n  '{{ $json.id }}',\n  (SELECT id FROM s_substack.feeds_monitored WHERE name = '{{ $json.feed_name }}' LIMIT 1),\n  '{{ $json.feed_name }}',\n  '{{ ($json.author || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  '{{ ($json.title || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  '{{ ($json.content || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0,\n  '{{ ($json.subtitle || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  '{{ $json.slug }}',\n  '{{ $json.canonical_url }}',\n  '{{ $json.audience }}',\n  {{ $json.is_published }},\n  '{{ $json.type }}',\n  '{{ $json.meter_type }}',\n  {{ $json.teaser_post_eligible }},\n  {{ $json.wordcount }},\n  '{{ $json.language }}',\n  {{ $json.post_date ? \"'\" + $json.post_date + \"'\" : \"NULL\" }},\n  {{ $json.updated_at ? \"'\" + $json.updated_at + \"'\" : \"NULL\" }},\n  '{{ $json.cover_image }}',\n  {{ $json.cover_image_is_square }},\n  {{ $json.cover_image_is_explicit }},\n  '{{ ($json.body_html || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  '{{ ($json.truncated_body_text || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  {{ $json.section_id !== null ? $json.section_id : \"NULL\" }},\n  '{{ JSON.stringify($json.audio_items || []).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.podcast_fields || {}).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.theme_variables || {}).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.comments || []).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.inbox_item || {}).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  {{ $json.reaction_count || 0 }},\n  '{{ JSON.stringify($json.reactions || {}).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  {{ $json.comment_count || 0 }},\n  {{ $json.child_comment_count || 0 }},\n  {{ $json.restacks || 0 }}\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  subtitle = EXCLUDED.subtitle,\n  slug = EXCLUDED.slug,\n  canonical_url = EXCLUDED.canonical_url,\n  audience = EXCLUDED.audience,\n  is_published = EXCLUDED.is_published,\n  type = EXCLUDED.type,\n  meter_type = EXCLUDED.meter_type,\n  teaser_post_eligible = EXCLUDED.teaser_post_eligible,\n  wordcount = EXCLUDED.wordcount,\n  language = EXCLUDED.language,\n  post_date = EXCLUDED.post_date,\n  updated_at = EXCLUDED.updated_at,\n  cover_image = EXCLUDED.cover_image,\n  cover_image_is_square = EXCLUDED.cover_image_is_square,\n  cover_image_is_explicit = EXCLUDED.cover_image_is_explicit,\n  body_html = EXCLUDED.body_html,\n  truncated_body_text = EXCLUDED.truncated_body_text,\n  section_id = EXCLUDED.section_id,\n  audio_items = EXCLUDED.audio_items,\n  podcast_fields = EXCLUDED.podcast_fields,\n  theme_variables = EXCLUDED.theme_variables,\n  comments = EXCLUDED.comments,\n  inbox_item = EXCLUDED.inbox_item,\n  reaction_count = EXCLUDED.reaction_count,\n  reactions = EXCLUDED.reactions,\n  comment_count = EXCLUDED.comment_count,\n  child_comment_count = EXCLUDED.child_comment_count,\n  restacks = EXCLUDED.restacks\nRETURNING id, feed_id;"
       },
       "id": "insert-posts",
       "name": "Insert/Upsert Posts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        850,
+        950,
         300
       ],
       "credentials": {
@@ -188,6 +202,17 @@
       "main": [
         [
           {
+            "node": "Fetch Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Post Analytics": {
+      "main": [
+        [
+          {
             "node": "Insert/Upsert Posts",
             "type": "main",
             "index": 0
@@ -196,7 +221,7 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   }
