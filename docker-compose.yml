@@ -89,7 +89,7 @@ services:
     restart: always
     command: tunnel --no-autoupdate run
     environment:
-      - TUNNEL_TOKEN=${cloudflare_tunnel_token_prod}
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
     depends_on:
       - caddy
 
