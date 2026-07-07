@@ -48,7 +48,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const items = $input.all();\nconst linkedinAccounts = [];\n\nfunction extractAccounts(data) {\n  if (Array.isArray(data)) return data;\n  if (data && typeof data === 'object') {\n    if (data.platform) return [data];\n    for (const key of ['data', 'accounts', 'results', 'items']) {\n      if (Array.isArray(data[key])) return data[key];\n    }\n    for (const value of Object.values(data)) {\n      if (Array.isArray(value)) return value;\n    }\n  }\n  return [];\n}\n\nfor (const item of items) {\n  const rawAccounts = extractAccounts(item.json);\n  for (const acc of rawAccounts) {\n    if (acc && acc.platform && typeof acc.platform === 'string') {\n      if (acc.platform.toLowerCase() === 'linkedin') {\n        linkedinAccounts.push({ json: acc });\n      }\n    }\n  }\n}\nreturn linkedinAccounts;"
+        "jsCode": "const items = $input.all();\nconst linkedinAccounts = [];\n\nfunction extractAccounts(data) {\n  if (Array.isArray(data)) return data;\n  if (data && typeof data === 'object') {\n    if (data.platform) return [data];\n    for (const key of ['data', 'accounts', 'results', 'items']) {\n      if (Array.isArray(data[key])) return data[key];\n    }\n    for (const value of Object.values(data)) {\n      if (Array.isArray(value)) return value;\n    }\n  }\n  return [];\n}\n\nfor (const item of items) {\n  const rawAccounts = extractAccounts(item.json);\n  for (const acc of rawAccounts) {\n    if (acc && acc.platform && typeof acc.platform === 'string') {\n      if (acc.platform.toLowerCase() === 'linkedin') {\n        linkedinAccounts.push({\n          json: {\n            ...acc,\n            accountId: acc.accountId || acc.id || acc._id,\n            accountType: acc.metadata && acc.metadata.accountType\n          }\n        });\n      }\n    }\n  }\n}\nreturn linkedinAccounts;"
       },
       "id": "filter-linkedin-accounts",
       "name": "Filter LinkedIn Accounts",
@@ -61,7 +61,7 @@
     },
     {
       "parameters": {
-        "url": "=https://zernio.com/api/v1/accounts/{{ $json.accountId }}/linkedin-aggregate-analytics?aggregation=TOTAL",
+        "url": "={{ $json.accountType === 'organization' ? 'https://zernio.com/api/v1/analytics/linkedin/org-aggregate-analytics?accountId=' + $json.accountId : 'https://zernio.com/api/v1/accounts/' + $json.accountId + '/linkedin-aggregate-analytics?aggregation=TOTAL' }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -84,15 +84,29 @@
     },
     {
       "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfunction getMetricValue(metric) {\n  if (metric === null || metric === undefined) return 0;\n  if (typeof metric === 'number') return metric;\n  if (typeof metric === 'object') {\n    if (typeof metric.total === 'number') return metric.total;\n    if (typeof metric.value === 'number') return metric.value;\n  }\n  const parsed = Number(metric);\n  return isNaN(parsed) ? 0 : parsed;\n}\n\nfor (const item of items) {\n  const data = item.json;\n  const accountId = item.json.accountId || data.accountId;\n  const platform = item.json.platform || data.platform || 'linkedin';\n  const username = item.json.username || data.username || '';\n  \n  let metrics = data.metrics || {};\n  if (Array.isArray(data)) {\n    metrics = data[0]?.metrics || {};\n  }\n  \n  results.push({\n    json: {\n      accountId: accountId,\n      platform: platform,\n      username: username,\n      impressions: getMetricValue(metrics.IMPRESSION || metrics.impressions || metrics.uniqueImpressions),\n      members_reached: getMetricValue(metrics.MEMBERS_REACHED || metrics.members_reached || metrics.uniqueImpressionsCount),\n      reactions: getMetricValue(metrics.REACTION || metrics.reactions || metrics.likeCount || metrics.likes),\n      comments: getMetricValue(metrics.COMMENT || metrics.comments || metrics.commentCount),\n      reshares: getMetricValue(metrics.RESHARE || metrics.reshares || metrics.shareCount || metrics.shares),\n      post_saves: getMetricValue(metrics.POST_SAVE || metrics.post_saves || metrics.saves),\n      post_sends: getMetricValue(metrics.POST_SEND || metrics.post_sends || metrics.sends)\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "parse-account-analytics",
+      "name": "Parse Account Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        200
+      ]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_zernio.linkedin_account_analytics (\n  account_id, platform, username, impressions, members_reached, reactions, comments, reshares, post_saves, post_sends, fetched_at\n)\nVALUES (\n  '{{ $json.accountId }}',\n  '{{ $json.platform }}',\n  '{{ ($json.username || \"\").replace(/'/g, \"''\") }}',\n  {{ $json.metrics.IMPRESSION || 0 }},\n  {{ $json.metrics.MEMBERS_REACHED || 0 }},\n  {{ $json.metrics.REACTION || 0 }},\n  {{ $json.metrics.COMMENT || 0 }},\n  {{ $json.metrics.RESHARE || 0 }},\n  {{ $json.metrics.POST_SAVE || 0 }},\n  {{ $json.metrics.POST_SEND || 0 }},\n  NOW()\n)\nON CONFLICT (account_id) \nDO UPDATE SET \n  username = EXCLUDED.username,\n  impressions = EXCLUDED.impressions,\n  members_reached = EXCLUDED.members_reached,\n  reactions = EXCLUDED.reactions,\n  comments = EXCLUDED.comments,\n  reshares = EXCLUDED.reshares,\n  post_saves = EXCLUDED.post_saves,\n  post_sends = EXCLUDED.post_sends,\n  fetched_at = EXCLUDED.fetched_at;"
+        "query": "=INSERT INTO s_zernio.linkedin_account_analytics (\n  account_id, platform, username, impressions, members_reached, reactions, comments, reshares, post_saves, post_sends, fetched_at\n)\nVALUES (\n  '{{ $json.accountId }}',\n  '{{ $json.platform }}',\n  '{{ ($json.username || \"\").replace(/'/g, \"''\") }}',\n  {{ $json.impressions }},\n  {{ $json.members_reached }},\n  {{ $json.reactions }},\n  {{ $json.comments }},\n  {{ $json.reshares }},\n  {{ $json.post_saves }},\n  {{ $json.post_sends }},\n  NOW()\n)\nON CONFLICT (account_id) \nDO UPDATE SET \n  username = EXCLUDED.username,\n  impressions = EXCLUDED.impressions,\n  members_reached = EXCLUDED.members_reached,\n  reactions = EXCLUDED.reactions,\n  comments = EXCLUDED.comments,\n  reshares = EXCLUDED.reshares,\n  post_saves = EXCLUDED.post_saves,\n  post_sends = EXCLUDED.post_sends,\n  fetched_at = EXCLUDED.fetched_at;"
       },
       "id": "upsert-account-analytics",
       "name": "Upsert Account Analytics",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        750,
+        820,
         200
       ],
       "credentials": {
@@ -234,6 +248,17 @@
       ]
     },
     "Fetch Account Analytics": {
+      "main": [
+        [
+          {
+            "node": "Parse Account Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Account Analytics": {
       "main": [
         [
           {
