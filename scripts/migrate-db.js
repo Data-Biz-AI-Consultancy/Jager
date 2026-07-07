@@ -50,6 +50,7 @@ CREATE SCHEMA IF NOT EXISTS s_wordpress;
 CREATE SCHEMA IF NOT EXISTS s_linkedin;
 CREATE SCHEMA IF NOT EXISTS s_analytics;
 CREATE SCHEMA IF NOT EXISTS s_notion;
+CREATE SCHEMA IF NOT EXISTS s_zernio;
 
 CREATE TABLE IF NOT EXISTS s_analytics.directives (
   id SERIAL PRIMARY KEY,
@@ -383,6 +384,60 @@ CREATE TABLE IF NOT EXISTS s_linkedin.instant_reposts (
   reposted_at TIMESTAMP WITH TIME ZONE,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   processed INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS s_zernio.linkedin_posts (
+  id VARCHAR(255) PRIMARY KEY,
+  content TEXT,
+  url VARCHAR(2048),
+  published_at TIMESTAMP WITH TIME ZONE,
+  fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_analytics (
+  post_id VARCHAR(255) PRIMARY KEY,
+  impressions INTEGER DEFAULT 0,
+  likes INTEGER DEFAULT 0,
+  comments INTEGER DEFAULT 0,
+  shares INTEGER DEFAULT 0,
+  clicks INTEGER DEFAULT 0,
+  saves INTEGER DEFAULT 0,
+  sends INTEGER DEFAULT 0,
+  fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS s_zernio.linkedin_account_analytics (
+  account_id VARCHAR(255) PRIMARY KEY,
+  platform VARCHAR(50) DEFAULT 'linkedin',
+  username VARCHAR(255),
+  impressions INTEGER DEFAULT 0,
+  members_reached INTEGER DEFAULT 0,
+  reactions INTEGER DEFAULT 0,
+  comments INTEGER DEFAULT 0,
+  reshares INTEGER DEFAULT 0,
+  post_saves INTEGER DEFAULT 0,
+  post_sends INTEGER DEFAULT 0,
+  fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS s_zernio.linkedin_follower_stats_timeline (
+  account_id VARCHAR(255),
+  date DATE,
+  followers_count INTEGER DEFAULT 0,
+  growth INTEGER DEFAULT 0,
+  growth_percentage NUMERIC(5,2) DEFAULT 0.00,
+  fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (account_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS s_zernio.linkedin_content_decay (
+  platform VARCHAR(50),
+  bucket_order INTEGER,
+  bucket_label VARCHAR(50),
+  avg_pct_of_final NUMERIC(5,2),
+  post_count INTEGER,
+  fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (platform, bucket_order)
 );
 
 CREATE TABLE IF NOT EXISTS s_meetup.searches_monitored (
