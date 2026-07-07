@@ -17,24 +17,25 @@ graph TD
     E --> F[Actionable Takeaway / Decision Matrix]
 ```
 
-### **1. Title & Subtitle**
+### **1. Title & Subtitle (20–30 words)**
 *   **Title Style:** Punchy, contrarian, or guide-focused (e.g., *"Agile for Data Leaders, Not Scrum Masters"*, *"We need to talk more about Vibe Analytics"*).
 *   **Subtitle Style:** Explains the concrete ROI, what the reader will learn, and the stakes (e.g., *"Why your team wastes 6 figures a year on dashboard maintenance — and what to do about it"*).
 
-### **2. The Opening Hook (Anecdote or Hot Take)**
-*   **Option A: The Operator's War Story:** Start in media res with a narrative anecdote from a scaling tech company (e.g., *"Picture Berlin, a few years ago. A French second-hand luxury marketplace..."*). Detail the high-stress environment, stakeholder pressure, and what was at stake.
+### **2. The Opening Hook (Anecdote or Hot Take) (400–500 words)**
+*   **Option A: The Operator's War Story:** Start in media res with a narrative anecdote from a scaling tech company (e.g., *"Picture Berlin, a few years ago. A French second-hand luxury marketplace..."*). Detail the high-stress environment, stakeholder pressure, and what was at stake. Include vivid descriptions and background to flesh out the narrative.
 *   **Option B: The Direct Call-Out:** Call out a massive industry waste or misconception immediately (e.g., *"What the hell is Vibe Analytics? We’re wasting billions on dashboard graveyards."*).
 
-### **3. The Core Concept / Strategic Framing (The H2 Section)**
+### **3. The Core Concept / Strategic Framing (The H2 Section) (600–700 words)**
 *   Define the vocabulary and explain *why* the old way is failing (e.g., Kimball dimensional modeling failing on modern OLAP like Snowflake/BigQuery; text-to-SQL failing without a semantic layer).
-*   Connect technical concepts directly to business metrics like EBITDA, ROI, time-to-decision, and trust.
+*   Connect technical concepts directly to business metrics like EBITDA, ROI, time-to-decision, and trust. Expand thoroughly on the structural friction.
 
-### **4. Technical & Operational Execution (The H3 Sections)**
+### **4. Technical & Operational Execution (The H3 Sections) (700–800 words)**
 *   Provide concrete implementation details that appeal to Senior ICs and Data Managers (e.g., dbt MetricFlow, Cube, LookML, Snowflake warehouse optimization, Agile sprint backlogs for data).
-*   Use structured tables, bullet points, or list structures to make comparisons easily scannable.
+*   Use structured tables, bullet points, or list structures to make comparisons easily scannable. Include deep-dive steps or code-block illustrations.
 
-### **5. Actionable Outro / Matrix**
+### **5. Actionable Outro / Matrix (300–450 words)**
 *   End with a clear framework, decision tree, or checklist the reader can copy and apply to their team tomorrow (e.g., Stakeholder Power-Interest Grid, Data Mart Typology, Prioritization Decision Tree).
+*   Include concluding summary advice and a final perspective.
 
 ---
 
