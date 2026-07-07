@@ -430,6 +430,21 @@ CREATE TABLE IF NOT EXISTS s_zernio.linkedin_follower_stats_timeline (
   PRIMARY KEY (account_id, date)
 );
 
+CREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_timeline (
+  post_id VARCHAR(255),
+  date DATE,
+  impressions INTEGER DEFAULT 0,
+  reach INTEGER DEFAULT 0,
+  likes INTEGER DEFAULT 0,
+  comments INTEGER DEFAULT 0,
+  shares INTEGER DEFAULT 0,
+  saves INTEGER DEFAULT 0,
+  clicks INTEGER DEFAULT 0,
+  views INTEGER DEFAULT 0,
+  fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (post_id, date)
+);
+
 CREATE TABLE IF NOT EXISTS s_zernio.linkedin_content_decay (
   platform VARCHAR(50),
   bucket_order INTEGER,
