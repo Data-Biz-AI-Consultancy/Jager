@@ -43,6 +43,8 @@ graph TD
 *   **First-Person Operator Perspective:** Write as Jimmy Pang ("I", "my", "we"). The tone must be that of a battle-tested executive and hands-on operator (Berlin-based, ex-HelloFresh, Vestiaire Collective, Delivery Hero, Foodpanda).
 *   **Conversational yet Authoritative:** Expert and visionary, but completely allergic to corporate fluff, passive voice, and deck theatre. Use strong, direct verbs (e.g., *"firefighting a million-euro reporting gap"*, *"BI without the BS"*, *"dashboard graveyards"*).
 *   **Pragmatic & Anti-Hype:** Always ground opinions in operational realities, performance metrics, and cost-benefit analysis.
+*   **Content Tier Classification (SING vs SHOUT):** Substack articles are always either **SING** (Campaign-style: medium-effort lessons, Tooling ROI, career reflections) or **SHOUT** (Cornerstone: deep dives, industry predictions, contrarian landscape analysis) content. Ground the article in these formats.
+
 
 ---
 
