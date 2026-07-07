@@ -98,10 +98,66 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		content TEXT NOT NULL,
 		url VARCHAR(2048),
 		published_at TIMESTAMP WITH TIME ZONE,
-		processed INTEGER DEFAULT 0
+		processed INTEGER DEFAULT 0,
+		subtitle TEXT,
+		slug VARCHAR(512),
+		canonical_url VARCHAR(2048),
+		audience VARCHAR(100),
+		is_published BOOLEAN,
+		type VARCHAR(100),
+		meter_type VARCHAR(100),
+		teaser_post_eligible BOOLEAN,
+		wordcount INTEGER,
+		language VARCHAR(50),
+		post_date TIMESTAMP WITH TIME ZONE,
+		updated_at TIMESTAMP WITH TIME ZONE,
+		comment_count INTEGER DEFAULT 0,
+		child_comment_count INTEGER DEFAULT 0,
+		restacks INTEGER DEFAULT 0,
+		reactions JSONB DEFAULT '{}'::jsonb,
+		reaction_count INTEGER DEFAULT 0,
+		cover_image VARCHAR(2048),
+		cover_image_is_square BOOLEAN DEFAULT FALSE,
+		cover_image_is_explicit BOOLEAN DEFAULT FALSE,
+		body_html TEXT,
+		truncated_body_text TEXT,
+		section_id INTEGER,
+		audio_items JSONB DEFAULT '[]'::jsonb,
+		podcast_fields JSONB DEFAULT '{}'::jsonb,
+		theme_variables JSONB DEFAULT '{}'::jsonb,
+		comments JSONB DEFAULT '[]'::jsonb,
+		inbox_item JSONB DEFAULT '{}'::jsonb
 	);
 
 	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS feed_name VARCHAR(255);
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS subtitle TEXT;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS slug VARCHAR(512);
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS canonical_url VARCHAR(2048);
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS audience VARCHAR(100);
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS is_published BOOLEAN;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS type VARCHAR(100);
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS meter_type VARCHAR(100);
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS teaser_post_eligible BOOLEAN;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS wordcount INTEGER;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS language VARCHAR(50);
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS post_date TIMESTAMP WITH TIME ZONE;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS comment_count INTEGER DEFAULT 0;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS child_comment_count INTEGER DEFAULT 0;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS restacks INTEGER DEFAULT 0;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS reactions JSONB DEFAULT '{}'::jsonb;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS reaction_count INTEGER DEFAULT 0;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS cover_image VARCHAR(2048);
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS cover_image_is_square BOOLEAN DEFAULT FALSE;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS cover_image_is_explicit BOOLEAN DEFAULT FALSE;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS body_html TEXT;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS truncated_body_text TEXT;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS section_id INTEGER;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS audio_items JSONB DEFAULT '[]'::jsonb;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS podcast_fields JSONB DEFAULT '{}'::jsonb;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS theme_variables JSONB DEFAULT '{}'::jsonb;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS comments JSONB DEFAULT '[]'::jsonb;
+	ALTER TABLE s_substack.posts ADD COLUMN IF NOT EXISTS inbox_item JSONB DEFAULT '{}'::jsonb;
 
 	CREATE TABLE IF NOT EXISTS s_wordpress.feeds_monitored (
 		id SERIAL PRIMARY KEY,
