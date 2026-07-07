@@ -1,0 +1,901 @@
+{
+  "id": "CgeSubstackPosts",
+  "name": "CGE - Substack Posts Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const queryText = 'thought leadership AI & Data, data leaders, business executives, founders, senior data ICs';\nreturn [{ json: { query: queryText } }];"
+      },
+      "id": "prepare-rag-query",
+      "name": "Prepare RAG Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        336,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "tableName": "m_embeddings.notion_pages",
+        "prompt": "={{ $('Prepare RAG Query').first().json.query }}",
+        "options": {
+          "columnNames": {
+            "values": {
+              "contentColumnName": "content"
+            }
+          }
+        }
+      },
+      "id": "retrieve-notion-pages",
+      "name": "Retrieve Notion Pages",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        560,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "tableName": "m_embeddings.substack_posts",
+        "prompt": "={{ $('Prepare RAG Query').first().json.query }}",
+        "options": {
+          "columnNames": {
+            "values": {
+              "contentColumnName": "content"
+            }
+          }
+        }
+      },
+      "id": "retrieve-substack-posts",
+      "name": "Retrieve Substack Posts",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        912,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "tableName": "m_embeddings.linkedin_posts",
+        "prompt": "={{ $('Prepare RAG Query').first().json.query }}",
+        "options": {
+          "columnNames": {
+            "values": {
+              "contentColumnName": "content"
+            }
+          }
+        }
+      },
+      "id": "retrieve-linkedin-posts",
+      "name": "Retrieve LinkedIn Posts",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePGVector",
+      "typeVersion": 1,
+      "position": [
+        1264,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "sentence-transformers/all-mpnet-base-v2",
+        "options": {
+          "endpointUrl": "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-mpnet-base-v2/pipeline/feature-extraction"
+        }
+      },
+      "id": "embeddings-hugging-face-inference",
+      "name": "Embeddings Hugging Face Inference",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsHuggingFaceInference",
+      "typeVersion": 1,
+      "position": [
+        640,
+        320
+      ],
+      "credentials": {
+        "huggingFaceApi": {
+          "id": "hugging-face-api",
+          "name": "Hugging Face API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const notionDocs = $('Retrieve Notion Pages').all();\nconst substackDocs = $('Retrieve Substack Posts').all();\nconst linkedinDocs = $('Retrieve LinkedIn Posts').all();\n\nconst uniqueNotion = Array.from(new Map(notionDocs.map(d => [d.json.document?.pageContent || '', d])).values());\nconst uniqueSubstack = Array.from(new Map(substackDocs.map(d => [d.json.document?.pageContent || '', d])).values());\nconst uniqueLinkedin = Array.from(new Map(linkedinDocs.map(d => [d.json.document?.pageContent || '', d])).values());\n\nlet ragContext = '### RELEVANT HISTORICAL CONTENT & KNOWLEDGE (RAG) ###\\n\\n';\n\nfunction addDocs(docs, sourceName) {\n  if (docs.length === 0) return;\n  docs.forEach((doc, idx) => {\n    const content = doc.json.document?.pageContent || '';\n    if (!content) return;\n    const firstLine = content.split('\\n')[0].trim();\n    const title = firstLine.length > 60 ? `${firstLine.substring(0, 60).trim()}...` : firstLine;\n    ragContext += `[Source: ${sourceName} | Title: ${title || 'Untitled'}]\\n`;\n    ragContext += `Content: ${content.substring(0, 1000)}\\n`;\n    ragContext += `---\\n\\n`;\n  });\n}\n\naddDocs(uniqueNotion, 'Notion');\naddDocs(uniqueSubstack, 'Substack');\naddDocs(uniqueLinkedin, 'LinkedIn');\n\nreturn [{ json: { rag_context: ragContext } }];"
+      },
+      "id": "format-rag-context",
+      "name": "Format RAG Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ragContext = $('Format RAG Context').first()?.json?.rag_context || '';\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/agents/giusy.md', 'utf8');\n} catch (e) {\n  persona = 'Warm, brilliant AI Marketing Director named Giusy.';\n}\n\nlet strategy = '';\ntry {\n  strategy = fs.readFileSync('/etc/n8n/workflows/prompts/content_strategy.md', 'utf8');\n} catch (e) {\n  strategy = 'Standard content creation rules.';\n}\n\nlet positioning = '';\ntry {\n  positioning = fs.readFileSync('/etc/n8n/workflows/prompts/usp_market_positioning.md', 'utf8');\n} catch (e) { \n  positioning = 'Standard positioning rules.';\n}\n\nlet structure = '';\ntry {\n  structure = fs.readFileSync('/etc/n8n/workflows/prompts/substack_post_structure.md', 'utf8');\n} catch (e) {\n  structure = 'Standard Substack post structure rules.';\n}\n\nreturn [{ json: { text: ragContext, giusy_persona: persona, content_strategy: strategy, usp_positioning: positioning, substack_structure: structure } }];"
+      },
+      "id": "format-context-for-llm",
+      "name": "Format Context for LLM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma4:31b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=### YOUR PERSONA & CONTEXT ###\n{{ $json.giusy_persona }}\n\n### CONTENT STRATEGY & GUIDELINES ###\n{{ $json.content_strategy }}\n\n### USP & MARKET POSITIONING ###\n{{ $json.usp_positioning }}\n\n### SUBSTACK POST STRUCTURE & STYLE GUIDE ###\n{{ $json.substack_structure }}\n\n### YOUR TASK ###\nRead the Substack articles, past LinkedIn posts, and Notion notes provided below. Generate a high-impact, professional, and engaging Substack article outline/writing plan proposal for Jimmy Pang's Substack newsletter.\n\nCRITICAL SPEAKER IDENTITY:\nThe outline/plan MUST be structured from the perspective of Jimmy Pang, a prominent data leader and AI consultant. The tone should be authoritative yet accessible, expert, and visionary.\n\nCRITICAL OUTPUT RULES:\n1. Do NOT include any Giusy conversational greetings (such as \"Ciao Don Jimmy\") or conversational sign-offs.\n2. The output MUST be a valid JSON object starting with '{' and ending with '}'. Do not include markdown code fences or any conversational filler outside of the JSON.\n3. The 'title' field must contain a catchy, high-conversion newsletter headline.\n4. The 'substack_content' field must contain ONLY a detailed, section-by-section writing plan and outline in markdown format. For each section of the style guide (Hook, Core Concept, Technical Execution, Actionable Outro), specify exactly what story, metrics, technical systems, and framework will be included.\n5. Do NOT include or hallucinate any external URLs, links, or link placeholders unless strictly relevant.\n\nReturn a JSON object with this exact structure:\n\n{\n  \"title\": \"The proposed catchy Substack article title.\",\n  \"substack_content\": \"The detailed section-by-section writing plan and outline in markdown.\",\n  \"brief_strategic_reasoning\": \"A short sentence explaining why you structured/designed the article this way.\"\n}\n\n### SOURCE DATA ###\n{{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "format": "json"
+        }
+      },
+      "id": "generate-proposal-post",
+      "name": "Generate Proposal Post",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        96
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nlet jsonStr = raw.trim();\n\nlet title = '';\nlet substack_content = '';\nlet reasoning = '';\nlet parsed = false;\n\ntry {\n  let cleanStr = jsonStr;\n  const firstBrace = cleanStr.indexOf('{');\n  const lastBrace = cleanStr.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n    cleanStr = cleanStr.substring(firstBrace, lastBrace + 1);\n  }\n  cleanStr = cleanStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n  const obj = JSON.parse(cleanStr);\n  title = obj.title || '';\n  substack_content = obj.substack_content || '';\n  reasoning = obj.brief_strategic_reasoning || '';\n  parsed = true;\n} catch (e) {\n  // standard parsing failed\n}\n\nif (!parsed) {\n  const titleMatch = jsonStr.match(/\"title\"\\s*:\\s*\"([\\s\\S]*?)\"\\s*,/);\n  if (titleMatch) title = titleMatch[1];\n  \n  const postMatch = jsonStr.match(/\"substack_content\"\\s*:\\s*\"([\\s\\S]*?)\"\\s*,\\s*\"brief_strategic_reasoning\"/);\n  if (postMatch) {\n    substack_content = postMatch[1];\n  } else {\n    const altMatch = jsonStr.match(/\"substack_content\"\\s*:\\s*\"([\\s\\S]*?)\"\\s*}/);\n    if (altMatch) {\n      substack_content = altMatch[1];\n    } else {\n      substack_content = raw.replace(/```json/g, '').replace(/```/g, '').trim();\n    }\n  }\n  const reasonMatch = jsonStr.match(/\"brief_strategic_reasoning\"\\s*:\\s*\"([\\s\\S]*?)\"/);\n  if (reasonMatch) {\n    reasoning = reasonMatch[1];\n  }\n  \n  title = title\n    .replace(/\\\\n/g, '\\n')\n    .replace(/\\\\\"/g, '\"')\n    .replace(/\\\\'/g, \"'\")\n    .replace(/\\\\\\\\/g, '\\\\');\n  substack_content = substack_content\n    .replace(/\\\\n/g, '\\n')\n    .replace(/\\\\\"/g, '\"')\n    .replace(/\\\\'/g, \"'\")\n    .replace(/\\\\\\\\/g, '\\\\');\n  reasoning = reasoning\n    .replace(/\\\\n/g, '\\n')\n    .replace(/\\\\\"/g, '\"')\n    .replace(/\\\\'/g, \"'\")\n    .replace(/\\\\\\\\/g, '\\\\');\n}\n\nconst notionDocs = $('Retrieve Notion Pages').all();\nconst substackDocs = $('Retrieve Substack Posts').all();\nconst linkedinDocs = $('Retrieve LinkedIn Posts').all();\n\nconst fs = require('fs');\ntry {\n  fs.writeFileSync('/tmp/substack_doc.json', JSON.stringify(substackDocs.map(d => d.json), null, 2));\n  fs.writeFileSync('/tmp/notion_doc.json', JSON.stringify(notionDocs.map(d => d.json), null, 2));\n  fs.writeFileSync('/tmp/linkedin_doc.json', JSON.stringify(linkedinDocs.map(d => d.json), null, 2));\n} catch (err) {}\n\nconst uniqueNotion = Array.from(new Map(notionDocs.map(d => [d.json.document?.pageContent || '', d])).values());\nconst uniqueSubstack = Array.from(new Map(substackDocs.map(d => [d.json.document?.pageContent || '', d])).values());\nconst uniqueLinkedin = Array.from(new Map(linkedinDocs.map(d => [d.json.document?.pageContent || '', d])).values());\n\nconst sources = [];\nconst sourcesObj = {\n  Notion: [],\n  Substack: [],\n  LinkedIn: []\n};\n\nfunction addSource(docs, label, key) {\n  docs.forEach(d => {\n    const content = d.json.document?.pageContent || '';\n    if (content) {\n      const firstLine = content.split('\\n')[0].trim();\n      const shortTitle = firstLine.length > 80 ? firstLine.substring(0, 80) + '...' : firstLine;\n      const titleVal = `\"${shortTitle}\"`;\n      sources.push(`${label}: ${titleVal}`);\n      sourcesObj[key].push(titleVal);\n    }\n  });\n}\n\naddSource(uniqueNotion, 'Notion', 'Notion');\naddSource(uniqueSubstack, 'Substack', 'Substack');\naddSource(uniqueLinkedin, 'LinkedIn', 'LinkedIn');\n\nconst sourcesStr = sources.length > 0 ? sources.join(', ') : 'None';\n\nreturn [{ json: { title, substack_content, reasoning, sources_str: sourcesStr, sources_obj: sourcesObj } }];"
+      },
+      "id": "Parse LLM Response",
+      "name": "Parse LLM Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const title = $input.first().json.title || 'Untitled Substack Post';\nconst content = $input.first().json.substack_content || '';\nconst reasoning = $input.first().json.reasoning || '';\nconst sources_str = $input.first().json.sources_str || '';\n\nconst lines = content.split('\\n');\nconst children = [];\n\nfunction safeText(str, limit = 1990) {\n  if (!str) return '';\n  return str.length > limit ? str.substring(0, limit - 3) + '...' : str;\n}\n\nfunction parseMarkdownToRichText(text) {\n  if (!text) return [];\n  const safeTxt = safeText(text);\n  const richText = [];\n  const tokenRegex = /(\\*\\*.*?\\*\\*|\\*.*?\\*|`.*?`|\\[.*?\\]\\(.*?\\))/g;\n  const parts = safeTxt.split(tokenRegex);\n  \n  for (const part of parts) {\n    if (!part) continue;\n    if (part.startsWith('**') && part.endsWith('**')) {\n      richText.push({\n        type: 'text',\n        text: { content: part.slice(2, -2) },\n        annotations: { bold: true }\n      });\n    } else if (part.startsWith('*') && part.endsWith('*')) {\n      richText.push({\n        type: 'text',\n        text: { content: part.slice(1, -1) },\n        annotations: { italic: true }\n      });\n    } else if (part.startsWith('`') && part.endsWith('`')) {\n      richText.push({\n        type: 'text',\n        text: { content: part.slice(1, -1) },\n        annotations: { code: true }\n      });\n    } else if (part.startsWith('[') && part.includes('](')) {\n      const closeBracket = part.indexOf(']');\n      const linkText = part.slice(1, closeBracket);\n      const linkUrl = part.slice(closeBracket + 2, -1);\n      richText.push({\n        type: 'text',\n        text: {\n          content: linkText,\n          link: { url: linkUrl }\n        }\n      });\n    } else {\n      richText.push({\n        type: 'text',\n        text: { content: part }\n      });\n    }\n  }\n  \n  if (richText.length === 0) {\n    richText.push({\n      type: 'text',\n      text: { content: safeTxt }\n    });\n  }\n  return richText;\n}\n\nif (reasoning) {\n  children.push({\n    \"object\": \"block\",\n    \"type\": \"callout\",\n    \"callout\": {\n      \"rich_text\": [\n        {\n          \"type\": \"text\",\n          \"text\": {\n            \"content\": safeText(\"Strategic Reasoning: \" + reasoning)\n          },\n          \"annotations\": {\n            \"italic\": true,\n            \"bold\": true\n          }\n        }\n      ],\n      \"icon\": {\n        \"emoji\": \"💡\"\n      },\n      \"color\": \"blue_background\"\n    }\n  });\n}\n\nif (sources_str) {\n  children.push({\n    \"object\": \"block\",\n    \"type\": \"callout\",\n    \"callout\": {\n      \"rich_text\": [\n        {\n          \"type\": \"text\",\n          \"text\": {\n            \"content\": safeText(\"Sources Used: \" + sources_str)\n          }\n        }\n      ],\n      \"icon\": {\n        \"emoji\": \"📚\"\n      },\n      \"color\": \"gray_background\"\n    }\n  });\n}\n\nlet inCodeBlock = false;\nlet codeContent = [];\nlet codeLanguage = 'plain text';\n\nlet inTable = false;\nlet tableRows = [];\nlet tableWidth = 0;\n\nlet paraBuffer = [];\n\nfunction flushPara() {\n  if (paraBuffer.length > 0) {\n    const fullText = paraBuffer.join('\\n');\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"paragraph\",\n      \"paragraph\": {\n        \"rich_text\": parseMarkdownToRichText(fullText)\n      }\n    });\n    paraBuffer = [];\n  }\n}\n\nfunction flushTable() {\n  if (inTable) {\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"table\",\n      \"table\": {\n        \"table_width\": tableWidth,\n        \"has_column_header\": true,\n        \"children\": tableRows.map(row => ({\n          \"object\": \"block\",\n          \"type\": \"table_row\",\n          \"table_row\": {\n            \"cells\": row.map(cell => parseMarkdownToRichText(cell))\n          }\n        }))\n      }\n    });\n    inTable = false;\n    tableRows = [];\n  }\n}\n\nfor (let line of lines) {\n  let trimmed = line.trim();\n  \n  if (trimmed.startsWith('```')) {\n    flushTable();\n    flushPara();\n    \n    if (inCodeBlock) {\n      children.push({\n        \"object\": \"block\",\n        \"type\": \"code\",\n        \"code\": {\n          \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": safeText(codeContent.join('\\n')) } }],\n          \"language\": codeLanguage\n        }\n      });\n      codeContent = [];\n      inCodeBlock = false;\n    } else {\n      inCodeBlock = true;\n      const lang = trimmed.substring(3).trim();\n      codeLanguage = lang || 'plain text';\n    }\n    continue;\n  }\n  \n  if (inCodeBlock) {\n    codeContent.push(line);\n    continue;\n  }\n  \n  if (trimmed.startsWith('|') && trimmed.endsWith('|')) {\n    flushPara();\n    if (/^[|\\s:-]+$/.test(trimmed)) {\n      continue;\n    }\n    const cells = trimmed.split('|').slice(1, -1).map(c => c.trim());\n    if (!inTable) {\n      inTable = true;\n      tableRows = [cells];\n      tableWidth = cells.length;\n    } else {\n      tableRows.push(cells);\n    }\n    continue;\n  } else {\n    flushTable();\n  }\n  \n  if (!trimmed) {\n    flushPara();\n    continue;\n  }\n  \n  if (trimmed.startsWith('### ')) {\n    flushPara();\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"heading_3\",\n      \"heading_3\": {\n        \"rich_text\": parseMarkdownToRichText(trimmed.substring(4))\n      }\n    });\n  } else if (trimmed.startsWith('## ')) {\n    flushPara();\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"heading_2\",\n      \"heading_2\": {\n        \"rich_text\": parseMarkdownToRichText(trimmed.substring(3))\n      }\n    });\n  } else if (trimmed.startsWith('# ')) {\n    flushPara();\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"heading_1\",\n      \"heading_1\": {\n        \"rich_text\": parseMarkdownToRichText(trimmed.substring(2))\n      }\n    });\n  } else if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {\n    flushPara();\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"bulleted_list_item\",\n      \"bulleted_list_item\": {\n        \"rich_text\": parseMarkdownToRichText(trimmed.substring(2))\n      }\n    });\n  } else if (/^\\d+\\.\\s/.test(trimmed)) {\n    flushPara();\n    const contentStart = trimmed.indexOf(' ') + 1;\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"numbered_list_item\",\n      \"numbered_list_item\": {\n        \"rich_text\": parseMarkdownToRichText(trimmed.substring(contentStart))\n      }\n    });\n  } else {\n    paraBuffer.push(line);\n  }\n}\n\nflushTable();\nflushPara();\n\nconst chunkedChildren = children.slice(0, 100);\n\nconst payload = {\n  \"parent\": { \"database_id\": \"3956e98d4ef880c3bce5e31729afdf38\" },\n  \"properties\": {\n    \"Name\": {\n      \"title\": [\n        {\n          \"text\": {\n            \"content\": safeText(title)\n          }\n        }\n      ]\n    },\n    \"Status\": {\n      \"status\": {\n        \"name\": \"Draft\"\n      }\n    }\n  },\n  \"children\": chunkedChildren\n};\n\nreturn [{ json: { payload, title, reasoning } }];\n"
+      },
+      "id": "Format Notion Page JSON",
+      "name": "Format Notion Page JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "method": "POST",
+        "url": "https://api.notion.com/v1/pages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.payload) }}",
+        "options": {}
+      },
+      "id": "Create Notion Page",
+      "name": "Create Notion Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2864,
+        96
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-substack-posts-generation-api",
+          "name": "Notion Substack Posts Generation API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO t_content_generation.substack_articles (title, content, original_prompt_or_source, status, used_resources, external_post_id)\nVALUES ('{{ $('Parse LLM Response').first().json.title.replace(/'/g, \"''\") }}', '{{ $('Parse LLM Response').first().json.substack_content.replace(/'/g, \"''\") }}', 'Generated from RAG sources: {{ $('Parse LLM Response').first().json.sources_str.replace(/'/g, \"''\") }}', 'draft', '{{ JSON.stringify($('Parse LLM Response').first().json.sources_obj).replace(/'/g, \"''\") }}', '{{ $json.id }}')\nRETURNING id;",
+        "options": {}
+      },
+      "id": "Save Proposal to DB",
+      "name": "Save Proposal to DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3088,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const notionResponse = $('Create Notion Page').first().json;\nconst pageUrl = notionResponse.url || 'https://notion.so';\nconst parsedInfo = $('Format Notion Page JSON').first().json;\n\nconst messageText = '💡 *New Substack Article Draft Created in Notion* 💡\\n\\n*Title:* ' + parsedInfo.title + '\\n\\n*Strategic Reasoning:* ' + parsedInfo.reasoning + '\\n\\n*Notion Page Link:* ' + pageUrl + '\\n\\n_Generated by Giusy_ 🤖';\nreturn [{ json: { slack_message: messageText } }];"
+      },
+      "id": "Formulate Slack Notification",
+      "name": "Formulate Slack Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3312,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
+        "text": "={{ $json.slack_message }}",
+        "otherOptions": {},
+        "attachments": []
+      },
+      "id": "Notify Slack",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        3536,
+        96
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-giusy-cred",
+          "name": "Slack Giusy Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE t_content_generation.substack_articles\nSET slack_ts = '{{ $json.ts }}',\n    updated_at = NOW()\nWHERE external_post_id = '{{ $('Create Notion Page').first().json.id }}'\nRETURNING id;",
+        "options": {}
+      },
+      "id": "Update Slack TS in DB",
+      "name": "Update Slack TS in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        3760,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
+        "message": "=Please review the Substack draft above in Notion. Do you approve it?",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 7,
+              "resumeUnit": "days"
+            }
+          }
+        }
+      },
+      "id": "slack-send-and-wait",
+      "name": "Slack Send and Wait",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.1,
+      "position": [
+        3984,
+        96
+      ],
+      "webhookId": "55af1ae5-aed6-4a6e-9e21-7f6fb9d918a9",
+      "credentials": {
+        "slackApi": {
+          "id": "slack-giusy-cred",
+          "name": "Slack Giusy Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "approved-check",
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-approved",
+      "name": "If Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4208,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $('Create Notion Page').first().json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"properties\": {\n    \"Status\": {\n      \"status\": {\n        \"name\": \"Approved\"\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "Update Status to Approved",
+      "name": "Update Status to Approved",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        5090,
+        -180
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-substack-posts-generation-api",
+          "name": "Notion Substack Posts Generation API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE t_content_generation.substack_articles\nSET status = 'approved',\n    is_approved = TRUE,\n    content = '{{ $('Generate Full Article').first().json.response.replace(/'/g, \"''\") }}',\n    updated_at = NOW()\nWHERE external_post_id = '{{ $('Create Notion Page').first().json.id }}'\nRETURNING id, status;",
+        "options": {}
+      },
+      "id": "Update DB Status to Approved",
+      "name": "Update DB Status to Approved",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        5310,
+        -180
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $('Create Notion Page').first().json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"properties\": {\n    \"Status\": {\n      \"status\": {\n        \"name\": \"Rejected\"\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "Update Status to Rejected",
+      "name": "Update Status to Rejected",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4432,
+        192
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-substack-posts-generation-api",
+          "name": "Notion Substack Posts Generation API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE t_content_generation.substack_articles\nSET status = 'rejected',\n    is_approved = FALSE,\n    updated_at = NOW()\nWHERE external_post_id = '{{ $('Create Notion Page').first().json.id }}'\nRETURNING id, status;",
+        "options": {}
+      },
+      "id": "Update DB Status to Rejected",
+      "name": "Update DB Status to Rejected",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        4656,
+        192
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma4:31b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=### YOUR PERSONA & CONTEXT ###\n{{ $('Format Context for LLM').first().json.giusy_persona }}\n\n### CONTENT STRATEGY & GUIDELINES ###\n{{ $('Format Context for LLM').first().json.content_strategy }}\n\n### USP & MARKET POSITIONING ###\n{{ $('Format Context for LLM').first().json.usp_positioning }}\n\n### SUBSTACK POST STRUCTURE & STYLE GUIDE ###\n{{ $('Format Context for LLM').first().json.substack_structure }}\n\n### APPROVED OUTLINE & TITLE ###\nTitle: {{ $('Parse LLM Response').first().json.title }}\nOutline:\n{{ $('Parse LLM Response').first().json.substack_content }}\n\n### SOURCE DATA ###\n{{ $('Format Context for LLM').first().json.text }}\n\n### YOUR TASK ###\nBased on the approved Title, Outline, and RAG sources, write a comprehensive, detailed, and high-impact Substack article in first person as Jimmy Pang.\n\nYou MUST write a full-length piece of 2000 to 2500 words, fully expanding on all sections of the outline. Do not summarize or stop early.\nDo NOT wrap the output in JSON or include any greetings. Output raw Markdown directly."
+            }
+          ]
+        },
+        "options": {
+          "num_predict": 8192,
+          "num_ctx": 16384
+        }
+      },
+      "id": "generate-full-article",
+      "name": "Generate Full Article",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        4430,
+        -180
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const title = $input.first().json.title || 'Untitled Substack Post';\nconst content = $input.first().json.text || $input.first().json.response || $input.first().json.content || '';\nconst reasoning = $input.first().json.reasoning || '';\nconst sources_str = $input.first().json.sources_str || '';\n\nconst lines = content.split('\\n');\nconst children = [];\n\nfunction safeText(str, limit = 1990) {\n  if (!str) return '';\n  return str.length > limit ? str.substring(0, limit - 3) + '...' : str;\n}\n\nfunction parseMarkdownToRichText(text) {\n  if (!text) return [];\n  const safeTxt = safeText(text);\n  const richText = [];\n  const tokenRegex = /(\\*\\*.*?\\*\\*|\\*.*?\\*|`.*?`|\\[.*?\\]\\(.*?\\))/g;\n  const parts = safeTxt.split(tokenRegex);\n  \n  for (const part of parts) {\n    if (!part) continue;\n    if (part.startsWith('**') && part.endsWith('**')) {\n      richText.push({\n        type: 'text',\n        text: { content: part.slice(2, -2) },\n        annotations: { bold: true }\n      });\n    } else if (part.startsWith('*') && part.endsWith('*')) {\n      richText.push({\n        type: 'text',\n        text: { content: part.slice(1, -1) },\n        annotations: { italic: true }\n      });\n    } else if (part.startsWith('`') && part.endsWith('`')) {\n      richText.push({\n        type: 'text',\n        text: { content: part.slice(1, -1) },\n        annotations: { code: true }\n      });\n    } else if (part.startsWith('[') && part.includes('](')) {\n      const closeBracket = part.indexOf(']');\n      const linkText = part.slice(1, closeBracket);\n      const linkUrl = part.slice(closeBracket + 2, -1);\n      richText.push({\n        type: 'text',\n        text: {\n          content: linkText,\n          link: { url: linkUrl }\n        }\n      });\n    } else {\n      richText.push({\n        type: 'text',\n        text: { content: part }\n      });\n    }\n  }\n  \n  if (richText.length === 0) {\n    richText.push({\n      type: 'text',\n      text: { content: safeTxt }\n    });\n  }\n  return richText;\n}\n\n\n\n\n\nlet inCodeBlock = false;\nlet codeContent = [];\nlet codeLanguage = 'plain text';\n\nlet inTable = false;\nlet tableRows = [];\nlet tableWidth = 0;\n\nlet paraBuffer = [];\n\nfunction flushPara() {\n  if (paraBuffer.length > 0) {\n    const fullText = paraBuffer.join('\\n');\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"paragraph\",\n      \"paragraph\": {\n        \"rich_text\": parseMarkdownToRichText(fullText)\n      }\n    });\n    paraBuffer = [];\n  }\n}\n\nfunction flushTable() {\n  if (inTable) {\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"table\",\n      \"table\": {\n        \"table_width\": tableWidth,\n        \"has_column_header\": true,\n        \"children\": tableRows.map(row => ({\n          \"object\": \"block\",\n          \"type\": \"table_row\",\n          \"table_row\": {\n            \"cells\": row.map(cell => parseMarkdownToRichText(cell))\n          }\n        }))\n      }\n    });\n    inTable = false;\n    tableRows = [];\n  }\n}\n\nfor (let line of lines) {\n  let trimmed = line.trim();\n  \n  if (trimmed.startsWith('```')) {\n    flushTable();\n    flushPara();\n    \n    if (inCodeBlock) {\n      children.push({\n        \"object\": \"block\",\n        \"type\": \"code\",\n        \"code\": {\n          \"rich_text\": [{ \"type\": \"text\", \"text\": { \"content\": safeText(codeContent.join('\\n')) } }],\n          \"language\": codeLanguage\n        }\n      });\n      codeContent = [];\n      inCodeBlock = false;\n    } else {\n      inCodeBlock = true;\n      const lang = trimmed.substring(3).trim();\n      codeLanguage = lang || 'plain text';\n    }\n    continue;\n  }\n  \n  if (inCodeBlock) {\n    codeContent.push(line);\n    continue;\n  }\n  \n  if (trimmed.startsWith('|') && trimmed.endsWith('|')) {\n    flushPara();\n    if (/^[|\\s:-]+$/.test(trimmed)) {\n      continue;\n    }\n    const cells = trimmed.split('|').slice(1, -1).map(c => c.trim());\n    if (!inTable) {\n      inTable = true;\n      tableRows = [cells];\n      tableWidth = cells.length;\n    } else {\n      tableRows.push(cells);\n    }\n    continue;\n  } else {\n    flushTable();\n  }\n  \n  if (!trimmed) {\n    flushPara();\n    continue;\n  }\n  \n  if (trimmed.startsWith('### ')) {\n    flushPara();\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"heading_3\",\n      \"heading_3\": {\n        \"rich_text\": parseMarkdownToRichText(trimmed.substring(4))\n      }\n    });\n  } else if (trimmed.startsWith('## ')) {\n    flushPara();\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"heading_2\",\n      \"heading_2\": {\n        \"rich_text\": parseMarkdownToRichText(trimmed.substring(3))\n      }\n    });\n  } else if (trimmed.startsWith('# ')) {\n    flushPara();\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"heading_1\",\n      \"heading_1\": {\n        \"rich_text\": parseMarkdownToRichText(trimmed.substring(2))\n      }\n    });\n  } else if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {\n    flushPara();\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"bulleted_list_item\",\n      \"bulleted_list_item\": {\n        \"rich_text\": parseMarkdownToRichText(trimmed.substring(2))\n      }\n    });\n  } else if (/^\\d+\\.\\s/.test(trimmed)) {\n    flushPara();\n    const contentStart = trimmed.indexOf(' ') + 1;\n    children.push({\n      \"object\": \"block\",\n      \"type\": \"numbered_list_item\",\n      \"numbered_list_item\": {\n        \"rich_text\": parseMarkdownToRichText(trimmed.substring(contentStart))\n      }\n    });\n  } else {\n    paraBuffer.push(line);\n  }\n}\n\nflushTable();\nflushPara();\n\nconst chunkedChildren = children.slice(0, 100);\n\nreturn [{ json: { children: chunkedChildren } }];\n"
+      },
+      "id": "format-full-article-notion-blocks",
+      "name": "Format Full Article Notion Blocks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4650,
+        -180
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/blocks/{{ $('Create Notion Page').first().json.id }}/children",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ children: $json.children }) }}",
+        "options": {}
+      },
+      "id": "append-full-article-to-notion",
+      "name": "Append Full Article to Notion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        4870,
+        -180
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-substack-posts-generation-api",
+          "name": "Notion Substack Posts Generation API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare RAG Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare RAG Query": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Notion Pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Notion Pages": {
+      "main": [
+        [
+          {
+            "node": "Retrieve Substack Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve Substack Posts": {
+      "main": [
+        [
+          {
+            "node": "Retrieve LinkedIn Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retrieve LinkedIn Posts": {
+      "main": [
+        [
+          {
+            "node": "Format RAG Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Hugging Face Inference": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Retrieve Notion Pages",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "Retrieve Substack Posts",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "Retrieve LinkedIn Posts",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format RAG Context": {
+      "main": [
+        [
+          {
+            "node": "Format Context for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Context for LLM": {
+      "main": [
+        [
+          {
+            "node": "Generate Proposal Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Proposal Post": {
+      "main": [
+        [
+          {
+            "node": "Parse LLM Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse LLM Response": {
+      "main": [
+        [
+          {
+            "node": "Format Notion Page JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Notion Page JSON": {
+      "main": [
+        [
+          {
+            "node": "Create Notion Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion Page": {
+      "main": [
+        [
+          {
+            "node": "Save Proposal to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Proposal to DB": {
+      "main": [
+        [
+          {
+            "node": "Formulate Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formulate Slack Notification": {
+      "main": [
+        [
+          {
+            "node": "Notify Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Slack": {
+      "main": [
+        [
+          {
+            "node": "Update Slack TS in DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Slack TS in DB": {
+      "main": [
+        [
+          {
+            "node": "Slack Send and Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Send and Wait": {
+      "main": [
+        [
+          {
+            "node": "If Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Approved?": {
+      "main": [
+        [
+          {
+            "node": "Generate Full Article",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Status to Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status to Approved": {
+      "main": [
+        [
+          {
+            "node": "Update DB Status to Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status to Rejected": {
+      "main": [
+        [
+          {
+            "node": "Update DB Status to Rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Full Article": {
+      "main": [
+        [
+          {
+            "node": "Format Full Article Notion Blocks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Full Article Notion Blocks": {
+      "main": [
+        [
+          {
+            "node": "Append Full Article to Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Full Article to Notion": {
+      "main": [
+        [
+          {
+            "node": "Update Status to Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
