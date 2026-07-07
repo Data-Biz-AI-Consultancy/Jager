@@ -48,7 +48,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const items = $input.all();\nconst linkedinAccounts = [];\nfor (const item of items) {\n  const accounts = Array.isArray(item.json) ? item.json : [item.json];\n  for (const acc of accounts) {\n    if (acc.platform === 'linkedin') {\n      linkedinAccounts.push({ json: acc });\n    }\n  }\n}\nreturn linkedinAccounts;"
+        "jsCode": "const items = $input.all();\nconst linkedinAccounts = [];\n\nfunction extractAccounts(data) {\n  if (Array.isArray(data)) return data;\n  if (data && typeof data === 'object') {\n    if (data.platform) return [data];\n    for (const key of ['data', 'accounts', 'results', 'items']) {\n      if (Array.isArray(data[key])) return data[key];\n    }\n    for (const value of Object.values(data)) {\n      if (Array.isArray(value)) return value;\n    }\n  }\n  return [];\n}\n\nfor (const item of items) {\n  const rawAccounts = extractAccounts(item.json);\n  for (const acc of rawAccounts) {\n    if (acc && acc.platform && typeof acc.platform === 'string') {\n      if (acc.platform.toLowerCase() === 'linkedin') {\n        linkedinAccounts.push({ json: acc });\n      }\n    }\n  }\n}\nreturn linkedinAccounts;"
       },
       "id": "filter-linkedin-accounts",
       "name": "Filter LinkedIn Accounts",
