@@ -1,0 +1,351 @@
+{
+  "id": "zernio-linkedin-ingestion-workflow",
+  "name": "Data Ingestion - Zernio LinkedIn Analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "value": 24
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://zernio.com/api/v1/accounts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "options": {}
+      },
+      "id": "fetch-zernio-accounts",
+      "name": "Fetch Zernio Accounts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        250,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zernio-api-cred",
+          "name": "Zernio API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst linkedinAccounts = [];\n\nfunction extractAccounts(data) {\n  if (Array.isArray(data)) return data;\n  if (data && typeof data === 'object') {\n    if (data.platform) return [data];\n    for (const key of ['data', 'accounts', 'results', 'items']) {\n      if (Array.isArray(data[key])) return data[key];\n    }\n    for (const value of Object.values(data)) {\n      if (Array.isArray(value)) return value;\n    }\n  }\n  return [];\n}\n\nfor (const item of items) {\n  const rawAccounts = extractAccounts(item.json);\n  for (const acc of rawAccounts) {\n    if (acc && acc.platform && typeof acc.platform === 'string') {\n      if (acc.platform.toLowerCase() === 'linkedin') {\n        linkedinAccounts.push({\n          json: {\n            ...acc,\n            accountId: acc.accountId || acc.id || acc._id,\n            accountType: acc.metadata && acc.metadata.accountType\n          }\n        });\n      }\n    }\n  }\n}\nreturn linkedinAccounts;"
+      },
+      "id": "filter-linkedin-accounts",
+      "name": "Filter LinkedIn Accounts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.accountType === 'organization' ? 'https://zernio.com/api/v1/analytics/linkedin/org-aggregate-analytics?accountId=' + $json.accountId : 'https://zernio.com/api/v1/accounts/' + $json.accountId + '/linkedin-aggregate-analytics?aggregation=TOTAL' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "options": {}
+      },
+      "id": "fetch-account-analytics",
+      "name": "Fetch Account Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        550,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zernio-api-cred",
+          "name": "Zernio API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfunction getMetricValue(metric) {\n  if (metric === null || metric === undefined) return 0;\n  if (typeof metric === 'number') return metric;\n  if (typeof metric === 'object') {\n    if (typeof metric.total === 'number') return metric.total;\n    if (typeof metric.value === 'number') return metric.value;\n  }\n  const parsed = Number(metric);\n  return isNaN(parsed) ? 0 : parsed;\n}\n\nfor (const item of items) {\n  const data = item.json;\n  const accountId = item.json.accountId || data.accountId;\n  const platform = item.json.platform || data.platform || 'linkedin';\n  const username = item.json.username || data.username || '';\n  \n  let metrics = data.metrics || {};\n  if (Array.isArray(data)) {\n    metrics = data[0]?.metrics || {};\n  }\n  \n  results.push({\n    json: {\n      accountId: accountId,\n      platform: platform,\n      username: username,\n      impressions: getMetricValue(metrics.IMPRESSION || metrics.impressions || metrics.uniqueImpressions),\n      members_reached: getMetricValue(metrics.MEMBERS_REACHED || metrics.members_reached || metrics.uniqueImpressionsCount),\n      reactions: getMetricValue(metrics.REACTION || metrics.reactions || metrics.likeCount || metrics.likes),\n      comments: getMetricValue(metrics.COMMENT || metrics.comments || metrics.commentCount),\n      reshares: getMetricValue(metrics.RESHARE || metrics.reshares || metrics.shareCount || metrics.shares),\n      post_saves: getMetricValue(metrics.POST_SAVE || metrics.post_saves || metrics.saves),\n      post_sends: getMetricValue(metrics.POST_SEND || metrics.post_sends || metrics.sends)\n    }\n  });\n}\nreturn results;"
+      },
+      "id": "parse-account-analytics",
+      "name": "Parse Account Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_zernio.linkedin_account_analytics (\n  account_id, platform, username, impressions, members_reached, reactions, comments, reshares, post_saves, post_sends, fetched_at\n)\nVALUES (\n  '{{ $json.accountId }}',\n  '{{ $json.platform }}',\n  '{{ ($json.username || \"\").replace(/'/g, \"''\") }}',\n  {{ $json.impressions }},\n  {{ $json.members_reached }},\n  {{ $json.reactions }},\n  {{ $json.comments }},\n  {{ $json.reshares }},\n  {{ $json.post_saves }},\n  {{ $json.post_sends }},\n  NOW()\n)\nON CONFLICT (account_id) \nDO UPDATE SET \n  username = EXCLUDED.username,\n  impressions = EXCLUDED.impressions,\n  members_reached = EXCLUDED.members_reached,\n  reactions = EXCLUDED.reactions,\n  comments = EXCLUDED.comments,\n  reshares = EXCLUDED.reshares,\n  post_saves = EXCLUDED.post_saves,\n  post_sends = EXCLUDED.post_sends,\n  fetched_at = EXCLUDED.fetched_at;"
+      },
+      "id": "upsert-account-analytics",
+      "name": "Upsert Account Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        820,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://zernio.com/api/v1/accounts/{{ $json.accountId }}/posts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "options": {}
+      },
+      "id": "fetch-zernio-posts",
+      "name": "Fetch Zernio Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        550,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zernio-api-cred",
+          "name": "Zernio API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfunction extractPosts(data) {\n  if (Array.isArray(data)) return data;\n  if (data && typeof data === 'object') {\n    for (const key of ['accounts', 'posts', 'data', 'results']) {\n      if (Array.isArray(data[key])) return data[key];\n    }\n    for (const val of Object.values(data)) {\n      if (Array.isArray(val)) return val;\n    }\n  }\n  return [];\n}\n\nfor (const item of items) {\n  const accountId = item.json.accountId || $('Filter LinkedIn Accounts').first().json.accountId;\n  const rawPosts = extractPosts(item.json);\n  \n  for (const post of rawPosts) {\n    if (post && post.id) {\n      results.push({\n        json: {\n          accountId: accountId,\n          post_id: post.id,\n          content: post.message || post.content || '',\n          url: post.permalink || post.url || '',\n          published_at: post.createdTime || post.createdAt || post.publishedAt || new Date().toISOString()\n        }\n      });\n    }\n  }\n}\nreturn results;"
+      },
+      "id": "parse-zernio-posts",
+      "name": "Parse Zernio Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_zernio.linkedin_posts (id, content, url, published_at, fetched_at)\nVALUES (\n  '{{ $json.post_id }}',\n  '{{ ($json.content || \"\").replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  NOW()\n)\nON CONFLICT (id)\nDO UPDATE SET\n  content = EXCLUDED.content,\n  url = EXCLUDED.url,\n  published_at = EXCLUDED.published_at,\n  fetched_at = EXCLUDED.fetched_at\nRETURNING id AS post_id, '{{ $json.accountId }}' AS \"accountId\";"
+      },
+      "id": "upsert-zernio-posts",
+      "name": "Upsert Zernio Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        850,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://zernio.com/api/v1/accounts/{{ $json.accountId }}/linkedin-post-analytics?urn={{ $json.post_id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "options": {}
+      },
+      "id": "fetch-post-analytics",
+      "name": "Fetch Post Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1000,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "zernio-api-cred",
+          "name": "Zernio API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfunction getMetricValue(metric) {\n  if (metric === null || metric === undefined) return 0;\n  if (typeof metric === 'number') return metric;\n  if (typeof metric === 'object') {\n    if (typeof metric.total === 'number') return metric.total;\n    if (typeof metric.value === 'number') return metric.value;\n  }\n  const parsed = Number(metric);\n  return isNaN(parsed) ? 0 : parsed;\n}\n\nfor (const item of items) {\n  const data = item.json;\n  const postId = data.postUrn || data.postId || item.json.post_id || item.json.postId;\n  \n  let metrics = data.analytics || data.metrics || {};\n  if (Array.isArray(metrics)) {\n    metrics = metrics[0] || {};\n  }\n  \n  if (postId) {\n    results.push({\n      json: {\n        post_id: postId,\n        impressions: getMetricValue(metrics.impressions || metrics.IMPRESSION || metrics.uniqueImpressions),\n        likes: getMetricValue(metrics.likes || metrics.REACTION || metrics.likeCount),\n        comments: getMetricValue(metrics.comments || metrics.COMMENT || metrics.commentCount),\n        shares: getMetricValue(metrics.shares || metrics.RESHARE || metrics.shareCount),\n        clicks: getMetricValue(metrics.clicks || metrics.CLICK || metrics.clickCount),\n        saves: getMetricValue(metrics.saves || metrics.POST_SAVE),\n        sends: getMetricValue(metrics.sends || metrics.POST_SEND)\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-post-analytics",
+      "name": "Parse Post Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1150,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_zernio.linkedin_post_analytics (\n  post_id, impressions, likes, comments, shares, clicks, saves, sends, fetched_at\n)\nVALUES (\n  '{{ $json.post_id }}',\n  {{ $json.impressions }},\n  {{ $json.likes }},\n  {{ $json.comments }},\n  {{ $json.shares }},\n  {{ $json.clicks }},\n  {{ $json.saves }},\n  {{ $json.sends }},\n  NOW()\n)\nON CONFLICT (post_id) \nDO UPDATE SET \n  impressions = EXCLUDED.impressions,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  clicks = EXCLUDED.clicks,\n  saves = EXCLUDED.saves,\n  sends = EXCLUDED.sends,\n  fetched_at = EXCLUDED.fetched_at;"
+      },
+      "id": "upsert-post-analytics",
+      "name": "Upsert Post Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Zernio Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Zernio Accounts": {
+      "main": [
+        [
+          {
+            "node": "Filter LinkedIn Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter LinkedIn Accounts": {
+      "main": [
+        [
+          {
+            "node": "Fetch Account Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Zernio Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Account Analytics": {
+      "main": [
+        [
+          {
+            "node": "Parse Account Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Account Analytics": {
+      "main": [
+        [
+          {
+            "node": "Upsert Account Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Zernio Posts": {
+      "main": [
+        [
+          {
+            "node": "Parse Zernio Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Zernio Posts": {
+      "main": [
+        [
+          {
+            "node": "Upsert Zernio Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Zernio Posts": {
+      "main": [
+        [
+          {
+            "node": "Fetch Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Post Analytics": {
+      "main": [
+        [
+          {
+            "node": "Parse Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Post Analytics": {
+      "main": [
+        [
+          {
+            "node": "Upsert Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
