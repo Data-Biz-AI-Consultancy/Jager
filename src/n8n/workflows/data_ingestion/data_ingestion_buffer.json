@@ -158,7 +158,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let channelItem;\n  try {\n    channelItem = $('Parse Channels').all()[i].json;\n  } catch (e) {\n    console.error('Could not get channel details:', e.message);\n  }\n  const channelId = channelItem ? channelItem.id : '';\n\n  const edges = item.json.data?.posts?.edges || [];\n  for (const edge of edges) {\n    const post = edge.node;\n    if (post) {\n      results.push({\n        json: {\n          id: post.id,\n          text: post.text || '',\n          channel_id: channelId,\n          due_at: post.dueAt ? new Date(post.dueAt).toISOString() : null,\n          status: post.status || 'unknown',\n          assets: [],\n          metrics: post.metrics || []\n        }\n      });\n    }\n  }\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let channelItem;\n  try {\n    channelItem = $('Parse Channels').all()[i].json;\n  } catch (e) {\n    console.error('Could not get channel details:', e.message);\n  }\n  const channelId = channelItem ? channelItem.id : '';\n\n  const edges = item.json.data?.posts?.edges || [];\n  for (const edge of edges) {\n    const post = edge.node;\n    if (post) {\n      const metrics = post.metrics || [];\n      const metricsMap = {};\n      for (const m of metrics) {\n        metricsMap[m.type] = m.value;\n      }\n      results.push({\n        json: {\n          id: post.id,\n          text: post.text || '',\n          channel_id: channelId,\n          due_at: post.dueAt ? new Date(post.dueAt).toISOString() : null,\n          status: post.status || 'unknown',\n          assets: [],\n          metrics: metrics,\n          reactions: metricsMap['reactions'] || 0,\n          comments: metricsMap['comments'] || 0,\n          shares: metricsMap['shares'] || 0,\n          reposts: metricsMap['reposts'] || 0,\n          clicks: metricsMap['clicks'] || 0,\n          reach: metricsMap['reach'] || 0,\n          impressions: metricsMap['impressions'] || 0,\n          views: metricsMap['views'] || 0,\n          engagement_rate: metricsMap['engagementRate'] || 0.00\n        }\n      });\n    }\n  }\n}\nreturn results;"
       },
       "id": "parse-posts",
       "name": "Parse Posts",
@@ -172,7 +172,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_buffer.posts (id, text, channel_id, due_at, status, assets, metrics, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.text.replace(/'/g, \"''\") }}',\n  '{{ $json.channel_id }}',\n  {{ $json.due_at ? \"'\" + $json.due_at + \"'\" : 'NULL' }},\n  '{{ $json.status }}',\n  '{{ JSON.stringify($json.assets) }}'::jsonb,\n  '{{ JSON.stringify($json.metrics) }}'::jsonb,\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  text = EXCLUDED.text,\n  status = EXCLUDED.status,\n  due_at = EXCLUDED.due_at,\n  assets = EXCLUDED.assets,\n  metrics = EXCLUDED.metrics,\n  updated_at = NOW();"
+        "query": "=INSERT INTO s_buffer.posts (\n  id, text, channel_id, due_at, status, assets, metrics,\n  reactions, comments, shares, reposts, clicks, reach, impressions, views, engagement_rate,\n  processed\n)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.text.replace(/'/g, \"''\") }}',\n  '{{ $json.channel_id }}',\n  {{ $json.due_at ? \"'\" + $json.due_at + \"'\" : 'NULL' }},\n  '{{ $json.status }}',\n  '{{ JSON.stringify($json.assets) }}'::jsonb,\n  '{{ JSON.stringify($json.metrics) }}'::jsonb,\n  {{ $json.reactions }},\n  {{ $json.comments }},\n  {{ $json.shares }},\n  {{ $json.reposts }},\n  {{ $json.clicks }},\n  {{ $json.reach }},\n  {{ $json.impressions }},\n  {{ $json.views }},\n  {{ $json.engagement_rate }},\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  text = EXCLUDED.text,\n  status = EXCLUDED.status,\n  due_at = EXCLUDED.due_at,\n  assets = EXCLUDED.assets,\n  metrics = EXCLUDED.metrics,\n  reactions = EXCLUDED.reactions,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  reposts = EXCLUDED.reposts,\n  clicks = EXCLUDED.clicks,\n  reach = EXCLUDED.reach,\n  impressions = EXCLUDED.impressions,\n  views = EXCLUDED.views,\n  engagement_rate = EXCLUDED.engagement_rate,\n  updated_at = NOW();"
       },
       "id": "insert-posts",
       "name": "Insert/Update Database",
@@ -201,26 +201,6 @@
       "position": [
         1100,
         150
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "=UPDATE s_buffer.posts\nSET\n  reactions = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'reactions'), 0),\n  comments = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'comments'), 0),\n  shares = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'shares'), 0),\n  reposts = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'reposts'), 0),\n  clicks = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'clicks'), 0),\n  reach = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'reach'), 0),\n  impressions = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'impressions'), 0),\n  views = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'views'), 0),\n  engagement_rate = COALESCE((SELECT (m->>'value')::numeric FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'engagementRate'), 0.00)\nWHERE id = '{{ $json.id }}';"
-      },
-      "id": "extract-metrics-node",
-      "name": "Extract metrics to columns",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1700,
-        300
       ],
       "credentials": {
         "postgres": {
@@ -307,17 +287,6 @@
         [
           {
             "node": "Insert/Update Database",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Insert/Update Database": {
-      "main": [
-        [
-          {
-            "node": "Extract metrics to columns",
             "type": "main",
             "index": 0
           }
