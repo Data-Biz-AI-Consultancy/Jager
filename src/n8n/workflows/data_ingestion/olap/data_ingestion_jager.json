@@ -1,0 +1,629 @@
+{
+  "id": "data-ingestion-jager-olap",
+  "name": "Data Ingestion - Jager OLAP (Postgres to Motherduck)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE SCHEMA IF NOT EXISTS s_reddit;\nCREATE SCHEMA IF NOT EXISTS s_slack;\nCREATE SCHEMA IF NOT EXISTS s_substack;\nCREATE SCHEMA IF NOT EXISTS s_yahoo_finance;\n\nCREATE TABLE IF NOT EXISTS s_reddit.subreddits_monitored (\n    id INTEGER PRIMARY KEY,\n    name VARCHAR(255) UNIQUE,\n    active BOOLEAN,\n    rules TEXT,\n    title VARCHAR(255),\n    updated_at TIMESTAMP,\n    icon VARCHAR(1024),\n    created_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_reddit.posts (\n    id VARCHAR(255) PRIMARY KEY,\n    subreddit_id INTEGER,\n    author VARCHAR(255),\n    title VARCHAR(1024),\n    content TEXT,\n    url VARCHAR(2048),\n    score INTEGER,\n    created_at TIMESTAMP,\n    processed INTEGER\n);\n\nCREATE TABLE IF NOT EXISTS s_reddit.comments (\n    id VARCHAR(255) PRIMARY KEY,\n    post_id VARCHAR(255),\n    author VARCHAR(255),\n    content TEXT,\n    score INTEGER,\n    created_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_slack.workspaces_monitored (\n    id INTEGER PRIMARY KEY,\n    workspace_id VARCHAR(255) UNIQUE,\n    workspace_name VARCHAR(255),\n    active BOOLEAN,\n    created_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_slack.channels_monitored (\n    id INTEGER PRIMARY KEY,\n    workspace_id INTEGER,\n    channel_id VARCHAR(255),\n    name VARCHAR(255),\n    active BOOLEAN,\n    created_at TIMESTAMP,\n    UNIQUE(workspace_id, channel_id)\n);\n\nCREATE TABLE IF NOT EXISTS s_slack.messages (\n    id VARCHAR(255) PRIMARY KEY,\n    channel_db_id INTEGER,\n    author VARCHAR(255),\n    content TEXT,\n    url VARCHAR(2048),\n    created_at TIMESTAMP,\n    processed INTEGER\n);\n\nCREATE TABLE IF NOT EXISTS s_substack.feeds_monitored (\n    id INTEGER PRIMARY KEY,\n    name VARCHAR(255) UNIQUE,\n    feed_url VARCHAR(1024),\n    active BOOLEAN,\n    created_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_substack.posts (\n    id VARCHAR(255) PRIMARY KEY,\n    feed_id INTEGER,\n    feed_name VARCHAR(255),\n    author VARCHAR(255),\n    title VARCHAR(1024),\n    link VARCHAR(2048),\n    content TEXT,\n    published_at TIMESTAMP,\n    processed INTEGER\n);\n\nCREATE TABLE IF NOT EXISTS s_yahoo_finance.stock_prices (\n    symbol VARCHAR(50),\n    price_timestamp TIMESTAMP,\n    open_price DECIMAL(18,4),\n    high_price DECIMAL(18,4),\n    low_price DECIMAL(18,4),\n    close_price DECIMAL(18,4),\n    volume BIGINT,\n    PRIMARY KEY (symbol, price_timestamp)\n);",
+        "options": {}
+      },
+      "id": "init-motherduck-tables",
+      "name": "Init Motherduck Tables",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_reddit.subreddits_monitored;",
+        "options": {}
+      },
+      "id": "read-subreddits",
+      "name": "Read Subreddits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_reddit.subreddits_monitored (id, name, active, rules, title, updated_at, icon, created_at)\nVALUES ({{ $json.id }}, '{{ $json.name }}', {{ $json.active }}, '{{ $json.rules }}', '{{ $json.title }}', '{{ $json.updated_at }}', '{{ $json.icon }}', '{{ $json.created_at }}')\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  active = EXCLUDED.active,\n  rules = EXCLUDED.rules,\n  title = EXCLUDED.title,\n  updated_at = EXCLUDED.updated_at,\n  icon = EXCLUDED.icon;",
+        "options": {}
+      },
+      "id": "write-subreddits",
+      "name": "Write Subreddits",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_reddit.posts;",
+        "options": {}
+      },
+      "id": "read-reddit-posts",
+      "name": "Read Reddit Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_reddit.posts (id, subreddit_id, author, title, content, url, score, created_at, processed)\nVALUES ('{{ $json.id }}', {{ $json.subreddit_id }}, '{{ $json.author }}', '{{ $json.title }}', '{{ $json.content }}', '{{ $json.url }}', {{ $json.score }}, '{{ $json.created_at }}', {{ $json.processed }})\nON CONFLICT (id) DO UPDATE SET\n  subreddit_id = EXCLUDED.subreddit_id,\n  author = EXCLUDED.author,\n  title = EXCLUDED.title,\n  content = EXCLUDED.content,\n  url = EXCLUDED.url,\n  score = EXCLUDED.score,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-reddit-posts",
+      "name": "Write Reddit Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_reddit.comments;",
+        "options": {}
+      },
+      "id": "read-reddit-comments",
+      "name": "Read Reddit Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_reddit.comments (id, post_id, author, content, score, created_at)\nVALUES ('{{ $json.id }}', '{{ $json.post_id }}', '{{ $json.author }}', '{{ $json.content }}', {{ $json.score }}, '{{ $json.created_at }}')\nON CONFLICT (id) DO UPDATE SET\n  post_id = EXCLUDED.post_id,\n  author = EXCLUDED.author,\n  content = EXCLUDED.content,\n  score = EXCLUDED.score;",
+        "options": {}
+      },
+      "id": "write-reddit-comments",
+      "name": "Write Reddit Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_slack.workspaces_monitored;",
+        "options": {}
+      },
+      "id": "read-slack-workspaces",
+      "name": "Read Slack Workspaces",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_slack.workspaces_monitored (id, workspace_id, workspace_name, active, created_at)\nVALUES ({{ $json.id }}, '{{ $json.workspace_id }}', '{{ $json.workspace_name }}', {{ $json.active }}, '{{ $json.created_at }}')\nON CONFLICT (workspace_id) DO UPDATE SET\n  workspace_name = EXCLUDED.workspace_name,\n  active = EXCLUDED.active;",
+        "options": {}
+      },
+      "id": "write-slack-workspaces",
+      "name": "Write Slack Workspaces",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_slack.channels_monitored;",
+        "options": {}
+      },
+      "id": "read-slack-channels",
+      "name": "Read Slack Channels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_slack.channels_monitored (id, workspace_id, channel_id, name, active, created_at)\nVALUES ({{ $json.id }}, {{ $json.workspace_id }}, '{{ $json.channel_id }}', '{{ $json.name }}', {{ $json.active }}, '{{ $json.created_at }}')\nON CONFLICT (workspace_id, channel_id) DO UPDATE SET\n  name = EXCLUDED.name,\n  active = EXCLUDED.active;",
+        "options": {}
+      },
+      "id": "write-slack-channels",
+      "name": "Write Slack Channels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_slack.messages;",
+        "options": {}
+      },
+      "id": "read-slack-messages",
+      "name": "Read Slack Messages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_slack.messages (id, channel_db_id, author, content, url, created_at, processed)\nVALUES ('{{ $json.id }}', {{ $json.channel_db_id }}, '{{ $json.author }}', '{{ $json.content }}', '{{ $json.url }}', '{{ $json.created_at }}', {{ $json.processed }})\nON CONFLICT (id) DO UPDATE SET\n  channel_db_id = EXCLUDED.channel_db_id,\n  author = EXCLUDED.author,\n  content = EXCLUDED.content,\n  url = EXCLUDED.url,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-slack-messages",
+      "name": "Write Slack Messages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_substack.feeds_monitored;",
+        "options": {}
+      },
+      "id": "read-substack-feeds",
+      "name": "Read Substack Feeds",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        500,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_substack.feeds_monitored (id, name, feed_url, active, created_at)\nVALUES ({{ $json.id }}, '{{ $json.name }}', '{{ $json.feed_url }}', {{ $json.active }}, '{{ $json.created_at }}')\nON CONFLICT (name) DO UPDATE SET\n  feed_url = EXCLUDED.feed_url,\n  active = EXCLUDED.active;",
+        "options": {}
+      },
+      "id": "write-substack-feeds",
+      "name": "Write Substack Feeds",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        700,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_substack.posts;",
+        "options": {}
+      },
+      "id": "read-substack-posts",
+      "name": "Read Substack Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        900,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_substack.posts (id, feed_id, feed_name, author, title, link, content, published_at, processed)\nVALUES ('{{ $json.id }}', {{ $json.feed_id }}, '{{ $json.feed_name }}', '{{ $json.author }}', '{{ $json.title }}', '{{ $json.link }}', '{{ $json.content }}', '{{ $json.published_at }}', {{ $json.processed }})\nON CONFLICT (id) DO UPDATE SET\n  feed_id = EXCLUDED.feed_id,\n  feed_name = EXCLUDED.feed_name,\n  author = EXCLUDED.author,\n  title = EXCLUDED.title,\n  link = EXCLUDED.link,\n  content = EXCLUDED.content,\n  published_at = EXCLUDED.published_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-substack-posts",
+      "name": "Write Substack Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_yahoo_finance.stock_prices;",
+        "options": {}
+      },
+      "id": "read-stock-prices",
+      "name": "Read Stock Prices",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1300,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_yahoo_finance.stock_prices (symbol, price_timestamp, open_price, high_price, low_price, close_price, volume)\nVALUES ('{{ $json.symbol }}', '{{ $json.price_timestamp }}', {{ $json.open_price }}, {{ $json.high_price }}, {{ $json.low_price }}, {{ $json.close_price }}, {{ $json.volume }})\nON CONFLICT (symbol, price_timestamp) DO UPDATE SET\n  open_price = EXCLUDED.open_price,\n  high_price = EXCLUDED.high_price,\n  low_price = EXCLUDED.low_price,\n  close_price = EXCLUDED.close_price,\n  volume = EXCLUDED.volume;",
+        "options": {}
+      },
+      "id": "write-stock-prices",
+      "name": "Write Stock Prices",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Init Motherduck Tables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Motherduck Tables": {
+      "main": [
+        [
+          {
+            "node": "Read Subreddits",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Slack Workspaces",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Substack Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Subreddits": {
+      "main": [
+        [
+          {
+            "node": "Write Subreddits",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Subreddits": {
+      "main": [
+        [
+          {
+            "node": "Read Reddit Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Reddit Posts": {
+      "main": [
+        [
+          {
+            "node": "Write Reddit Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Reddit Posts": {
+      "main": [
+        [
+          {
+            "node": "Read Reddit Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Reddit Comments": {
+      "main": [
+        [
+          {
+            "node": "Write Reddit Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Slack Workspaces": {
+      "main": [
+        [
+          {
+            "node": "Write Slack Workspaces",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Slack Workspaces": {
+      "main": [
+        [
+          {
+            "node": "Read Slack Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Slack Channels": {
+      "main": [
+        [
+          {
+            "node": "Write Slack Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Slack Channels": {
+      "main": [
+        [
+          {
+            "node": "Read Slack Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Slack Messages": {
+      "main": [
+        [
+          {
+            "node": "Write Slack Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Substack Feeds": {
+      "main": [
+        [
+          {
+            "node": "Write Substack Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Substack Feeds": {
+      "main": [
+        [
+          {
+            "node": "Read Substack Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Substack Posts": {
+      "main": [
+        [
+          {
+            "node": "Write Substack Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Substack Posts": {
+      "main": [
+        [
+          {
+            "node": "Read Stock Prices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Stock Prices": {
+      "main": [
+        [
+          {
+            "node": "Write Stock Prices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
