@@ -7,38 +7,31 @@ if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir);
 }
 
-const mappings = [
-  {
-    id: 'CgeLinkedinDatabizPosts',
-    db: path.join(tempDir, 'db_CgeLinkedinDatabizPosts.json'),
-    file: path.join(__dirname, '../src/n8n/workflows/ai_retrieval/cge_linkedin_databiz_posts.json')
-  },
-  {
-    id: 'CgeLinkedinIndividualPosts',
-    db: path.join(tempDir, 'db_CgeLinkedinIndividualPosts.json'),
-    file: path.join(__dirname, '../src/n8n/workflows/ai_retrieval/cge_linkedin_individual_posts.json')
-  },
-  {
-    id: 'AiSummaryContentMarketing',
-    db: path.join(tempDir, 'db_AiSummaryContentMarketing.json'),
-    file: path.join(__dirname, '../src/n8n/workflows/ai_summary/ai_summary_content_marketing.json')
-  },
-  {
-    id: 'AiSummaryEvents',
-    db: path.join(tempDir, 'db_AiSummaryEvents.json'),
-    file: path.join(__dirname, '../src/n8n/workflows/ai_summary/ai_summary_events.json')
-  },
-  {
-    id: 'AiSummarySlack',
-    db: path.join(tempDir, 'db_AiSummarySlack.json'),
-    file: path.join(__dirname, '../src/n8n/workflows/ai_summary/ai_summary_slack.json')
-  },
-  {
-    id: 'AiSummarySubstack',
-    db: path.join(tempDir, 'db_AiSummarySubstack.json'),
-    file: path.join(__dirname, '../src/n8n/workflows/ai_summary/ai_summary_substack.json')
+const workflowsDir = path.join(__dirname, '../src/n8n/workflows');
+
+function getJsonFiles(dir, files = []) {
+  const list = fs.readdirSync(dir);
+  for (const item of list) {
+    const fullPath = path.join(dir, item);
+    const stat = fs.statSync(fullPath);
+    if (stat.isDirectory()) {
+      getJsonFiles(fullPath, files);
+    } else if (item.endsWith('.json')) {
+      files.push(fullPath);
+    }
   }
-];
+  return files;
+}
+
+const jsonFiles = getJsonFiles(workflowsDir);
+const mappings = jsonFiles.map(file => {
+  const content = JSON.parse(fs.readFileSync(file, 'utf8'));
+  return {
+    id: content.id,
+    db: path.join(tempDir, `db_${content.id}.json`),
+    file: file
+  };
+});
 
 console.log('Dumping current workflows from local database...');
 for (const map of mappings) {
