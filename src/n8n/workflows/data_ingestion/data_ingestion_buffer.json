@@ -1,6 +1,6 @@
 {
   "id": "buffer-ingestion-workflow",
-  "name": "Data Ingestion - Buffer",
+  "name": "Data Ingestion - Buffer Linkedin Analytics",
   "nodes": [
     {
       "parameters": {
