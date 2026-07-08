@@ -17,96 +17,25 @@
       "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [
-        50,
-        300
-      ]
+      "position": [50, 300]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "(SELECT id, channel, content \n FROM t_content_generation.linkedin_posts\n WHERE channel = 'individual'\n   AND is_approved = TRUE\n   AND is_scheduled = TRUE\n   AND is_published = FALSE\n   AND published_at IS NULL\n   AND scheduled_at <= NOW()\n ORDER BY scheduled_at ASC\n LIMIT 1)\nUNION ALL\n(SELECT id, channel, content \n FROM t_content_generation.linkedin_posts\n WHERE channel = 'databiz'\n   AND is_approved = TRUE\n   AND is_scheduled = TRUE\n   AND is_published = FALSE\n   AND published_at IS NULL\n   AND scheduled_at <= NOW()\n ORDER BY scheduled_at ASC\n LIMIT 1);",
+        "query": "(SELECT id, channel, content\n FROM t_content_generation.linkedin_posts\n WHERE channel = 'individual'\n   AND is_approved = TRUE\n   AND is_scheduled = TRUE\n   AND is_published = FALSE\n   AND published_at IS NULL\n   AND scheduled_at <= NOW()\n ORDER BY scheduled_at ASC\n LIMIT 1)\nUNION ALL\n(SELECT id, channel, content\n FROM t_content_generation.linkedin_posts\n WHERE channel = 'databiz'\n   AND is_approved = TRUE\n   AND is_scheduled = TRUE\n   AND is_published = FALSE\n   AND published_at IS NULL\n   AND scheduled_at <= NOW()\n ORDER BY scheduled_at ASC\n LIMIT 1);",
         "options": {}
       },
       "id": "fetch-due-posts",
       "name": "Fetch Due Posts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        220,
-        300
-      ],
+      "position": [250, 300],
       "credentials": {
         "postgres": {
           "id": "postgres-db",
           "name": "postgres Credential"
         }
       }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "id": "has-id",
-              "leftValue": "={{ $json.id }}",
-              "operator": {
-                "type": "string",
-                "operation": "isNotEmpty"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "has-due-posts",
-      "name": "Has Due Posts?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        400,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 1
-          },
-          "conditions": [
-            {
-              "id": "channel-check",
-              "leftValue": "={{ $json.channel }}",
-              "rightValue": "individual",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "id": "branch-by-channel",
-      "name": "Branch by Channel",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        600,
-        300
-      ]
     },
     {
       "parameters": {
@@ -128,16 +57,23 @@
       "name": "Get Member URN",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        800,
-        150
-      ],
+      "position": [500, 150],
       "credentials": {
         "linkedInOAuth2Api": {
           "id": "linkedin-oauth2-api",
           "name": "LinkedIn OAuth2 API"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "const allPosts = $('Fetch Due Posts').all();\nconst individualPost = allPosts.find(p => p.json && p.json.channel === 'individual');\nif (!individualPost) {\n  return [];\n}\nconst memberUrn = $input.first().json.sub;\nif (!memberUrn) {\n  throw new Error('Could not resolve LinkedIn member URN from userinfo response: ' + JSON.stringify($input.first().json));\n}\nreturn [{ json: { memberUrn, content: individualPost.json.content, post_id: individualPost.json.id } }];"
+      },
+      "id": "prepare-individual-post",
+      "name": "Prepare Individual Post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 150]
     },
     {
       "parameters": {
@@ -164,17 +100,14 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"author\":\"urn:li:person:{{ $json.sub }}\",\"commentary\":\"{{ $('Fetch Due Posts').item.json.content.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\",\"visibility\":\"PUBLIC\",\"distribution\":{\"feedDistribution\":\"MAIN_FEED\",\"targetEntities\":[],\"thirdPartyDistributionChannels\":[]},\"lifecycleState\":\"PUBLISHED\",\"isReshareDisabledByAuthor\":false}",
+        "jsonBody": "={{ { author: 'urn:li:person:' + $json.memberUrn, commentary: $json.content, visibility: 'PUBLIC', distribution: { feedDistribution: 'MAIN_FEED', targetEntities: [], thirdPartyDistributionChannels: [] }, lifecycleState: 'PUBLISHED', isReshareDisabledByAuthor: false } }}",
         "options": {}
       },
       "id": "publish-to-linkedin",
       "name": "Publish to LinkedIn",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1000,
-        150
-      ],
+      "position": [940, 150],
       "credentials": {
         "linkedInOAuth2Api": {
           "id": "linkedin-oauth2-api",
@@ -185,17 +118,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Fetch Due Posts').item.json.id }};",
+        "query": "UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Prepare Individual Post').first().json.post_id }};",
         "options": {}
       },
-      "id": "update-db-on-success-individual",
-      "name": "Update DB on Success (Individual)",
+      "id": "update-db-individual",
+      "name": "Update DB (Individual)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        1200,
-        150
-      ],
+      "position": [1160, 150],
       "credentials": {
         "postgres": {
           "id": "postgres-db",
@@ -208,22 +138,13 @@
         "url": "https://zernio.com/api/v1/accounts",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {}
-          ]
-        },
         "options": {}
       },
       "id": "fetch-zernio-accounts",
       "name": "Fetch Zernio Accounts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        800,
-        450
-      ],
+      "position": [500, 450],
       "credentials": {
         "httpHeaderAuth": {
           "id": "zernio-api-cred",
@@ -233,16 +154,13 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nlet duePost = $('Fetch Due Posts').all().find(p => p.json && p.json.channel === 'databiz')?.json;\nif (!duePost) {\n  duePost = $('Fetch Due Posts').first()?.json;\n}\nif (!duePost) {\n  throw new Error(\"No posts found in 'Fetch Due Posts' output.\");\n}\n\nfunction extractAccounts(data) {\n  if (Array.isArray(data)) return data;\n  if (data && typeof data === 'object') {\n    if (data.platform) return [data];\n    for (const key of ['data', 'accounts', 'results', 'items']) {\n      if (Array.isArray(data[key])) return data[key];\n    }\n    for (const value of Object.values(data)) {\n      if (Array.isArray(value)) return value;\n    }\n  }\n  return [];\n}\n\nconst allRawAccounts = [];\nfor (const item of items) {\n  allRawAccounts.push(...extractAccounts(item.json));\n}\n\nconst linkedinAccounts = allRawAccounts.filter(acc => \n  acc.platform && acc.platform.toLowerCase() === 'linkedin'\n);\n\nif (linkedinAccounts.length === 0) {\n  throw new Error(\"No LinkedIn accounts found connected to Zernio. Connected platforms: \" + \n    allRawAccounts.map(a => `${a.platform || 'unknown'} (${a.id || a.accountId || 'no-id'})`).join(', ')\n  );\n}\n\nlet targetAccount = linkedinAccounts.find(acc => \n  acc.metadata && \n  (acc.metadata.accountType === 'organization' || acc.metadata.accountType === 'company')\n);\n\nif (!targetAccount) {\n  if (linkedinAccounts.length === 1) {\n    targetAccount = linkedinAccounts[0];\n  } else {\n    throw new Error(\"Multiple LinkedIn accounts found, but none are labeled as 'organization' or 'company'. \" +\n      \"Available LinkedIn accounts: \" + \n      linkedinAccounts.map(a => `${a.name || a.username || 'unnamed'} (ID: ${a.accountId || a.id || 'no-id'}, Type: ${a.metadata?.accountType || 'unknown'})`).join(', ')\n    );\n  }\n}\n\nconst accountId = targetAccount.accountId || targetAccount.id || targetAccount._id || targetAccount.account_id;\nif (!accountId) {\n  throw new Error(\"Resolved target account, but it has no accountId, id, _id, or account_id. Account details: \" + JSON.stringify(targetAccount));\n}\n\nif (typeof duePost.content !== 'string' || !duePost.content) {\n  throw new Error(\"duePost.content is missing or not a string. duePost keys: \" + Object.keys(duePost).join(', ') + \", duePost JSON: \" + JSON.stringify(duePost));\n}\n\nreturn [{ json: { \n  accountId: accountId,\n  content: duePost.content,\n  post_id: duePost.id\n} }];"
+        "jsCode": "const allPosts = $('Fetch Due Posts').all();\nconst databizPost = allPosts.find(p => p.json && p.json.channel === 'databiz');\nif (!databizPost) {\n  return [];\n}\n\nfunction extractAccounts(data) {\n  if (Array.isArray(data)) return data;\n  if (data && typeof data === 'object') {\n    if (data.platform) return [data];\n    for (const key of ['data', 'accounts', 'results', 'items']) {\n      if (Array.isArray(data[key])) return data[key];\n    }\n    for (const value of Object.values(data)) {\n      if (Array.isArray(value)) return value;\n    }\n  }\n  return [];\n}\n\nconst rawBody = $input.first().json;\nconst allAccounts = extractAccounts(rawBody);\nconst linkedinAccounts = allAccounts.filter(acc => acc.platform && acc.platform.toLowerCase() === 'linkedin');\n\nif (linkedinAccounts.length === 0) {\n  throw new Error('No LinkedIn accounts found in Zernio. Raw response: ' + JSON.stringify(rawBody));\n}\n\nconst targetAccount = linkedinAccounts.find(acc =>\n  acc.metadata && (acc.metadata.accountType === 'organization' || acc.metadata.accountType === 'company')\n) || linkedinAccounts[0];\n\nconst accountId = targetAccount.accountId || targetAccount.id || targetAccount._id || targetAccount.account_id;\nif (!accountId) {\n  throw new Error('Resolved LinkedIn account has no ID. Account: ' + JSON.stringify(targetAccount));\n}\n\nreturn [{ json: { accountId, content: databizPost.json.content, post_id: databizPost.json.id } }];"
       },
       "id": "resolve-account-id",
       "name": "Resolve Account ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1000,
-        450
-      ]
+      "position": [720, 450]
     },
     {
       "parameters": {
@@ -250,12 +168,6 @@
         "url": "https://zernio.com/api/v1/posts",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {}
-          ]
-        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { content: $json.content, platforms: [ { platform: 'linkedin', accountId: $json.accountId } ], publishNow: true } }}",
@@ -265,10 +177,7 @@
       "name": "Post to Zernio",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [
-        1200,
-        450
-      ],
+      "position": [940, 450],
       "credentials": {
         "httpHeaderAuth": {
           "id": "zernio-api-cred",
@@ -279,17 +188,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.id || $json.postId || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Fetch Due Posts').item.json.id }};",
+        "query": "UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.id || $json.postId || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Resolve Account ID').first().json.post_id }};",
         "options": {}
       },
-      "id": "update-db-on-success-databiz",
-      "name": "Update DB on Success (Data Biz)",
+      "id": "update-db-databiz",
+      "name": "Update DB (Data Biz)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [
-        1400,
-        450
-      ],
+      "position": [1160, 450],
       "credentials": {
         "postgres": {
           "id": "postgres-db",
@@ -300,18 +206,15 @@
     {
       "parameters": {
         "channel": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
-        "text": "=🚀 *LinkedIn Post Published ({{ $('Fetch Due Posts').item.json.channel === 'individual' ? 'Individual' : 'Data Biz' }})!*\n\n*Post ID:* {{ $('Fetch Due Posts').item.json.id }}\n\n*Content:*\n>>>{{ $('Fetch Due Posts').item.json.content }}\n",
+        "text": "=🚀 *LinkedIn Post Published!*\n\n*Channel:* {{ $json.channel || 'unknown' }}\n*Post ID:* {{ $json.post_id || $json.id || '' }}\n",
         "otherOptions": {},
         "attachments": []
       },
-      "id": "notify-slack-on-publish",
+      "id": "notify-slack",
       "name": "Notify Slack on Publish",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
-      "position": [
-        1650,
-        300
-      ],
+      "position": [1380, 300],
       "credentials": {
         "slackApi": {
           "id": "slack-giusy-cred",
@@ -336,34 +239,10 @@
       "main": [
         [
           {
-            "node": "Has Due Posts?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Has Due Posts?": {
-      "main": [
-        [
-          {
-            "node": "Branch by Channel",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Branch by Channel": {
-      "main": [
-        [
-          {
             "node": "Get Member URN",
             "type": "main",
             "index": 0
-          }
-        ],
-        [
+          },
           {
             "node": "Fetch Zernio Accounts",
             "type": "main",
@@ -373,6 +252,17 @@
       ]
     },
     "Get Member URN": {
+      "main": [
+        [
+          {
+            "node": "Prepare Individual Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Individual Post": {
       "main": [
         [
           {
@@ -387,14 +277,14 @@
       "main": [
         [
           {
-            "node": "Update DB on Success (Individual)",
+            "node": "Update DB (Individual)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update DB on Success (Individual)": {
+    "Update DB (Individual)": {
       "main": [
         [
           {
@@ -431,14 +321,14 @@
       "main": [
         [
           {
-            "node": "Update DB on Success (Data Biz)",
+            "node": "Update DB (Data Biz)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Update DB on Success (Data Biz)": {
+    "Update DB (Data Biz)": {
       "main": [
         [
           {
