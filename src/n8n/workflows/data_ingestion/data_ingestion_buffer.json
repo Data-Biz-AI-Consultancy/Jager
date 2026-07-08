@@ -26,13 +26,11 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.buffer.com",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{$env.BUFFER_API_KEY}}"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -51,7 +49,13 @@
       "position": [
         300,
         300
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "buffer-api-cred",
+          "name": "Buffer API Credential"
+        }
+      }
     },
     {
       "parameters": {
@@ -71,13 +75,11 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.buffer.com",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{$env.BUFFER_API_KEY}}"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -96,7 +98,13 @@
       "position": [
         700,
         300
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "buffer-api-cred",
+          "name": "Buffer API Credential"
+        }
+      }
     },
     {
       "parameters": {
@@ -116,13 +124,11 @@
       "parameters": {
         "method": "POST",
         "url": "https://api.buffer.com",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{$env.BUFFER_API_KEY}}"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -141,7 +147,13 @@
       "position": [
         1100,
         300
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "buffer-api-cred",
+          "name": "Buffer API Credential"
+        }
+      }
     },
     {
       "parameters": {
