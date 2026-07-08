@@ -15,6 +15,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE SCHEMA IF NOT EXISTS s_linkedin;
 	CREATE SCHEMA IF NOT EXISTS s_notion;
 	CREATE SCHEMA IF NOT EXISTS s_zernio;
+	CREATE SCHEMA IF NOT EXISTS s_buffer;
 
 
 	CREATE TABLE IF NOT EXISTS s_reddit.subreddits_monitored (
@@ -426,6 +427,18 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		url VARCHAR(2048),
 		created_time TIMESTAMP WITH TIME ZONE,
 		last_edited_time TIMESTAMP WITH TIME ZONE,
+		processed INTEGER DEFAULT 0
+	);
+
+	CREATE TABLE IF NOT EXISTS s_buffer.posts (
+		id VARCHAR(255) PRIMARY KEY,
+		text TEXT,
+		channel_id VARCHAR(255) NOT NULL,
+		due_at TIMESTAMP WITH TIME ZONE,
+		status VARCHAR(50),
+		assets JSONB DEFAULT '[]'::jsonb,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		processed INTEGER DEFAULT 0
 	);
 

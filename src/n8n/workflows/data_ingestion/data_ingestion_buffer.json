@@ -1,0 +1,264 @@
+{
+  "id": "buffer-ingestion-workflow",
+  "name": "Data Ingestion - Buffer",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.buffer.com",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.BUFFER_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query\": \"query GetOrganizations { account { organizations { id name } } }\"\n}",
+        "options": {}
+      },
+      "id": "fetch-organizations",
+      "name": "Fetch Organizations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (const item of items) {\n  const orgs = item.json.data?.account?.organizations || [];\n  for (const org of orgs) {\n    results.push({\n      json: {\n        id: org.id,\n        name: org.name\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-organizations",
+      "name": "Parse Organizations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.buffer.com",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.BUFFER_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"query GetChannels { channels(input: { organizationId: \\\"{{ $json.id }}\\\"}) { id name service } }\"\n}",
+        "options": {}
+      },
+      "id": "fetch-channels",
+      "name": "Fetch Channels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (const item of items) {\n  const channels = item.json.data?.channels || [];\n  for (const channel of channels) {\n    results.push({\n      json: {\n        id: channel.id,\n        name: channel.name,\n        service: channel.service\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-channels",
+      "name": "Parse Channels",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.buffer.com",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.BUFFER_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"query GetPosts { posts(channelId: \\\"{{ $json.id }}\\\", limit: 50) { items { id text dueAt status assets { name url type } } } }\"\n}",
+        "options": {}
+      },
+      "id": "fetch-posts",
+      "name": "Fetch Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let channelItem;\n  try {\n    channelItem = $('Parse Channels').all()[i].json;\n  } catch (e) {\n    console.error('Could not get channel details:', e.message);\n  }\n  const channelId = channelItem ? channelItem.id : '';\n\n  const posts = item.json.data?.posts?.items || [];\n  for (const post of posts) {\n    results.push({\n      json: {\n        id: post.id,\n        text: post.text || '',\n        channel_id: channelId,\n        due_at: post.dueAt ? new Date(post.dueAt).toISOString() : null,\n        status: post.status || 'unknown',\n        assets: post.assets || []\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-posts",
+      "name": "Parse Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_buffer.posts (id, text, channel_id, due_at, status, assets, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.text.replace(/'/g, \"''\") }}',\n  '{{ $json.channel_id }}',\n  {{ $json.due_at ? \"'\" + $json.due_at + \"'\" : 'NULL' }},\n  '{{ $json.status }}',\n  '{{ JSON.stringify($json.assets) }}'::jsonb,\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  text = EXCLUDED.text,\n  status = EXCLUDED.status,\n  due_at = EXCLUDED.due_at,\n  assets = EXCLUDED.assets,\n  updated_at = NOW();"
+      },
+      "id": "insert-posts",
+      "name": "Insert/Update Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1500,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Organizations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Organizations": {
+      "main": [
+        [
+          {
+            "node": "Parse Organizations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Organizations": {
+      "main": [
+        [
+          {
+            "node": "Fetch Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Channels": {
+      "main": [
+        [
+          {
+            "node": "Parse Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Channels": {
+      "main": [
+        [
+          {
+            "node": "Fetch Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Posts": {
+      "main": [
+        [
+          {
+            "node": "Parse Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Posts": {
+      "main": [
+        [
+          {
+            "node": "Insert/Update Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
