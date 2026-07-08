@@ -18,14 +18,56 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        100,
+        50,
         300
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "CREATE DATABASE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }};\nCREATE SCHEMA IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio;\nCREATE SCHEMA IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_buffer;\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_posts (\n  id VARCHAR(255) PRIMARY KEY,\n  content TEXT,\n  url VARCHAR(2048),\n  published_at TIMESTAMP,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_post_analytics (\n  post_id VARCHAR(255) PRIMARY KEY,\n  impressions INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  clicks INTEGER,\n  saves INTEGER,\n  sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_account_analytics (\n  account_id VARCHAR(255) PRIMARY KEY,\n  platform VARCHAR(50),\n  username VARCHAR(255),\n  impressions INTEGER,\n  members_reached INTEGER,\n  reactions INTEGER,\n  comments INTEGER,\n  reshares INTEGER,\n  post_saves INTEGER,\n  post_sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_follower_stats_timeline (\n  account_id VARCHAR(255),\n  date DATE,\n  followers_count INTEGER,\n  growth INTEGER,\n  growth_percentage DECIMAL(5,2),\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (account_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_post_timeline (\n  post_id VARCHAR(255),\n  date DATE,\n  impressions INTEGER,\n  reach INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  saves INTEGER,\n  clicks INTEGER,\n  views INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (post_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_content_decay (\n  platform VARCHAR(50),\n  bucket_order INTEGER,\n  bucket_label VARCHAR(50),\n  avg_pct_of_final DECIMAL(5,2),\n  post_count INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (platform, bucket_order)\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_buffer.channels (\n  id VARCHAR(255) PRIMARY KEY,\n  name VARCHAR(255),\n  service VARCHAR(100),\n  organization_id VARCHAR(255),\n  active BOOLEAN,\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_buffer.posts (\n  id VARCHAR(255) PRIMARY KEY,\n  text TEXT,\n  channel_id VARCHAR(255),\n  due_at TIMESTAMP,\n  status VARCHAR(50),\n  assets VARCHAR,\n  metrics VARCHAR,\n  reactions INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  reposts INTEGER,\n  clicks INTEGER,\n  reach INTEGER,\n  impressions INTEGER,\n  views INTEGER,\n  engagement_rate DECIMAL(10,2),\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP,\n  processed INTEGER\n);",
+        "query": "CREATE DATABASE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }};",
+        "options": {}
+      },
+      "id": "create-motherduck-db",
+      "name": "Create Motherduck DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        200,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE SCHEMA IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio;\nCREATE SCHEMA IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_buffer;",
+        "options": {}
+      },
+      "id": "create-motherduck-schemas",
+      "name": "Create Motherduck Schemas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        350,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_posts (\n  id VARCHAR(255) PRIMARY KEY,\n  content TEXT,\n  url VARCHAR(2048),\n  published_at TIMESTAMP,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_post_analytics (\n  post_id VARCHAR(255) PRIMARY KEY,\n  impressions INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  clicks INTEGER,\n  saves INTEGER,\n  sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_account_analytics (\n  account_id VARCHAR(255) PRIMARY KEY,\n  platform VARCHAR(50),\n  username VARCHAR(255),\n  impressions INTEGER,\n  members_reached INTEGER,\n  reactions INTEGER,\n  comments INTEGER,\n  reshares INTEGER,\n  post_saves INTEGER,\n  post_sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_follower_stats_timeline (\n  account_id VARCHAR(255),\n  date DATE,\n  followers_count INTEGER,\n  growth INTEGER,\n  growth_percentage DECIMAL(5,2),\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (account_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_post_timeline (\n  post_id VARCHAR(255),\n  date DATE,\n  impressions INTEGER,\n  reach INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  saves INTEGER,\n  clicks INTEGER,\n  views INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (post_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_zernio.linkedin_content_decay (\n  platform VARCHAR(50),\n  bucket_order INTEGER,\n  bucket_label VARCHAR(50),\n  avg_pct_of_final DECIMAL(5,2),\n  post_count INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (platform, bucket_order)\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_buffer.channels (\n  id VARCHAR(255) PRIMARY KEY,\n  name VARCHAR(255),\n  service VARCHAR(100),\n  organization_id VARCHAR(255),\n  active BOOLEAN,\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS {{ $env.MOTHERDUCK_DATABASE || 'staging' }}.s_buffer.posts (\n  id VARCHAR(255) PRIMARY KEY,\n  text TEXT,\n  channel_id VARCHAR(255),\n  due_at TIMESTAMP,\n  status VARCHAR(50),\n  assets VARCHAR,\n  metrics VARCHAR,\n  reactions INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  reposts INTEGER,\n  clicks INTEGER,\n  reach INTEGER,\n  impressions INTEGER,\n  views INTEGER,\n  engagement_rate DECIMAL(10,2),\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP,\n  processed INTEGER\n);",
         "options": {}
       },
       "id": "init-motherduck-tables",
@@ -33,7 +75,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        300,
+        500,
         300
       ],
       "credentials": {
@@ -54,7 +96,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        500,
+        700,
         100
       ],
       "credentials": {
@@ -75,7 +117,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        700,
+        900,
         100
       ],
       "credentials": {
@@ -96,7 +138,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        900,
+        1100,
         100
       ],
       "credentials": {
@@ -117,7 +159,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1100,
+        1300,
         100
       ],
       "credentials": {
@@ -138,7 +180,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1300,
+        1500,
         100
       ],
       "credentials": {
@@ -159,7 +201,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1500,
+        1700,
         100
       ],
       "credentials": {
@@ -180,7 +222,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        500,
+        700,
         300
       ],
       "credentials": {
@@ -201,7 +243,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        700,
+        900,
         300
       ],
       "credentials": {
@@ -222,7 +264,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        900,
+        1100,
         300
       ],
       "credentials": {
@@ -243,7 +285,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1100,
+        1300,
         300
       ],
       "credentials": {
@@ -264,7 +306,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1300,
+        1500,
         300
       ],
       "credentials": {
@@ -285,7 +327,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1500,
+        1700,
         300
       ],
       "credentials": {
@@ -306,7 +348,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        500,
+        700,
         500
       ],
       "credentials": {
@@ -327,7 +369,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        700,
+        900,
         500
       ],
       "credentials": {
@@ -348,7 +390,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        900,
+        1100,
         500
       ],
       "credentials": {
@@ -369,7 +411,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1100,
+        1300,
         500
       ],
       "credentials": {
@@ -382,6 +424,28 @@
   ],
   "connections": {
     "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Motherduck DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Motherduck DB": {
+      "main": [
+        [
+          {
+            "node": "Create Motherduck Schemas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Motherduck Schemas": {
       "main": [
         [
           {
