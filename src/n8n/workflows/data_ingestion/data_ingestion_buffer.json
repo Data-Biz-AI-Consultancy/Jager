@@ -109,7 +109,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\nfor (const item of items) {\n  const channels = item.json.data?.channels || [];\n  for (const channel of channels) {\n    results.push({\n      json: {\n        id: channel.id,\n        name: channel.name,\n        service: channel.service\n      }\n    });\n  }\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let orgItem;\n  try {\n    orgItem = $('Parse Organizations').all()[i].json;\n  } catch (e) {\n    console.error('Could not get organization details:', e.message);\n  }\n  const orgId = orgItem ? orgItem.id : '';\n\n  const channels = item.json.data?.channels || [];\n  for (const channel of channels) {\n    results.push({\n      json: {\n        id: channel.id,\n        name: channel.name,\n        service: channel.service,\n        organization_id: orgId\n      }\n    });\n  }\n}\nreturn results;"
       },
       "id": "parse-channels",
       "name": "Parse Channels",
@@ -137,7 +137,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"query\": \"query GetPosts { posts(channelId: \\\"{{ $json.id }}\\\", limit: 50) { items { id text dueAt status assets { name url type } } } }\"\n}",
+        "jsonBody": "={\n  \"query\": \"query GetPosts { posts(first: 50, input: { organizationId: \\\"{{ $json.organization_id }}\\\", filter: { channelIds: [\\\"{{ $json.id }}\\\"] } }) { edges { node { id text dueAt status } } } }\"\n}",
         "options": {}
       },
       "id": "fetch-posts",
@@ -158,7 +158,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let channelItem;\n  try {\n    channelItem = $('Parse Channels').all()[i].json;\n  } catch (e) {\n    console.error('Could not get channel details:', e.message);\n  }\n  const channelId = channelItem ? channelItem.id : '';\n\n  const posts = item.json.data?.posts?.items || [];\n  for (const post of posts) {\n    results.push({\n      json: {\n        id: post.id,\n        text: post.text || '',\n        channel_id: channelId,\n        due_at: post.dueAt ? new Date(post.dueAt).toISOString() : null,\n        status: post.status || 'unknown',\n        assets: post.assets || []\n      }\n    });\n  }\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let channelItem;\n  try {\n    channelItem = $('Parse Channels').all()[i].json;\n  } catch (e) {\n    console.error('Could not get channel details:', e.message);\n  }\n  const channelId = channelItem ? channelItem.id : '';\n\n  const edges = item.json.data?.posts?.edges || [];\n  for (const edge of edges) {\n    const post = edge.node;\n    if (post) {\n      results.push({\n        json: {\n          id: post.id,\n          text: post.text || '',\n          channel_id: channelId,\n          due_at: post.dueAt ? new Date(post.dueAt).toISOString() : null,\n          status: post.status || 'unknown',\n          assets: []\n        }\n      });\n    }\n  }\n}\nreturn results;"
       },
       "id": "parse-posts",
       "name": "Parse Posts",
@@ -181,6 +181,26 @@
       "position": [
         1500,
         300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_buffer.channels (id, name, service, organization_id, active)\nVALUES ('{{ $json.id }}', '{{ $json.name.replace(/'/g, \"''\") }}', '{{ $json.service }}', '{{ $json.organization_id }}', true)\nON CONFLICT (id) \nDO UPDATE SET name = EXCLUDED.name, service = EXCLUDED.service, organization_id = EXCLUDED.organization_id, updated_at = NOW();"
+      },
+      "id": "insert-channels",
+      "name": "Insert/Update Channels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        150
       ],
       "credentials": {
         "postgres": {
@@ -240,6 +260,11 @@
         [
           {
             "node": "Fetch Posts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert/Update Channels",
             "type": "main",
             "index": 0
           }

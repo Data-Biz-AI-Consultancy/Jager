@@ -430,10 +430,20 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		processed INTEGER DEFAULT 0
 	);
 
+	CREATE TABLE IF NOT EXISTS s_buffer.channels (
+		id VARCHAR(255) PRIMARY KEY,
+		name VARCHAR(255),
+		service VARCHAR(100),
+		organization_id VARCHAR(255),
+		active BOOLEAN DEFAULT TRUE,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
 	CREATE TABLE IF NOT EXISTS s_buffer.posts (
 		id VARCHAR(255) PRIMARY KEY,
 		text TEXT,
-		channel_id VARCHAR(255) NOT NULL,
+		channel_id VARCHAR(255) REFERENCES s_buffer.channels(id) ON DELETE CASCADE,
 		due_at TIMESTAMP WITH TIME ZONE,
 		status VARCHAR(50),
 		assets JSONB DEFAULT '[]'::jsonb,
