@@ -267,7 +267,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const response = $('Fetch Posts Page').item.json;\nconst pageInfo = response.data?.posts?.pageInfo || {};\nconst edges = response.data?.posts?.edges || [];\nconst initData = $('Init Pagination').first().json;\nreturn {\n  json: {\n    cursor: pageInfo.endCursor || null,\n    hasNextPage: !!pageInfo.hasNextPage && edges.length > 0,\n    channel_id: initData.channel_id,\n    organization_id: initData.organization_id\n  }\n};"
+        "jsCode": "const response = $('Fetch Posts Page').item.json;\nconst pageInfo = response.data?.posts?.pageInfo || {};\nconst edges = response.data?.posts?.edges || [];\nconst initData = $('Init Pagination').first().json;\nreturn [{\n  json: {\n    cursor: pageInfo.endCursor || null,\n    hasNextPage: !!pageInfo.hasNextPage && edges.length > 0,\n    channel_id: initData.channel_id,\n    organization_id: initData.organization_id\n  }\n}];"
       },
       "id": "check-next-page",
       "name": "Check Next Page",
@@ -284,15 +284,18 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "type": "string",
-            "valueString": ""
+            "typeValidation": "strict",
+            "version": 1
           },
           "conditions": [
             {
               "id": "cond-has-next",
               "leftValue": "={{ $json.hasNextPage }}",
-              "rightValue": "",
-              "operator": "true"
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
