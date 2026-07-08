@@ -17,7 +17,10 @@
       "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [50, 300]
+      "position": [
+        64,
+        256
+      ]
     },
     {
       "parameters": {
@@ -29,7 +32,10 @@
       "name": "Fetch Due Posts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [250, 300],
+      "position": [
+        288,
+        256
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-db",
@@ -57,7 +63,10 @@
       "name": "Get Member URN",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [500, 150],
+      "position": [
+        512,
+        160
+      ],
       "credentials": {
         "linkedInOAuth2Api": {
           "id": "linkedin-oauth2-api",
@@ -73,7 +82,10 @@
       "name": "Prepare Individual Post",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 150]
+      "position": [
+        736,
+        160
+      ]
     },
     {
       "parameters": {
@@ -107,7 +119,10 @@
       "name": "Publish to LinkedIn",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [940, 150],
+      "position": [
+        960,
+        160
+      ],
       "credentials": {
         "linkedInOAuth2Api": {
           "id": "linkedin-oauth2-api",
@@ -125,7 +140,10 @@
       "name": "Update DB (Individual)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1160, 150],
+      "position": [
+        1184,
+        160
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-db",
@@ -144,7 +162,10 @@
       "name": "Fetch Zernio Accounts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [500, 450],
+      "position": [
+        512,
+        352
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "zernio-api-cred",
@@ -160,7 +181,10 @@
       "name": "Resolve Account ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 450]
+      "position": [
+        736,
+        352
+      ]
     },
     {
       "parameters": {
@@ -177,7 +201,10 @@
       "name": "Post to Zernio",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [940, 450],
+      "position": [
+        960,
+        352
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "zernio-api-cred",
@@ -195,7 +222,10 @@
       "name": "Update DB (Data Biz)",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1160, 450],
+      "position": [
+        1184,
+        352
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-db",
@@ -214,7 +244,10 @@
       "name": "Notify Slack on Publish",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
-      "position": [1380, 300],
+      "position": [
+        1408,
+        256
+      ],
       "credentials": {
         "slackApi": {
           "id": "slack-giusy-cred",
