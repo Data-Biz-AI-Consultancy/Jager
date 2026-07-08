@@ -24,6 +24,35 @@
     },
     {
       "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "param-first",
+              "name": "first",
+              "type": "number",
+              "value": 50
+            },
+            {
+              "id": "param-after",
+              "name": "after",
+              "type": "string",
+              "value": "={{ $now.minus({ days: 30 }).toFormat(\"yyyy-MM-dd'T'HH:mm:ss'Z'\") }}"
+            }
+          ]
+        }
+      },
+      "id": "workflow-parameters",
+      "name": "Ingestion Date Range Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        250,
+        150
+      ]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://api.buffer.com",
         "authentication": "genericCredentialType",
@@ -47,7 +76,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        300,
+        400,
         300
       ],
       "credentials": {
@@ -67,7 +96,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        500,
+        600,
         300
       ]
     },
@@ -96,7 +125,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        700,
+        800,
         300
       ],
       "credentials": {
@@ -116,7 +145,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
+        1000,
         300
       ]
     },
@@ -137,7 +166,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"query\": \"query GetPosts { posts(first: 50, input: { organizationId: \\\"{{ $json.organization_id }}\\\", filter: { channelIds: [\\\"{{ $json.id }}\\\"] } }) { edges { node { id text dueAt status metrics { type value } } } } }\"\n}",
+        "jsonBody": "={\n  \"query\": \"query GetPosts($first: Int, $after: String, $input: PostsInput!) { posts(first: $first, after: $after, input: $input) { edges { node { id text dueAt status metrics { type value } } } } }\",\n  \"variables\": {\n    \"first\": {{ $('Ingestion Date Range Parameters').first().json.first }},\n    \"after\": \"{{ $('Ingestion Date Range Parameters').first().json.after }}\",\n    \"input\": {\n      \"organizationId\": \"{{ $json.organization_id }}\",\n      \"filter\": {\n        \"channelIds\": [\"{{ $json.id }}\"]\n      }\n    }\n  }\n}",
         "options": {}
       },
       "id": "fetch-posts",
@@ -145,7 +174,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1100,
+        1200,
         300
       ],
       "credentials": {
@@ -165,7 +194,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1300,
+        1400,
         300
       ]
     },
@@ -179,7 +208,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1500,
+        1600,
         300
       ],
       "credentials": {
@@ -199,7 +228,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1100,
+        1200,
         150
       ],
       "credentials": {
@@ -212,6 +241,17 @@
   ],
   "connections": {
     "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Ingestion Date Range Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingestion Date Range Parameters": {
       "main": [
         [
           {
