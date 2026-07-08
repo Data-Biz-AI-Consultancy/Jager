@@ -18,7 +18,7 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        100,
+        50,
         300
       ]
     },
@@ -33,7 +33,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        300,
+        220,
         300
       ],
       "credentials": {
@@ -42,6 +42,38 @@
           "name": "postgres Credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "has-id",
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-due-posts",
+      "name": "Has Due Posts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ]
     },
     {
       "parameters": {
@@ -72,7 +104,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        500,
+        600,
         300
       ]
     },
@@ -97,7 +129,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        700,
+        800,
         150
       ],
       "credentials": {
@@ -140,7 +172,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        900,
+        1000,
         150
       ],
       "credentials": {
@@ -161,7 +193,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1100,
+        1200,
         150
       ],
       "credentials": {
@@ -189,7 +221,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        700,
+        800,
         450
       ],
       "credentials": {
@@ -201,14 +233,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const accounts = $input.all();\nconst duePost = $('Fetch Due Posts').item.json;\nconst orgAccount = accounts.find(acc => \n  acc.json.platform && \n  acc.json.platform.toLowerCase() === 'linkedin' && \n  acc.json.metadata && \n  acc.json.metadata.accountType === 'organization'\n);\nif (!orgAccount) {\n  throw new Error(\"No LinkedIn Organization account found on Zernio.\");\n}\nreturn [{ json: { \n  accountId: orgAccount.json.accountId || orgAccount.json.id, \n  content: duePost.content,\n  post_id: duePost.id\n} }];"
+        "jsCode": "const items = $input.all();\nlet duePost = $('Fetch Due Posts').all().find(p => p.json && p.json.channel === 'databiz')?.json;\nif (!duePost) {\n  duePost = $('Fetch Due Posts').first()?.json;\n}\nif (!duePost) {\n  throw new Error(\"No posts found in 'Fetch Due Posts' output.\");\n}\n\nfunction extractAccounts(data) {\n  if (Array.isArray(data)) return data;\n  if (data && typeof data === 'object') {\n    if (data.platform) return [data];\n    for (const key of ['data', 'accounts', 'results', 'items']) {\n      if (Array.isArray(data[key])) return data[key];\n    }\n    for (const value of Object.values(data)) {\n      if (Array.isArray(value)) return value;\n    }\n  }\n  return [];\n}\n\nconst allRawAccounts = [];\nfor (const item of items) {\n  allRawAccounts.push(...extractAccounts(item.json));\n}\n\nconst linkedinAccounts = allRawAccounts.filter(acc => \n  acc.platform && acc.platform.toLowerCase() === 'linkedin'\n);\n\nif (linkedinAccounts.length === 0) {\n  throw new Error(\"No LinkedIn accounts found connected to Zernio. Connected platforms: \" + \n    allRawAccounts.map(a => `${a.platform || 'unknown'} (${a.id || a.accountId || 'no-id'})`).join(', ')\n  );\n}\n\nlet targetAccount = linkedinAccounts.find(acc => \n  acc.metadata && \n  (acc.metadata.accountType === 'organization' || acc.metadata.accountType === 'company')\n);\n\nif (!targetAccount) {\n  if (linkedinAccounts.length === 1) {\n    targetAccount = linkedinAccounts[0];\n  } else {\n    throw new Error(\"Multiple LinkedIn accounts found, but none are labeled as 'organization' or 'company'. \" +\n      \"Available LinkedIn accounts: \" + \n      linkedinAccounts.map(a => `${a.name || a.username || 'unnamed'} (ID: ${a.accountId || a.id || 'no-id'}, Type: ${a.metadata?.accountType || 'unknown'})`).join(', ')\n    );\n  }\n}\n\nconst accountId = targetAccount.accountId || targetAccount.id || targetAccount._id || targetAccount.account_id;\nif (!accountId) {\n  throw new Error(\"Resolved target account, but it has no accountId, id, _id, or account_id. Account details: \" + JSON.stringify(targetAccount));\n}\n\nif (typeof duePost.content !== 'string' || !duePost.content) {\n  throw new Error(\"duePost.content is missing or not a string. duePost keys: \" + Object.keys(duePost).join(', ') + \", duePost JSON: \" + JSON.stringify(duePost));\n}\n\nreturn [{ json: { \n  accountId: accountId,\n  content: duePost.content,\n  post_id: duePost.id\n} }];"
       },
       "id": "resolve-account-id",
       "name": "Resolve Account ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        900,
+        1000,
         450
       ]
     },
@@ -226,7 +258,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"content\":\"{{ $json.content.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\",\"platforms\":[{\"platform\":\"linkedin\",\"accountId\":\"{{ $json.accountId }}\"}],\"publishNow\":true}",
+        "jsonBody": "={{ { content: $json.content, platforms: [ { platform: 'linkedin', accountId: $json.accountId } ], publishNow: true } }}",
         "options": {}
       },
       "id": "post-to-zernio",
@@ -234,7 +266,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1100,
+        1200,
         450
       ],
       "credentials": {
@@ -255,7 +287,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1300,
+        1400,
         450
       ],
       "credentials": {
@@ -277,7 +309,7 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        1550,
+        1650,
         300
       ],
       "credentials": {
@@ -301,6 +333,17 @@
       ]
     },
     "Fetch Due Posts": {
+      "main": [
+        [
+          {
+            "node": "Has Due Posts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Due Posts?": {
       "main": [
         [
           {
