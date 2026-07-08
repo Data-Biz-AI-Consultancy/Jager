@@ -510,10 +510,14 @@ CREATE TABLE IF NOT EXISTS s_buffer.posts (
   due_at TIMESTAMP WITH TIME ZONE,
   status VARCHAR(50),
   assets JSONB DEFAULT '[]'::jsonb,
+  metrics JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   processed INTEGER DEFAULT 0
 );
+
+ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS metrics JSONB DEFAULT '[]'::jsonb;
+
 
 CREATE TABLE IF NOT EXISTS s_euro_stat.regional_gdp (
   id SERIAL PRIMARY KEY,

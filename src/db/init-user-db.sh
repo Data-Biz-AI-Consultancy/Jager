@@ -447,10 +447,14 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		due_at TIMESTAMP WITH TIME ZONE,
 		status VARCHAR(50),
 		assets JSONB DEFAULT '[]'::jsonb,
+		metrics JSONB DEFAULT '[]'::jsonb,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		processed INTEGER DEFAULT 0
 	);
+
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS metrics JSONB DEFAULT '[]'::jsonb;
+
 
 
 
