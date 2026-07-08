@@ -8,7 +8,7 @@
           "interval": [
             {
               "field": "hours",
-              "value": 12
+              "hoursInterval": 4
             }
           ]
         }
@@ -18,8 +18,8 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        100,
-        300
+        112,
+        304
       ]
     },
     {
@@ -46,8 +46,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        300,
-        200
+        304,
+        208
       ]
     },
     {
@@ -61,8 +61,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        500,
-        200
+        512,
+        208
       ]
     },
     {
@@ -97,7 +97,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        300,
+        304,
         400
       ]
     }
@@ -133,6 +133,7 @@
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }

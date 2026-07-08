@@ -6,10 +6,7 @@
       "parameters": {
         "rule": {
           "interval": [
-            {
-              "field": "days",
-              "value": 1
-            }
+            {}
           ]
         }
       },
@@ -19,44 +16,45 @@
       "typeVersion": 1.2,
       "position": [
         0,
-        300
+        304
       ]
     },
     {
       "parameters": {
-        "options": {},
         "assignments": {
           "assignments": [
             {
               "id": "start-date-uuid",
               "name": "start_date",
               "type": "string",
-              "value": "={{ $now.minus({ days: 7 }).toISO() }}"
+              "value": "={{ $now.minus({ days: 14 }).toISO() }}"
             }
           ]
-        }
+        },
+        "options": {}
       },
       "id": "workflow-parameters",
       "name": "Ingestion Date Range Parameters",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        150,
-        300
+        224,
+        304
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT 'notion_pages' AS source_table, id, title, cleaned_content, created_time AS event_time FROM m_staging.notion_pages WHERE (last_edited_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' OR created_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}')\nUNION ALL\nSELECT 'substack_posts' AS source_table, id, title, cleaned_content, published_at AS event_time FROM m_staging.substack_posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}'\nUNION ALL\nSELECT 'linkedin_posts' AS source_table, id, '' AS title, cleaned_content, published_at AS event_time FROM m_staging.linkedin_posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' LIMIT 10;"
+        "query": "SELECT 'notion_pages' AS source_table, id, title, cleaned_content, created_time AS event_time FROM m_staging.notion_pages WHERE (last_edited_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' OR created_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}')\nUNION ALL\nSELECT 'substack_posts' AS source_table, id, title, cleaned_content, published_at AS event_time FROM m_staging.substack_posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}'\nUNION ALL\nSELECT 'linkedin_posts' AS source_table, id, '' AS title, cleaned_content, published_at AS event_time FROM m_staging.linkedin_posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' LIMIT 10;",
+        "options": {}
       },
       "id": "get-unprocessed-staging",
       "name": "Get Unprocessed Staging",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        300,
-        300
+        448,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -88,8 +86,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        500,
-        200
+        672,
+        208
       ],
       "credentials": {
         "ollamaApi": {
@@ -121,7 +119,7 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        500,
+        672,
         400
       ],
       "credentials": {
@@ -133,7 +131,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst stagingItems = $('Get Unprocessed Staging').all();\n\nfor (let i = 0; i < currentItems.length; i++) {\n  const item = currentItems[i];\n  const parent = stagingItems[i].json;\n  const responseText = item.json.response || item.json.content || '{}';\n  \n  let jsonStr = responseText.trim();\n  const firstBrace = jsonStr.indexOf('{');\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n    jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n  }\n  jsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n\n  let parsed;\n  try {\n    parsed = JSON.parse(jsonStr);\n  } catch(e) {\n    parsed = { facts: [] };\n  }\n  if (parsed.facts && Array.isArray(parsed.facts)) {\n    for (const fact of parsed.facts) {\n      results.push({\n        json: {\n          entity_name: fact.entity_name || '',\n          entity_type: fact.entity_type || 'concept',\n          fact_details: fact.fact_details || '',\n          confidence: fact.confidence || 0.8,\n          source_table: parent.source_table,\n          source_id: parent.id\n        }\n      });\n    }\n  }\n}\nreturn results;"
       },
       "id": "parse-facts",
@@ -141,13 +138,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        700,
-        200
+        1024,
+        208
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst stagingItems = $('Get Unprocessed Staging').all();\n\nfor (let i = 0; i < currentItems.length; i++) {\n  const item = currentItems[i];\n  const parent = stagingItems[i].json;\n  const responseText = item.json.response || item.json.content || '{}';\n  \n  let jsonStr = responseText.trim();\n  const firstBrace = jsonStr.indexOf('{');\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n    jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n  }\n  jsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n\n  let parsed;\n  try {\n    parsed = JSON.parse(jsonStr);\n  } catch(e) {\n    parsed = { events: [] };\n  }\n  if (parsed.events && Array.isArray(parsed.events)) {\n    for (const event of parsed.events) {\n      let eventTimestamp = event.event_timestamp;\n      const isValidDate = (str) => {\n        if (!str || typeof str !== 'string') return false;\n        const parsedMs = Date.parse(str);\n        return !isNaN(parsedMs);\n      };\n      \n      if (isValidDate(eventTimestamp)) {\n        eventTimestamp = new Date(eventTimestamp).toISOString();\n      } else {\n        eventTimestamp = isValidDate(parent.event_time) ? new Date(parent.event_time).toISOString() : new Date().toISOString();\n      }\n\n      results.push({\n        json: {\n          event_name: event.event_name || '',\n          event_description: event.event_description || '',\n          event_timestamp: eventTimestamp,\n          actors: JSON.stringify(event.actors || []),\n          outcome: event.outcome || '',\n          source_table: parent.source_table,\n          source_id: parent.id\n        }\n      });\n    }\n  }\n}\nreturn results;"
       },
       "id": "parse-episodic-events",
@@ -155,22 +151,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        700,
+        1024,
         400
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO m_fact.memory_facts (entity_name, entity_type, fact_details, source_table, source_id, confidence)\nVALUES (\n  '{{ $json.entity_name.replace(/'/g, \"''\") }}',\n  '{{ $json.entity_type.replace(/'/g, \"''\") }}',\n  '{{ $json.fact_details.replace(/'/g, \"''\") }}',\n  '{{ $json.source_table }}',\n  '{{ $json.source_id }}',\n  {{ $json.confidence }}\n);"
+        "query": "INSERT INTO m_fact.memory_facts (entity_name, entity_type, fact_details, source_table, source_id, confidence)\nVALUES (\n  '{{ $json.entity_name.replace(/'/g, \"''\") }}',\n  '{{ $json.entity_type.replace(/'/g, \"''\") }}',\n  '{{ $json.fact_details.replace(/'/g, \"''\") }}',\n  '{{ $json.source_table }}',\n  '{{ $json.source_id }}',\n  {{ $json.confidence }}\n);",
+        "options": {}
       },
       "id": "insert-facts",
       "name": "Insert Facts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        900,
-        200
+        1248,
+        208
       ],
       "credentials": {
         "postgres": {
@@ -182,14 +179,15 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO m_episodic.memory_events (event_name, event_description, event_timestamp, actors, source_table, source_id, outcome)\nVALUES (\n  '{{ $json.event_name.replace(/'/g, \"''\") }}',\n  '{{ $json.event_description.replace(/'/g, \"''\") }}',\n  '{{ $json.event_timestamp }}',\n  '{{ $json.actors.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.source_table }}',\n  '{{ $json.source_id }}',\n  '{{ $json.outcome.replace(/'/g, \"''\") }}'\n);"
+        "query": "INSERT INTO m_episodic.memory_events (event_name, event_description, event_timestamp, actors, source_table, source_id, outcome)\nVALUES (\n  '{{ $json.event_name.replace(/'/g, \"''\") }}',\n  '{{ $json.event_description.replace(/'/g, \"''\") }}',\n  '{{ $json.event_timestamp }}',\n  '{{ $json.actors.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.source_table }}',\n  '{{ $json.source_id }}',\n  '{{ $json.outcome.replace(/'/g, \"''\") }}'\n);",
+        "options": {}
       },
       "id": "insert-episodic-events",
       "name": "Insert Episodic Events",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        900,
+        1248,
         400
       ],
       "credentials": {
@@ -284,8 +282,9 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }

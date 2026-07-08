@@ -22,7 +22,7 @@
       "typeVersion": 1.2,
       "position": [
         112,
-        96
+        -80
       ]
     },
     {
@@ -35,7 +35,7 @@
       "typeVersion": 2,
       "position": [
         336,
-        96
+        -80
       ]
     },
     {
@@ -57,7 +57,7 @@
       "typeVersion": 1,
       "position": [
         560,
-        96
+        -80
       ],
       "credentials": {
         "postgres": {
@@ -85,7 +85,7 @@
       "typeVersion": 1,
       "position": [
         912,
-        96
+        -80
       ],
       "credentials": {
         "postgres": {
@@ -113,7 +113,7 @@
       "typeVersion": 1,
       "position": [
         1264,
-        96
+        -80
       ],
       "credentials": {
         "postgres": {
@@ -135,7 +135,7 @@
       "typeVersion": 1,
       "position": [
         640,
-        320
+        144
       ],
       "credentials": {
         "huggingFaceApi": {
@@ -154,7 +154,7 @@
       "typeVersion": 2,
       "position": [
         1616,
-        96
+        -80
       ]
     },
     {
@@ -167,7 +167,7 @@
       "typeVersion": 2,
       "position": [
         1840,
-        96
+        -80
       ]
     },
     {
@@ -194,7 +194,7 @@
       "typeVersion": 1,
       "position": [
         2064,
-        96
+        -80
       ],
       "credentials": {
         "ollamaApi": {
@@ -213,7 +213,7 @@
       "typeVersion": 2,
       "position": [
         2416,
-        96
+        -80
       ]
     },
     {
@@ -226,15 +226,15 @@
       "typeVersion": 2,
       "position": [
         2640,
-        96
+        -80
       ]
     },
     {
       "parameters": {
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "notionApi",
         "method": "POST",
         "url": "https://api.notion.com/v1/pages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -259,7 +259,7 @@
       "typeVersion": 4.1,
       "position": [
         2864,
-        96
+        -80
       ],
       "credentials": {
         "notionApi": {
@@ -280,7 +280,7 @@
       "typeVersion": 2.5,
       "position": [
         3088,
-        96
+        -80
       ],
       "credentials": {
         "postgres": {
@@ -299,7 +299,7 @@
       "typeVersion": 2,
       "position": [
         3312,
-        96
+        -80
       ]
     },
     {
@@ -315,7 +315,7 @@
       "typeVersion": 1,
       "position": [
         3536,
-        96
+        -80
       ],
       "credentials": {
         "slackApi": {
@@ -336,7 +336,7 @@
       "typeVersion": 2.5,
       "position": [
         3760,
-        96
+        -80
       ],
       "credentials": {
         "postgres": {
@@ -371,7 +371,7 @@
       "typeVersion": 2.1,
       "position": [
         3984,
-        96
+        -80
       ],
       "webhookId": "55af1ae5-aed6-4a6e-9e21-7f6fb9d918a9",
       "credentials": {
@@ -411,15 +411,15 @@
       "typeVersion": 2,
       "position": [
         4208,
-        96
+        -80
       ]
     },
     {
       "parameters": {
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "notionApi",
         "method": "PATCH",
         "url": "=https://api.notion.com/v1/pages/{{ $('Create Notion Page').first().json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -443,8 +443,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        5090,
-        -180
+        5232,
+        -176
       ],
       "credentials": {
         "notionApi": {
@@ -464,8 +464,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        5310,
-        -180
+        5456,
+        -176
       ],
       "credentials": {
         "postgres": {
@@ -476,10 +476,10 @@
     },
     {
       "parameters": {
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "notionApi",
         "method": "PATCH",
         "url": "=https://api.notion.com/v1/pages/{{ $('Create Notion Page').first().json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -503,8 +503,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        4432,
-        192
+        4496,
+        16
       ],
       "credentials": {
         "notionApi": {
@@ -524,8 +524,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        4656,
-        192
+        4784,
+        16
       ],
       "credentials": {
         "postgres": {
@@ -558,8 +558,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        4430,
-        -180
+        4432,
+        -176
       ],
       "credentials": {
         "ollamaApi": {
@@ -577,16 +577,16 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4650,
-        -180
+        4784,
+        -176
       ]
     },
     {
       "parameters": {
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "notionApi",
         "method": "PATCH",
         "url": "=https://api.notion.com/v1/blocks/{{ $('Create Notion Page').first().json.id }}/children",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -610,8 +610,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        4870,
-        -180
+        5008,
+        -176
       ],
       "credentials": {
         "notionApi": {

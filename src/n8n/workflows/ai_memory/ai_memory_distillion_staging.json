@@ -6,10 +6,7 @@
       "parameters": {
         "rule": {
           "interval": [
-            {
-              "field": "days",
-              "value": 1
-            }
+            {}
           ]
         }
       },
@@ -18,13 +15,12 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -150,
-        300
+        -144,
+        352
       ]
     },
     {
       "parameters": {
-        "options": {},
         "assignments": {
           "assignments": [
             {
@@ -34,29 +30,31 @@
               "value": "={{ $now.minus({ days: 1 }).toISO() }}"
             }
           ]
-        }
+        },
+        "options": {}
       },
       "id": "workflow-parameters",
       "name": "Ingestion Date Range Parameters",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        20,
-        300
+        80,
+        352
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, database_id, title, content, url, created_time, last_edited_time FROM s_notion.pages WHERE last_edited_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' OR created_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';"
+        "query": "SELECT id, database_id, title, content, url, created_time, last_edited_time FROM s_notion.pages WHERE last_edited_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' OR created_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';",
+        "options": {}
       },
       "id": "get-unprocessed-raw-notion",
       "name": "Get Unprocessed Raw Notion",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        220,
-        150
+        304,
+        160
       ],
       "credentials": {
         "postgres": {
@@ -68,15 +66,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, feed_id, feed_name, author, title, content, url, published_at FROM s_substack.posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';"
+        "query": "SELECT id, feed_id, feed_name, author, title, content, url, published_at FROM s_substack.posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';",
+        "options": {}
       },
       "id": "get-unprocessed-raw-substack",
       "name": "Get Unprocessed Raw Substack",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        220,
-        300
+        304,
+        352
       ],
       "credentials": {
         "postgres": {
@@ -88,15 +87,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT id, author, content, url, published_at FROM s_linkedin.ugc_posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';"
+        "query": "SELECT id, author, content, url, published_at FROM s_linkedin.ugc_posts WHERE published_at >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';",
+        "options": {}
       },
       "id": "get-unprocessed-raw-linkedin",
       "name": "Get Unprocessed Raw LinkedIn",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        220,
-        450
+        304,
+        544
       ],
       "credentials": {
         "postgres": {
@@ -107,7 +107,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const crypto = require('crypto');\nconst results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const content = data.content || '';\n  const cleaned_content = content.replace(/\\s+/g, ' ').trim();\n  const content_hash = crypto.createHash('sha256').update(cleaned_content).digest('hex');\n  \n  results.push({\n    json: {\n      ...data,\n      cleaned_content,\n      content_hash\n    }\n  });\n}\nreturn results;"
       },
       "id": "clean-notion-content",
@@ -115,13 +114,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        420,
-        150
+        528,
+        160
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const crypto = require('crypto');\nconst results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const content = data.content || '';\n  const cleaned_content = content.replace(/\\s+/g, ' ').trim();\n  const content_hash = crypto.createHash('sha256').update(cleaned_content).digest('hex');\n  \n  results.push({\n    json: {\n      ...data,\n      cleaned_content,\n      content_hash\n    }\n  });\n}\nreturn results;"
       },
       "id": "clean-substack-content",
@@ -129,13 +127,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        420,
-        300
+        528,
+        352
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const crypto = require('crypto');\nconst results = [];\nconst items = $input.all();\n\nfor (const item of items) {\n  const data = item.json;\n  const content = data.content || '';\n  const cleaned_content = content.replace(/\\s+/g, ' ').trim();\n  const content_hash = crypto.createHash('sha256').update(cleaned_content).digest('hex');\n  \n  results.push({\n    json: {\n      ...data,\n      cleaned_content,\n      content_hash\n    }\n  });\n}\nreturn results;"
       },
       "id": "clean-linkedin-content",
@@ -143,8 +140,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        420,
-        450
+        528,
+        544
       ]
     },
     {
@@ -170,8 +167,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        620,
-        150
+        752,
+        160
       ],
       "credentials": {
         "ollamaApi": {
@@ -203,8 +200,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        620,
-        300
+        752,
+        352
       ],
       "credentials": {
         "ollamaApi": {
@@ -236,8 +233,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        620,
-        450
+        752,
+        544
       ],
       "credentials": {
         "ollamaApi": {
@@ -248,7 +245,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst originalItems = $('Clean Notion Content').all();\nfor (let i = 0; i < currentItems.length; i++) {\n  const current = currentItems[i].json;\n  const original = originalItems[i].json;\n  let category = 'Other';\n  let executive_summary = {};\n  const raw = current.response || current.content || '';\n  let jsonStr = raw.trim();\n  const firstBrace = jsonStr.indexOf('{');\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n    jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n  }\n  jsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n  try {\n    const parsed = JSON.parse(jsonStr);\n    category = parsed.category || 'Other';\n    executive_summary = parsed.executive_summary || {};\n  } catch (e) {\n    if (raw) category = raw.trim().substring(0, 50);\n  }\n  results.push({\n    json: {\n      ...original,\n      category,\n      executive_summary: JSON.stringify(executive_summary)\n    }\n  });\n}\nreturn results;"
       },
       "id": "merge-notion-category",
@@ -256,13 +252,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        820,
-        150
+        1104,
+        160
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst originalItems = $('Clean Substack Content').all();\nfor (let i = 0; i < currentItems.length; i++) {\n  const current = currentItems[i].json;\n  const original = originalItems[i].json;\n  let category = 'Other';\n  let executive_summary = {};\n  const raw = current.response || current.content || '';\n  let jsonStr = raw.trim();\n  const firstBrace = jsonStr.indexOf('{');\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n    jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n  }\n  jsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n  try {\n    const parsed = JSON.parse(jsonStr);\n    category = parsed.category || 'Other';\n    executive_summary = parsed.executive_summary || {};\n  } catch (e) {\n    if (raw) category = raw.trim().substring(0, 50);\n  }\n  results.push({\n    json: {\n      ...original,\n      category,\n      executive_summary: JSON.stringify(executive_summary)\n    }\n  });\n}\nreturn results;"
       },
       "id": "merge-substack-category",
@@ -270,13 +265,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        820,
-        300
+        1104,
+        352
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const results = [];\nconst currentItems = $input.all();\nconst originalItems = $('Clean LinkedIn Content').all();\nfor (let i = 0; i < currentItems.length; i++) {\n  const current = currentItems[i].json;\n  const original = originalItems[i].json;\n  let category = 'Other';\n  let executive_summary = {};\n  const raw = current.response || current.content || '';\n  let jsonStr = raw.trim();\n  const firstBrace = jsonStr.indexOf('{');\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n    jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n  }\n  jsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n  try {\n    const parsed = JSON.parse(jsonStr);\n    category = parsed.category || 'Other';\n    executive_summary = parsed.executive_summary || {};\n  } catch (e) {\n    if (raw) category = raw.trim().substring(0, 50);\n  }\n  results.push({\n    json: {\n      ...original,\n      category,\n      executive_summary: JSON.stringify(executive_summary)\n    }\n  });\n}\nreturn results;"
       },
       "id": "merge-linkedin-category",
@@ -284,22 +278,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        820,
-        450
+        1104,
+        544
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO m_staging.notion_pages (id, database_id, title, content, cleaned_content, category, executive_summary, content_hash, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.database_id }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.executive_summary.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.content_hash }}',\n  '{{ $json.created_time }}',\n  '{{ $json.last_edited_time }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content, \n  cleaned_content = EXCLUDED.cleaned_content, \n  category = EXCLUDED.category, \n  executive_summary = EXCLUDED.executive_summary, \n  content_hash = EXCLUDED.content_hash, \n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;"
+        "query": "INSERT INTO m_staging.notion_pages (id, database_id, title, content, cleaned_content, category, executive_summary, content_hash, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.database_id }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.executive_summary.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.content_hash }}',\n  '{{ $json.created_time }}',\n  '{{ $json.last_edited_time }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content, \n  cleaned_content = EXCLUDED.cleaned_content, \n  category = EXCLUDED.category, \n  executive_summary = EXCLUDED.executive_summary, \n  content_hash = EXCLUDED.content_hash, \n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;",
+        "options": {}
       },
       "id": "stage-notion-pages",
       "name": "Stage Notion Pages",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1020,
-        150
+        1328,
+        160
       ],
       "credentials": {
         "postgres": {
@@ -311,15 +306,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO m_staging.substack_posts (id, feed_id, feed_name, author, title, content, cleaned_content, category, executive_summary, content_hash, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.feed_id || 'NULL' }},\n  '{{ $json.feed_name.replace(/'/g, \"''\") }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.executive_summary.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.content_hash }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  executive_summary = EXCLUDED.executive_summary,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
+        "query": "INSERT INTO m_staging.substack_posts (id, feed_id, feed_name, author, title, content, cleaned_content, category, executive_summary, content_hash, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  {{ $json.feed_id || 'NULL' }},\n  '{{ $json.feed_name.replace(/'/g, \"''\") }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.executive_summary.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.content_hash }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  executive_summary = EXCLUDED.executive_summary,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;",
+        "options": {}
       },
       "id": "stage-substack-posts",
       "name": "Stage Substack Posts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1020,
-        300
+        1328,
+        352
       ],
       "credentials": {
         "postgres": {
@@ -331,15 +327,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO m_staging.linkedin_posts (id, author, content, cleaned_content, category, executive_summary, content_hash, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.executive_summary.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.content_hash }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  executive_summary = EXCLUDED.executive_summary,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;"
+        "query": "INSERT INTO m_staging.linkedin_posts (id, author, content, cleaned_content, category, executive_summary, content_hash, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.author.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.cleaned_content.replace(/'/g, \"''\") }}',\n  '{{ $json.category }}',\n  '{{ $json.executive_summary.replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.content_hash }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (content_hash) \nDO UPDATE SET \n  content = EXCLUDED.content,\n  cleaned_content = EXCLUDED.cleaned_content,\n  category = EXCLUDED.category,\n  executive_summary = EXCLUDED.executive_summary,\n  content_hash = EXCLUDED.content_hash\nRETURNING id;",
+        "options": {}
       },
       "id": "stage-linkedin-posts",
       "name": "Stage LinkedIn Posts",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1020,
-        450
+        1328,
+        544
       ],
       "credentials": {
         "postgres": {
@@ -515,8 +512,9 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }
