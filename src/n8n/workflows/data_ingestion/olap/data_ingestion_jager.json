@@ -214,7 +214,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO s_zernio.linkedin_follower_stats_timeline (account_id, date, followers_count, growth, growth_percentage, fetched_at)\nVALUES ('{{ $json.account_id }}', '{{ $json.date }}', {{ $json.followers_count }}, {{ $json.growth }}, {{ $json.growth_percentage }}, '{{ $json.fetched_at }}')\nON CONFLICT (account_id, date) DO UPDATE SET\n  followers_count = EXCLUDED.followers_count,\n  growth = EXCLUDED.growth,\n  growth_percentage = EXCLUDED.growth_percentage,\n  fetched_at = EXCLUDED.fetched_at;",
+        "query": "INSERT INTO s_zernio.linkedin_follower_stats_timeline (account_id, date, followers_count, growth, growth_percentage, fetched_at)\nVALUES ('{{ $json.account_id }}', '{{ new Date($json.date).toISOString().split(\u0027T\u0027)[0] }}', {{ $json.followers_count }}, {{ $json.growth }}, {{ $json.growth_percentage }}, '{{ $json.fetched_at }}')\nON CONFLICT (account_id, date) DO UPDATE SET\n  followers_count = EXCLUDED.followers_count,\n  growth = EXCLUDED.growth,\n  growth_percentage = EXCLUDED.growth_percentage,\n  fetched_at = EXCLUDED.fetched_at;",
         "options": {}
       },
       "id": "write-zernio-follower-timeline",
@@ -256,7 +256,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO s_zernio.linkedin_post_timeline (post_id, date, impressions, reach, likes, comments, shares, saves, clicks, views, fetched_at)\nVALUES ('{{ $json.post_id }}', '{{ $json.date }}', {{ $json.impressions }}, {{ $json.reach }}, {{ $json.likes }}, {{ $json.comments }}, {{ $json.shares }}, {{ $json.saves }}, {{ $json.clicks }}, {{ $json.views }}, '{{ $json.fetched_at }}')\nON CONFLICT (post_id, date) DO UPDATE SET\n  impressions = EXCLUDED.impressions,\n  reach = EXCLUDED.reach,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  saves = EXCLUDED.saves,\n  clicks = EXCLUDED.clicks,\n  views = EXCLUDED.views,\n  fetched_at = EXCLUDED.fetched_at;",
+        "query": "INSERT INTO s_zernio.linkedin_post_timeline (post_id, date, impressions, reach, likes, comments, shares, saves, clicks, views, fetched_at)\nVALUES ('{{ $json.post_id }}', '{{ new Date($json.date).toISOString().split(\u0027T\u0027)[0] }}', {{ $json.impressions }}, {{ $json.reach }}, {{ $json.likes }}, {{ $json.comments }}, {{ $json.shares }}, {{ $json.saves }}, {{ $json.clicks }}, {{ $json.views }}, '{{ $json.fetched_at }}')\nON CONFLICT (post_id, date) DO UPDATE SET\n  impressions = EXCLUDED.impressions,\n  reach = EXCLUDED.reach,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  saves = EXCLUDED.saves,\n  clicks = EXCLUDED.clicks,\n  views = EXCLUDED.views,\n  fetched_at = EXCLUDED.fetched_at;",
         "options": {}
       },
       "id": "write-zernio-post-timeline",
