@@ -118,7 +118,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Prepare Individual Post').first().json.post_id }};",
+        "query": "UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Prepare Individual Post').first().json.post_id }}\nRETURNING id, channel, content;",
         "options": {}
       },
       "id": "update-db-individual",
@@ -188,7 +188,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.id || $json.postId || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Resolve Account ID').first().json.post_id }};",
+        "query": "UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.id || $json.postId || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Resolve Account ID').first().json.post_id }}\nRETURNING id, channel, content;",
         "options": {}
       },
       "id": "update-db-databiz",
@@ -206,7 +206,7 @@
     {
       "parameters": {
         "channel": "={{ $env.SLACK_MARKETING_CHANNEL || 'content' }}",
-        "text": "=🚀 *LinkedIn Post Published!*\n\n*Channel:* {{ $json.channel || 'unknown' }}\n*Post ID:* {{ $json.post_id || $json.id || '' }}\n",
+        "text": "=🚀 *LinkedIn Post Published!*\n\n*Channel:* {{ $json.channel === 'individual' ? 'Individual' : 'Data Biz' }}\n*Post ID:* {{ $json.id }}\n\n*Content:*\n>>>{{ $json.content }}",
         "otherOptions": {},
         "attachments": []
       },
