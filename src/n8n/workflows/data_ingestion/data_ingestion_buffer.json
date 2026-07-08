@@ -1,0 +1,470 @@
+{
+  "id": "buffer-ingestion-workflow",
+  "name": "Data Ingestion - Buffer",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.buffer.com",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query\": \"query GetOrganizations { account { organizations { id name } } }\"\n}",
+        "options": {}
+      },
+      "id": "fetch-organizations",
+      "name": "Fetch Organizations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "buffer-api-cred",
+          "name": "Buffer API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (const item of items) {\n  const orgs = item.json.data?.account?.organizations || [];\n  for (const org of orgs) {\n    results.push({\n      json: {\n        id: org.id,\n        name: org.name\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-organizations",
+      "name": "Parse Organizations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.buffer.com",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"query GetChannels { channels(input: { organizationId: \\\"{{ $json.id }}\\\"}) { id name service } }\"\n}",
+        "options": {}
+      },
+      "id": "fetch-channels",
+      "name": "Fetch Channels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "buffer-api-cred",
+          "name": "Buffer API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let orgItem;\n  try {\n    orgItem = $('Parse Organizations').all()[i].json;\n  } catch (e) {\n    console.error('Could not get organization details:', e.message);\n  }\n  const orgId = orgItem ? orgItem.id : '';\n\n  const channels = item.json.data?.channels || [];\n  for (const channel of channels) {\n    results.push({\n      json: {\n        id: channel.id,\n        name: channel.name,\n        service: channel.service,\n        organization_id: orgId\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-channels",
+      "name": "Parse Channels",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_buffer.channels (id, name, service, organization_id, active)\nVALUES ('{{ $json.id }}', '{{ $json.name.replace(/'/g, \"''\") }}', '{{ $json.service }}', '{{ $json.organization_id }}', true)\nON CONFLICT (id) \nDO UPDATE SET name = EXCLUDED.name, service = EXCLUDED.service, organization_id = EXCLUDED.organization_id, updated_at = NOW()\nRETURNING id, organization_id;"
+      },
+      "id": "insert-channels",
+      "name": "Insert/Update Channels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-channels",
+      "name": "Loop Channels",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "param-channel-id",
+              "name": "channel_id",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "id": "param-org-id",
+              "name": "organization_id",
+              "type": "string",
+              "value": "={{ $json.organization_id }}"
+            },
+            {
+              "id": "param-cursor",
+              "name": "cursor",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "param-has-next",
+              "name": "hasNextPage",
+              "type": "boolean",
+              "value": true
+            }
+          ]
+        }
+      },
+      "id": "init-pagination",
+      "name": "Init Pagination",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.buffer.com",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"query GetPosts($first: Int, $after: String, $input: PostsInput!) { posts(first: $first, after: $after, input: $input) { edges { node { id text dueAt status metrics { type value } } } pageInfo { endCursor hasNextPage } } }\",\n  \"variables\": {\n    \"first\": 50,\n    \"after\": \"{{ $json.cursor || null }}\",\n    \"input\": {\n      \"organizationId\": \"{{ $json.organization_id }}\",\n      \"filter\": {\n        \"channelIds\": [\"{{ $json.channel_id }}\"]\n      }\n    }\n  }\n}",
+        "options": {}
+      },
+      "id": "fetch-posts-page",
+      "name": "Fetch Posts Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1500,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "buffer-api-cred",
+          "name": "Buffer API Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = [];\nconst item = $input.item.json;\nconst edges = item.data?.posts?.edges || [];\nconst channelId = $('Init Pagination').first().json.channel_id;\n\nfor (const edge of edges) {\n  const post = edge.node;\n  if (post) {\n    const metrics = post.metrics || [];\n    const metricsMap = {};\n    for (const m of metrics) {\n      metricsMap[m.type] = m.value;\n    }\n    results.push({\n      json: {\n        id: post.id,\n        text: post.text || '',\n        channel_id: channelId,\n        due_at: post.dueAt ? new Date(post.dueAt).toISOString() : null,\n        status: post.status || 'unknown',\n        assets: [],\n        metrics: metrics,\n        reactions: metricsMap['reactions'] || 0,\n        comments: metricsMap['comments'] || 0,\n        shares: metricsMap['shares'] || 0,\n        reposts: metricsMap['reposts'] || 0,\n        clicks: metricsMap['clicks'] || 0,\n        reach: metricsMap['reach'] || 0,\n        impressions: metricsMap['impressions'] || 0,\n        views: metricsMap['views'] || 0,\n        engagement_rate: metricsMap['engagementRate'] || 0.00\n      }\n    });\n  }\n}\nreturn results;"
+      },
+      "id": "parse-page-posts",
+      "name": "Parse Page Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_buffer.posts (\n  id, text, channel_id, due_at, status, assets, metrics,\n  reactions, comments, shares, reposts, clicks, reach, impressions, views, engagement_rate,\n  processed\n)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.text.replace(/'/g, \"''\") }}',\n  '{{ $json.channel_id }}',\n  {{ $json.due_at ? \"'\" + $json.due_at + \"'\" : 'NULL' }},\n  '{{ $json.status }}',\n  '{{ JSON.stringify($json.assets) }}'::jsonb,\n  '{{ JSON.stringify($json.metrics) }}'::jsonb,\n  {{ $json.reactions }},\n  {{ $json.comments }},\n  {{ $json.shares }},\n  {{ $json.reposts }},\n  {{ $json.clicks }},\n  {{ $json.reach }},\n  {{ $json.impressions }},\n  {{ $json.views }},\n  {{ $json.engagement_rate }},\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  text = EXCLUDED.text,\n  status = EXCLUDED.status,\n  due_at = EXCLUDED.due_at,\n  assets = EXCLUDED.assets,\n  metrics = EXCLUDED.metrics,\n  reactions = EXCLUDED.reactions,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  reposts = EXCLUDED.reposts,\n  clicks = EXCLUDED.clicks,\n  reach = EXCLUDED.reach,\n  impressions = EXCLUDED.impressions,\n  views = EXCLUDED.views,\n  engagement_rate = EXCLUDED.engagement_rate,\n  updated_at = NOW();"
+      },
+      "id": "insert-posts",
+      "name": "Insert/Update Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1900,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const response = $('Fetch Posts Page').item.json;\nconst pageInfo = response.data?.posts?.pageInfo || {};\nconst edges = response.data?.posts?.edges || [];\nconst initData = $('Init Pagination').first().json;\nreturn [{\n  json: {\n    cursor: pageInfo.endCursor || null,\n    hasNextPage: !!pageInfo.hasNextPage && edges.length > 0,\n    channel_id: initData.channel_id,\n    organization_id: initData.organization_id\n  }\n}];"
+      },
+      "id": "check-next-page",
+      "name": "Check Next Page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond-has-next",
+              "leftValue": "={{ $json.hasNextPage }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-has-next-page",
+      "name": "If Has Next Page",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Organizations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Organizations": {
+      "main": [
+        [
+          {
+            "node": "Parse Organizations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Organizations": {
+      "main": [
+        [
+          {
+            "node": "Fetch Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Channels": {
+      "main": [
+        [
+          {
+            "node": "Parse Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Channels": {
+      "main": [
+        [
+          {
+            "node": "Insert/Update Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert/Update Channels": {
+      "main": [
+        [
+          {
+            "node": "Loop Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Channels": {
+      "main": [
+        [
+          {
+            "node": "Init Pagination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Pagination": {
+      "main": [
+        [
+          {
+            "node": "Fetch Posts Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Posts Page": {
+      "main": [
+        [
+          {
+            "node": "Parse Page Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Page Posts": {
+      "main": [
+        [
+          {
+            "node": "Insert/Update Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert/Update Database": {
+      "main": [
+        [
+          {
+            "node": "Check Next Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Next Page": {
+      "main": [
+        [
+          {
+            "node": "If Has Next Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Has Next Page": {
+      "main": [
+        [
+          {
+            "node": "Fetch Posts Page",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

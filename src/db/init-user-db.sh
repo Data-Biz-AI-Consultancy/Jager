@@ -15,6 +15,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE SCHEMA IF NOT EXISTS s_linkedin;
 	CREATE SCHEMA IF NOT EXISTS s_notion;
 	CREATE SCHEMA IF NOT EXISTS s_zernio;
+	CREATE SCHEMA IF NOT EXISTS s_buffer;
 
 
 	CREATE TABLE IF NOT EXISTS s_reddit.subreddits_monitored (
@@ -428,6 +429,51 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		last_edited_time TIMESTAMP WITH TIME ZONE,
 		processed INTEGER DEFAULT 0
 	);
+
+	CREATE TABLE IF NOT EXISTS s_buffer.channels (
+		id VARCHAR(255) PRIMARY KEY,
+		name VARCHAR(255),
+		service VARCHAR(100),
+		organization_id VARCHAR(255),
+		active BOOLEAN DEFAULT TRUE,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS s_buffer.posts (
+		id VARCHAR(255) PRIMARY KEY,
+		text TEXT,
+		channel_id VARCHAR(255) REFERENCES s_buffer.channels(id) ON DELETE CASCADE,
+		due_at TIMESTAMP WITH TIME ZONE,
+		status VARCHAR(50),
+		assets JSONB DEFAULT '[]'::jsonb,
+		metrics JSONB DEFAULT '[]'::jsonb,
+		reactions INTEGER DEFAULT 0,
+		comments INTEGER DEFAULT 0,
+		shares INTEGER DEFAULT 0,
+		reposts INTEGER DEFAULT 0,
+		clicks INTEGER DEFAULT 0,
+		reach INTEGER DEFAULT 0,
+		impressions INTEGER DEFAULT 0,
+		views INTEGER DEFAULT 0,
+		engagement_rate NUMERIC DEFAULT 0.00,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		processed INTEGER DEFAULT 0
+	);
+
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS metrics JSONB DEFAULT '[]'::jsonb;
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS reactions INTEGER DEFAULT 0;
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS comments INTEGER DEFAULT 0;
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS shares INTEGER DEFAULT 0;
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS reposts INTEGER DEFAULT 0;
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS clicks INTEGER DEFAULT 0;
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS reach INTEGER DEFAULT 0;
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS impressions INTEGER DEFAULT 0;
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS views INTEGER DEFAULT 0;
+	ALTER TABLE s_buffer.posts ADD COLUMN IF NOT EXISTS engagement_rate NUMERIC DEFAULT 0.00;
+
+
 
 
 
