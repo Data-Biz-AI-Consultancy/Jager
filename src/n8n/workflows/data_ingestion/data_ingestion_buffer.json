@@ -24,35 +24,6 @@
     },
     {
       "parameters": {
-        "options": {},
-        "assignments": {
-          "assignments": [
-            {
-              "id": "param-first",
-              "name": "first",
-              "type": "number",
-              "value": 50
-            },
-            {
-              "id": "param-after",
-              "name": "after",
-              "type": "string",
-              "value": "={{ $now.minus({ days: 30 }).toFormat(\"yyyy-MM-dd'T'HH:mm:ss'Z'\") }}"
-            }
-          ]
-        }
-      },
-      "id": "workflow-parameters",
-      "name": "Ingestion Date Range Parameters",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        250,
-        150
-      ]
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "https://api.buffer.com",
         "authentication": "genericCredentialType",
@@ -76,7 +47,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        400,
+        300,
         300
       ],
       "credentials": {
@@ -96,7 +67,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        600,
+        500,
         300
       ]
     },
@@ -125,7 +96,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        800,
+        700,
         300
       ],
       "credentials": {
@@ -145,7 +116,82 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1000,
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=INSERT INTO s_buffer.channels (id, name, service, organization_id, active)\nVALUES ('{{ $json.id }}', '{{ $json.name.replace(/'/g, \"''\") }}', '{{ $json.service }}', '{{ $json.organization_id }}', true)\nON CONFLICT (id) \nDO UPDATE SET name = EXCLUDED.name, service = EXCLUDED.service, organization_id = EXCLUDED.organization_id, updated_at = NOW()\nRETURNING id, organization_id;"
+      },
+      "id": "insert-channels",
+      "name": "Insert/Update Channels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        150
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-channels",
+      "name": "Loop Channels",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "param-channel-id",
+              "name": "channel_id",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "id": "param-org-id",
+              "name": "organization_id",
+              "type": "string",
+              "value": "={{ $json.organization_id }}"
+            },
+            {
+              "id": "param-cursor",
+              "name": "cursor",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "param-has-next",
+              "name": "hasNextPage",
+              "type": "boolean",
+              "value": true
+            }
+          ]
+        }
+      },
+      "id": "init-pagination",
+      "name": "Init Pagination",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1300,
         300
       ]
     },
@@ -166,15 +212,15 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"query\": \"query GetPosts($first: Int, $after: String, $input: PostsInput!) { posts(first: $first, after: $after, input: $input) { edges { node { id text dueAt status metrics { type value } } } } }\",\n  \"variables\": {\n    \"first\": {{ $('Ingestion Date Range Parameters').first().json.first }},\n    \"after\": \"{{ $('Ingestion Date Range Parameters').first().json.after }}\",\n    \"input\": {\n      \"organizationId\": \"{{ $json.organization_id }}\",\n      \"filter\": {\n        \"channelIds\": [\"{{ $json.id }}\"]\n      }\n    }\n  }\n}",
+        "jsonBody": "={\n  \"query\": \"query GetPosts($first: Int, $after: String, $input: PostsInput!) { posts(first: $first, after: $after, input: $input) { edges { node { id text dueAt status metrics { type value } } } pageInfo { endCursor hasNextPage } } }\",\n  \"variables\": {\n    \"first\": 50,\n    \"after\": \"{{ $json.cursor || null }}\",\n    \"input\": {\n      \"organizationId\": \"{{ $json.organization_id }}\",\n      \"filter\": {\n        \"channelIds\": [\"{{ $json.channel_id }}\"]\n      }\n    }\n  }\n}",
         "options": {}
       },
-      "id": "fetch-posts",
-      "name": "Fetch Posts",
+      "id": "fetch-posts-page",
+      "name": "Fetch Posts Page",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1200,
+        1500,
         300
       ],
       "credentials": {
@@ -187,14 +233,14 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let channelItem;\n  try {\n    channelItem = $('Parse Channels').all()[i].json;\n  } catch (e) {\n    console.error('Could not get channel details:', e.message);\n  }\n  const channelId = channelItem ? channelItem.id : '';\n\n  const edges = item.json.data?.posts?.edges || [];\n  for (const edge of edges) {\n    const post = edge.node;\n    if (post) {\n      const metrics = post.metrics || [];\n      const metricsMap = {};\n      for (const m of metrics) {\n        metricsMap[m.type] = m.value;\n      }\n      results.push({\n        json: {\n          id: post.id,\n          text: post.text || '',\n          channel_id: channelId,\n          due_at: post.dueAt ? new Date(post.dueAt).toISOString() : null,\n          status: post.status || 'unknown',\n          assets: [],\n          metrics: metrics,\n          reactions: metricsMap['reactions'] || 0,\n          comments: metricsMap['comments'] || 0,\n          shares: metricsMap['shares'] || 0,\n          reposts: metricsMap['reposts'] || 0,\n          clicks: metricsMap['clicks'] || 0,\n          reach: metricsMap['reach'] || 0,\n          impressions: metricsMap['impressions'] || 0,\n          views: metricsMap['views'] || 0,\n          engagement_rate: metricsMap['engagementRate'] || 0.00\n        }\n      });\n    }\n  }\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst item = $input.item.json;\nconst edges = item.data?.posts?.edges || [];\nconst channelId = $('Init Pagination').first().json.channel_id;\n\nfor (const edge of edges) {\n  const post = edge.node;\n  if (post) {\n    const metrics = post.metrics || [];\n    const metricsMap = {};\n    for (const m of metrics) {\n      metricsMap[m.type] = m.value;\n    }\n    results.push({\n      json: {\n        id: post.id,\n        text: post.text || '',\n        channel_id: channelId,\n        due_at: post.dueAt ? new Date(post.dueAt).toISOString() : null,\n        status: post.status || 'unknown',\n        assets: [],\n        metrics: metrics,\n        reactions: metricsMap['reactions'] || 0,\n        comments: metricsMap['comments'] || 0,\n        shares: metricsMap['shares'] || 0,\n        reposts: metricsMap['reposts'] || 0,\n        clicks: metricsMap['clicks'] || 0,\n        reach: metricsMap['reach'] || 0,\n        impressions: metricsMap['impressions'] || 0,\n        views: metricsMap['views'] || 0,\n        engagement_rate: metricsMap['engagementRate'] || 0.00\n      }\n    });\n  }\n}\nreturn results;"
       },
-      "id": "parse-posts",
-      "name": "Parse Posts",
+      "id": "parse-page-posts",
+      "name": "Parse Page Posts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1400,
+        1700,
         300
       ]
     },
@@ -208,7 +254,7 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1600,
+        1900,
         300
       ],
       "credentials": {
@@ -220,38 +266,50 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "=INSERT INTO s_buffer.channels (id, name, service, organization_id, active)\nVALUES ('{{ $json.id }}', '{{ $json.name.replace(/'/g, \"''\") }}', '{{ $json.service }}', '{{ $json.organization_id }}', true)\nON CONFLICT (id) \nDO UPDATE SET name = EXCLUDED.name, service = EXCLUDED.service, organization_id = EXCLUDED.organization_id, updated_at = NOW();"
+        "mode": "runOnceForAllItems",
+        "jsCode": "const response = $('Fetch Posts Page').item.json;\nconst pageInfo = response.data?.posts?.pageInfo || {};\nconst edges = response.data?.posts?.edges || [];\nconst initData = $('Init Pagination').first().json;\nreturn {\n  json: {\n    cursor: pageInfo.endCursor || null,\n    hasNextPage: !!pageInfo.hasNextPage && edges.length > 0,\n    channel_id: initData.channel_id,\n    organization_id: initData.organization_id\n  }\n};"
       },
-      "id": "insert-channels",
-      "name": "Insert/Update Channels",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
+      "id": "check-next-page",
+      "name": "Check Next Page",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        1200,
-        150
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
+        2100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "type": "string",
+            "valueString": ""
+          },
+          "conditions": [
+            {
+              "id": "cond-has-next",
+              "leftValue": "={{ $json.hasNextPage }}",
+              "rightValue": "",
+              "operator": "true"
+            }
+          ],
+          "combinator": "and"
         }
-      }
+      },
+      "id": "if-has-next-page",
+      "name": "If Has Next Page",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        300
+      ]
     }
   ],
   "connections": {
     "Schedule Trigger": {
-      "main": [
-        [
-          {
-            "node": "Ingestion Date Range Parameters",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ingestion Date Range Parameters": {
       "main": [
         [
           {
@@ -299,11 +357,6 @@
       "main": [
         [
           {
-            "node": "Fetch Posts",
-            "type": "main",
-            "index": 0
-          },
-          {
             "node": "Insert/Update Channels",
             "type": "main",
             "index": 0
@@ -311,22 +364,95 @@
         ]
       ]
     },
-    "Fetch Posts": {
+    "Insert/Update Channels": {
       "main": [
         [
           {
-            "node": "Parse Posts",
+            "node": "Loop Channels",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Posts": {
+    "Loop Channels": {
+      "main": [
+        [
+          {
+            "node": "Init Pagination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Pagination": {
+      "main": [
+        [
+          {
+            "node": "Fetch Posts Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Posts Page": {
+      "main": [
+        [
+          {
+            "node": "Parse Page Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Page Posts": {
       "main": [
         [
           {
             "node": "Insert/Update Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert/Update Database": {
+      "main": [
+        [
+          {
+            "node": "Check Next Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Next Page": {
+      "main": [
+        [
+          {
+            "node": "If Has Next Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Has Next Page": {
+      "main": [
+        [
+          {
+            "node": "Fetch Posts Page",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Loop Channels",
             "type": "main",
             "index": 0
           }
