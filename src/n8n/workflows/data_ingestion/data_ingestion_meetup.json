@@ -7,8 +7,7 @@
         "rule": {
           "interval": [
             {
-              "field": "cronExpression",
-              "expression": "0 8 * * *"
+              "triggerAtHour": 8
             }
           ]
         }
@@ -18,13 +17,12 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        100,
-        300
+        112,
+        256
       ]
     },
     {
       "parameters": {
-        "options": {},
         "assignments": {
           "assignments": [
             {
@@ -40,34 +38,35 @@
               "value": "={{ $now.plus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
             }
           ]
-        }
+        },
+        "options": {}
       },
       "id": "workflow-parameters",
       "name": "Ingestion Date Range Parameters",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        250,
-        150
+        336,
+        256
       ]
     },
     {
       "parameters": {
         "mode": "raw",
-        "jsonOutput": "{\n  \"searches\": [\n    {\n      \"id\": 1,\n      \"name\": \"Business & Career\",\n      \"search_url\": \"https://www.meetup.com/find/?categoryId=405&source=EVENTS\"\n    },\n    {\n      \"id\": 2,\n      \"name\": \"Social Activities\",\n      \"search_url\": \"https://www.meetup.com/find/?categoryId=652&source=EVENTS\"\n    }\n  ]\n}"
+        "jsonOutput": "{\n  \"searches\": [\n    {\n      \"id\": 1,\n      \"name\": \"Business & Career\",\n      \"search_url\": \"https://www.meetup.com/find/?categoryId=405&source=EVENTS\"\n    },\n    {\n      \"id\": 2,\n      \"name\": \"Social Activities\",\n      \"search_url\": \"https://www.meetup.com/find/?categoryId=652&source=EVENTS\"\n    }\n  ]\n}",
+        "options": {}
       },
       "id": "get-active-searches",
       "name": "Get Active Searches",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        250,
-        300
+        560,
+        256
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const https = require('https');\n\nfunction fetchHTML(url, retries = 1) {\n  return new Promise((resolve, reject) => {\n    const options = {\n      headers: {\n        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'\n      },\n      timeout: 10000\n    };\n    const req = https.get(url, options, (res) => {\n      let data = '';\n      res.on('data', (chunk) => { data += chunk; });\n      res.on('end', () => {\n        if (res.statusCode === 200) {\n          resolve(data);\n        } else {\n          if (retries > 0) {\n            console.log(`Retrying fetch for ${url} (status ${res.statusCode})...`);\n            setTimeout(() => {\n              fetchHTML(url, retries - 1).then(resolve).catch(reject);\n            }, 1000);\n          } else {\n            reject(new Error(`Status ${res.statusCode}`));\n          }\n        }\n      });\n    });\n    req.on('error', (err) => {\n      if (retries > 0) {\n        console.log(`Retrying fetch for ${url} due to error: ${err.message}...`);\n        setTimeout(() => {\n          fetchHTML(url, retries - 1).then(resolve).catch(reject);\n        }, 1000);\n      } else {\n        reject(err);\n      }\n    });\n    req.on('timeout', () => {\n      req.destroy();\n      if (retries > 0) {\n        console.log(`Retrying fetch for ${url} due to timeout...`);\n        setTimeout(() => {\n          fetchHTML(url, retries - 1).then(resolve).catch(reject);\n        }, 1000);\n      } else {\n        reject(new Error('Request Timeout'));\n      }\n    });\n  });\n}\n\nconst results = [];\nconst items = $input.first().json.searches || [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const searchName = item.name;\n  const searchUrl = item.search_url;\n  const searchId = item.id;\n\n  if (i > 0) {\n    await new Promise(resolve => setTimeout(resolve, 1000));\n  }\n\n  try {\n    const html = await fetchHTML(searchUrl);\n    results.push({\n      search_id: searchId,\n      search_name: searchName,\n      search_url: searchUrl,\n      html: html\n    });\n  } catch (error) {\n    console.error(`Error fetching search ${searchName} (${searchUrl}):`, error.message);\n  }\n}\nreturn results;"
       },
       "id": "fetch-search-results-html",
@@ -75,13 +74,12 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        450,
-        300
+        784,
+        352
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const results = [];\nconst items = $input.all();\n\nlet startDateStr, endDateStr;\ntry {\n  startDateStr = $('Ingestion Date Range Parameters').first().json.start_date;\n  endDateStr = $('Ingestion Date Range Parameters').first().json.end_date;\n} catch (e) {\n  console.log('[Parse Search Results] Could not read date range from Ingestion Date Range Parameters:', e.message);\n}\n\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst today = new Date();\n\nlet startDate = startDateStr ? new Date(startDateStr + 'T00:00:00Z') : yesterday;\nlet endDate = endDateStr ? new Date(endDateStr + 'T00:00:00Z') : today;\n\nif (isNaN(startDate.getTime())) {\n  startDate = yesterday;\n}\nif (isNaN(endDate.getTime())) {\n  endDate = today;\n}\n\nfor (const item of items) {\n  const { search_id, search_name, html } = item.json;\n  if (!html) continue;\n\n  const match = html.match(/<script id=\"__NEXT_DATA__\" type=\"application\\/json\">([\\s\\S]*?)<\\/script>/);\n  if (!match) {\n    console.log(`[Parse Search Results] Could not find __NEXT_DATA__ in HTML for search ${search_name}`);\n    continue;\n  }\n\n  let data;\n  try {\n    data = JSON.parse(match[1]);\n  } catch (e) {\n    console.log(`[Parse Search Results] Failed to parse JSON for search ${search_name}:`, e.message);\n    continue;\n  }\n\n  const apollo = data?.props?.pageProps?.__APOLLO_STATE__;\n  if (!apollo) {\n    console.log(`[Parse Search Results] No __APOLLO_STATE__ found for search ${search_name}`);\n    continue;\n  }\n\n  let matchesInSearch = 0;\n  const apolloKeys = Object.keys(apollo);\n  \n  for (const key of apolloKeys) {\n    if (key.startsWith('Event:')) {\n      const event = apollo[key];\n      if (!event || !event.id || !event.title) continue;\n\n      const id = event.id;\n      const title = event.title;\n      let description = event.description || '';\n      const url = event.eventUrl || '';\n      \n      description = description.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n      if (!description) description = title;\n\n      const eventTimeRaw = event.dateTime || new Date().toISOString();\n      const eventTime = new Date(eventTimeRaw);\n\n      if (eventTime >= startDate) {\n        matchesInSearch++;\n        results.push({\n          id,\n          search_id,\n          search_name,\n          title,\n          description: description.substring(0, 5000),\n          url,\n          published_at: eventTime.toISOString(),\n          processed: 0\n        });\n      }\n    }\n  }\n  console.log(`[Parse Search Results] Search: ${search_name}, matches found: ${matchesInSearch}`);\n}\nreturn results;"
       },
       "id": "parse-search-results-html",
@@ -89,22 +87,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        650,
-        300
+        1008,
+        352
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_meetup.search_results (id, search_id, search_name, title, description, url, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  (SELECT id FROM s_meetup.searches_monitored WHERE name = '{{ $json.search_name }}' LIMIT 1),\n  '{{ $json.search_name }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.description.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description\nRETURNING id, search_id;"
+        "query": "INSERT INTO s_meetup.search_results (id, search_id, search_name, title, description, url, published_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  (SELECT id FROM s_meetup.searches_monitored WHERE name = '{{ $json.search_name }}' LIMIT 1),\n  '{{ $json.search_name }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.description.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description\nRETURNING id, search_id;",
+        "options": {}
       },
       "id": "insert-search-results",
       "name": "Insert/Upsert Search Results",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        850,
-        300
+        1232,
+        352
       ],
       "credentials": {
         "postgres": {
@@ -116,15 +115,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_meetup.searches_monitored (id, name, search_url, active)\nSELECT (val->>'id')::integer, val->>'name', val->>'search_url', true\nFROM json_array_elements('{{ JSON.stringify($json.searches || []) }}'::json) AS val\nON CONFLICT (id) \nDO UPDATE SET name = EXCLUDED.name, search_url = EXCLUDED.search_url, active = true;"
+        "query": "INSERT INTO s_meetup.searches_monitored (id, name, search_url, active)\nSELECT (val->>'id')::integer, val->>'name', val->>'search_url', true\nFROM json_array_elements('{{ JSON.stringify($json.searches || []) }}'::json) AS val\nON CONFLICT (id) \nDO UPDATE SET name = EXCLUDED.name, search_url = EXCLUDED.search_url, active = true;",
+        "options": {}
       },
       "id": "update-monitored-searches",
       "name": "Update Monitored Searches",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        450,
-        150
+        784,
+        160
       ],
       "credentials": {
         "postgres": {
@@ -196,8 +196,9 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }

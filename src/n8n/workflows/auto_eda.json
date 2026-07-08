@@ -8,7 +8,10 @@
           "interval": [
             {
               "field": "weeks",
-              "value": 1
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
             }
           ]
         }
@@ -18,22 +21,23 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        100,
-        300
+        112,
+        304
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT directive FROM s_analytics.directives WHERE active = TRUE;"
+        "query": "SELECT directive FROM s_analytics.directives WHERE active = TRUE;",
+        "options": {}
       },
       "id": "get-directives",
       "name": "Get Directives",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        300,
-        300
+        336,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -45,15 +49,16 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n    ns.nspname AS schema_name,\n    cl.relname AS table_name,\n    att.attname AS column_name,\n    pg_catalog.format_type(att.atttypid, att.atttypmod) AS data_type,\n    pg_catalog.col_description(cl.oid, att.attnum) AS column_description\nFROM pg_attribute att\nJOIN pg_class cl ON att.attrelid = cl.oid\nJOIN pg_namespace ns ON cl.relnamespace = ns.oid\nWHERE ns.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND cl.relkind = 'r'\n  AND att.attnum > 0\n  AND NOT att.attisdropped\nORDER BY schema_name, table_name, att.attnum;"
+        "query": "SELECT \n    ns.nspname AS schema_name,\n    cl.relname AS table_name,\n    att.attname AS column_name,\n    pg_catalog.format_type(att.atttypid, att.atttypmod) AS data_type,\n    pg_catalog.col_description(cl.oid, att.attnum) AS column_description\nFROM pg_attribute att\nJOIN pg_class cl ON att.attrelid = cl.oid\nJOIN pg_namespace ns ON cl.relnamespace = ns.oid\nWHERE ns.nspname NOT IN ('pg_catalog', 'information_schema')\n  AND cl.relkind = 'r'\n  AND att.attnum > 0\n  AND NOT att.attisdropped\nORDER BY schema_name, table_name, att.attnum;",
+        "options": {}
       },
       "id": "scan-db-structure",
       "name": "Scan DB Structure",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        500,
-        300
+        560,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -64,7 +69,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/agents/kowalski.md', 'utf8');\n} catch (e) {\n  persona = 'Kowalski, tactical and military-grade database analyst agent.';\n}\n\nconst schemaRows = $('Scan DB Structure').all();\nconst directiveRows = $('Get Directives').all();\nconst directives = directiveRows.length > 0 ? directiveRows.map((r, i) => (i + 1) + '. ' + r.json.directive).join('\\n') : 'No directives provided.';\n\nif (schemaRows.length === 0) {\n  return [{ json: { text: 'No database tables found.', directives, kowalski_persona: persona } }];\n}\n\nconst schemas = {};\nschemaRows.forEach(row => {\n  const d = row.json;\n  if (!schemas[d.schema_name]) {\n    schemas[d.schema_name] = {};\n  }\n  if (!schemas[d.schema_name][d.table_name]) {\n    schemas[d.schema_name][d.table_name] = [];\n  }\n  schemas[d.schema_name][d.table_name].push({\n    column: d.column_name,\n    type: d.data_type,\n    description: d.column_description || ''\n  });\n});\n\nlet text = 'PostgreSQL Database Schema and Column Documentation:\\n\\n';\nfor (const [schemaName, tables] of Object.entries(schemas)) {\n  text += `Schema: ${schemaName}\\n`;\n  for (const [tableName, columns] of Object.entries(tables)) {\n    text += `  Table: ${tableName}\\n`;\n    columns.forEach(col => {\n      text += `    - ${col.column} (${col.type})${col.description ? ' // ' + col.description : ''}\\n`;\n    });\n  }\n  text += '\\n';\n}\n\n// Cap schema to avoid overwhelming small LLMs (gemma4:31b context limit)\nconst MAX_SCHEMA_CHARS = 6000;\nif (text.length > MAX_SCHEMA_CHARS) {\n  text = text.substring(0, MAX_SCHEMA_CHARS) + '\\n...[schema truncated for LLM context limit]';\n}\n\nreturn [{ json: { text, directives, kowalski_persona: persona } }];"
       },
       "id": "format-schema-for-llm",
@@ -72,8 +76,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        700,
-        300
+        784,
+        304
       ]
     },
     {
@@ -99,8 +103,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        900,
-        300
+        1008,
+        304
       ],
       "credentials": {
         "ollamaApi": {
@@ -111,7 +115,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const FALLBACK_HYPOTHESES = [\n  {\n    hypothesis: 'Most recently ingested content comes from Reddit versus Substack.',\n    query: \"SELECT 'reddit' AS source, MAX(created_at) AS latest FROM s_reddit.posts UNION ALL SELECT 'substack', MAX(published_at) FROM s_substack.posts ORDER BY latest DESC LIMIT 5;\"\n  },\n  {\n    hypothesis: 'LinkedIn messages represent the majority of personal communication data.',\n    query: \"SELECT COUNT(*) AS total_messages FROM s_linkedin.messages;\"\n  },\n  {\n    hypothesis: 'There are active subreddits being monitored with recent posts.',\n    query: \"SELECT s.name AS subreddit_name, COUNT(*) AS post_count FROM s_reddit.posts p JOIN s_reddit.subreddits_monitored s ON p.subreddit_id = s.id GROUP BY s.name ORDER BY post_count DESC LIMIT 10;\"\n  }\n];\n\nconst raw = $input.first().json.response || '';\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\nif (!jsonStr) {\n  console.log('LLM returned empty response, using fallback queries.');\n  return FALLBACK_HYPOTHESES.map(h => ({ json: h }));\n}\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  console.log('Failed to parse LLM JSON, using fallback queries. Error: ' + e.message);\n  return FALLBACK_HYPOTHESES.map(h => ({ json: h }));\n}\n\nconst hypotheses = Array.isArray(parsed.hypotheses) ? parsed.hypotheses.filter(h => h && h.query) : [];\nif (hypotheses.length === 0) {\n  console.log('No valid hypotheses in LLM response, using fallback queries.');\n  return FALLBACK_HYPOTHESES.map(h => ({ json: h }));\n}\n\nreturn hypotheses.map(h => ({\n  json: {\n    hypothesis: h.hypothesis || 'Unnamed hypothesis',\n    query: h.query\n  }\n}));"
       },
       "id": "split-queries",
@@ -119,22 +122,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
-        300
+        1360,
+        304
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "={{ $json.query }}"
+        "query": "{{ $json.query }}",
+        "options": {}
       },
       "id": "execute-queries",
       "name": "Execute Queries",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1300,
-        300
+        1584,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -145,7 +149,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const results = $input.all();\nconst originalInput = $('Format Schema for LLM').first().json;\n\nconst MAX_INDIVIDUAL_RESULT_CHARS = 300; // Keep each individual query result short\nconst MAX_TOTAL_SUMMARY_CHARS = 5000;   // Keep the overall summary size within bounds\n\nlet resultsText = '';\nresults.forEach((item, index) => {\n  const splitList = $('Split Queries').all();\n  const pairedIdx = item.pairedItem && item.pairedItem.item !== undefined ? item.pairedItem.item : index;\n  const h = splitList[pairedIdx] ? splitList[pairedIdx].json : {};\n  const query = h.query || 'Unknown query';\n  const hypothesis = h.hypothesis || 'Unknown hypothesis';\n  let queryResult = '';\n  try {\n    queryResult = JSON.stringify(item.json);\n  } catch (e) {\n    queryResult = 'Error stringifying result: ' + e.message;\n  }\n  if (queryResult.length > MAX_INDIVIDUAL_RESULT_CHARS) {\n    queryResult = queryResult.substring(0, MAX_INDIVIDUAL_RESULT_CHARS) + '...[truncated]';\n  }\n  \n  const entry = `Hypothesis ${index + 1}: ${hypothesis}\\nSQL Query Run: ${query}\\nResult Data: ${queryResult}\\n\\n`;\n  \n  // Check if adding this entry exceeds our overall limit\n  if ((resultsText + entry).length > MAX_TOTAL_SUMMARY_CHARS) {\n    resultsText += `...\\n[Remaining ${results.length - index} hypothesis results truncated to prevent LLM context limit overflow]`;\n    return;\n  }\n  resultsText += entry;\n});\n\nreturn [{\n  json: {\n    directives: originalInput.directives,\n    kowalski_persona: originalInput.kowalski_persona,\n    results_summary: resultsText.trim()\n  }\n}];"
       },
       "id": "aggregate-results",
@@ -153,8 +156,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1500,
-        300
+        1808,
+        304
       ]
     },
     {
@@ -178,8 +181,8 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        1700,
-        300
+        2032,
+        304
       ],
       "credentials": {
         "ollamaApi": {
@@ -190,7 +193,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const inputData = $input.first().json;\nconst response = inputData.content || inputData.output || inputData.response || inputData.text || '';\nlet report = typeof response === 'string' ? response.trim() : JSON.stringify(response);\n\n// Convert markdown tables into neat, readable lists for Slack using clean indent-based lines\nif (report.includes('|')) {\n  const lines = report.split('\\n');\n  const formattedLines = [];\n  let inTable = false;\n  for (let line of lines) {\n    if (line.trim().startsWith('|')) {\n      if (!inTable) {\n        inTable = true;\n      }\n      const cells = line.split('|').map(c => c.trim()).filter(c => c !== '');\n      // Skip header and separator lines\n      if (cells.length > 0 && !cells[0].includes('---') && !cells[0].toLowerCase().includes('hypothesis') && !cells[0].toLowerCase().includes('sql query')) {\n        const hypothesisNum = cells[0];\n        const query = cells[1] ? `\\`${cells[1].replace(/`/g, '')}\\`` : '';\n        const result = cells[2] ? `\\`${cells[2].replace(/`/g, '')}\\`` : '';\n        const verdict = cells[3] ? `*${cells[3]}*` : '';\n        const analysis = cells[4] || '';\n        \n        formattedLines.push(`*Hypothesis ${hypothesisNum}*: ${verdict}\\n  • *Query:* ${query}\\n  • *Result:* ${result}\\n  • *Analysis:* ${analysis}`);\n      }\n    } else {\n      if (inTable) {\n        inTable = false;\n        formattedLines.push(''); // add spacer\n      }\n      formattedLines.push(line);\n    }\n  }\n  report = formattedLines.join('\\n');\n}\n\n// Translate standard markdown bold (**text**) to Slack bold (*text*)\nreport = report.replace(/\\*\\*(.*?)\\*\\*/g, '*$1*');\n\n// Normalize list bullet styling without utilizing the blue diamond emoji\nreport = report.split('\\n').map(line => {\n  let trimmed = line.trim();\n  // Check if it starts with standard markdown list indicators\n  if (trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('• ') || trimmed.startsWith('🔹 ')) {\n    const indent = line.substring(0, line.indexOf(trimmed[0]));\n    // Remove the indicator entirely or replace with clean bullet\n    const newIndicator = indent.length > 0 ? '•' : '';\n    const remainingText = trimmed.substring(trimmed.indexOf(' ') + 1);\n    return indent + (newIndicator ? newIndicator + ' ' : '') + remainingText;\n  }\n  return line;\n}).join('\\n');\n\n// Clean up pseudo-markdown links like <url|Label> or <s_reddit.posts|s_reddit.posts>\nreport = report.replace(/<url\\|(.*?)>/g, '*[$1]*');\nreport = report.replace(/<s_(\\w+)\\.(\\w+)\\|s_(\\w+)\\.(\\w+)>/g, '*[s_$1.$2]*');\nreport = report.replace(/<s_(\\w+)\\.(\\w+)\\|(\\w+)>/g, '*[$3]*');\n\n// Translate typical markdown emojis or missing slack shortcodes\nreport = report\n  .replace(/:saluting_face:/g, '🫡')\n  .replace(/:chart_with_upwards_trend:/g, '📈')\n  .replace(/:mag:/g, '🔍')\n  .replace(/:bulb:/g, '💡')\n  .replace(/\\n{3,}/g, '\\n\\n'); // normalize multiple newlines\n\nconst text = report.length > 0\n  ? report\n  : '⚠️ Kowalski returned an empty report. The LLM may have timed out or exceeded its context window. Check the Auto EDA execution log for details.';\nreturn [{ json: { report_text: text } }];"
       },
       "id": "format-report",
@@ -198,23 +200,24 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1850,
-        300
+        2384,
+        304
       ]
     },
     {
       "parameters": {
         "channel": "={{ $env.SLACK_ANALYTICS_CHANNEL || 'analytics' }}",
-        "text": "=\ud83d\udcca *Kowalski Tactical Analysis & Gap Report (Auto EDA)* \ud83d\udcca\n\n{{ $json.report_text }}",
-        "otherOptions": {}
+        "text": "=📊 *Kowalski Tactical Analysis & Gap Report (Auto EDA)* 📊\n\n{{ $json.report_text }}",
+        "otherOptions": {},
+        "attachments": []
       },
       "id": "post-to-slack",
       "name": "Post to Slack",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        2050,
-        300
+        2608,
+        304
       ],
       "credentials": {
         "slackApi": {
@@ -338,6 +341,7 @@
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }

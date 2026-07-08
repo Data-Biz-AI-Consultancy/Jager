@@ -7,8 +7,7 @@
         "rule": {
           "interval": [
             {
-              "field": "hours",
-              "value": 1
+              "field": "hours"
             }
           ]
         }
@@ -18,13 +17,12 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        100,
-        300
+        112,
+        304
       ]
     },
     {
       "parameters": {
-        "options": {},
         "assignments": {
           "assignments": [
             {
@@ -49,20 +47,20 @@
               "value": "5d"
             }
           ]
-        }
+        },
+        "options": {}
       },
       "id": "set-parameters",
       "name": "Set Parameters",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        250,
-        300
+        336,
+        304
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const data = $input.first().json;\nconst symbols = data.symbols || [];\n\nconst tickerMap = {\n  'S&P500': '^GSPC',\n  'S&P 500': '^GSPC',\n  'DAX': '^GDAXI'\n};\n\nreturn symbols.map(sym => {\n  const resolvedSymbol = tickerMap[sym] || sym;\n  return {\n    json: {\n      symbol: resolvedSymbol,\n      displayName: sym,\n      interval: data.interval || '1h',\n      range: data.range || '5d'\n    }\n  };\n});"
       },
       "id": "generate-items",
@@ -70,8 +68,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        400,
-        300
+        560,
+        304
       ]
     },
     {
@@ -84,13 +82,12 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        550,
-        300
+        784,
+        304
       ]
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "const items = $input.all();\nconst parsedData = [];\n\nfor (const item of items) {\n  const response = item.json;\n  if (!response || !response.chart || !response.chart.result || !response.chart.result[0]) {\n    continue;\n  }\n\n  const result = response.chart.result[0];\n  const timestamps = result.timestamp || [];\n  const quotes = (result.indicators && result.indicators.quote && result.indicators.quote[0]) || {};\n\n  const opens = quotes.open || [];\n  const highs = quotes.high || [];\n  const lows = quotes.low || [];\n  const closes = quotes.close || [];\n  const volumes = quotes.volume || [];\n\n  for (let i = 0; i < timestamps.length; i++) {\n    if (timestamps[i] && closes[i] !== null && closes[i] !== undefined) {\n      parsedData.push({\n        symbol: result.meta.symbol || 'UNKNOWN',\n        price_timestamp: new Date(timestamps[i] * 1000).toISOString(),\n        open_price: opens[i] !== null ? opens[i] : null,\n        high_price: highs[i] !== null ? highs[i] : null,\n        low_price: lows[i] !== null ? lows[i] : null,\n        close_price: closes[i] !== null ? closes[i] : null,\n        volume: volumes[i] !== null ? volumes[i] : null\n      });\n    }\n  }\n}\n\nreturn parsedData;"
       },
       "id": "parse-yahoo-finance",
@@ -98,22 +95,23 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        700,
-        300
+        1008,
+        304
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO s_yahoo_finance.stock_prices (symbol, price_timestamp, open_price, high_price, low_price, close_price, volume)\nVALUES ('{{ $json.symbol }}', '{{ $json.price_timestamp }}', {{ $json.open_price !== null ? $json.open_price : 'NULL' }}, {{ $json.high_price !== null ? $json.high_price : 'NULL' }}, {{ $json.low_price !== null ? $json.low_price : 'NULL' }}, {{ $json.close_price !== null ? $json.close_price : 'NULL' }}, {{ $json.volume !== null ? $json.volume : 'NULL' }})\nON CONFLICT (symbol, price_timestamp)\nDO UPDATE SET \n  open_price = EXCLUDED.open_price,\n  high_price = EXCLUDED.high_price,\n  low_price = EXCLUDED.low_price,\n  close_price = EXCLUDED.close_price,\n  volume = EXCLUDED.volume;"
+        "query": "INSERT INTO s_yahoo_finance.stock_prices (symbol, price_timestamp, open_price, high_price, low_price, close_price, volume)\nVALUES ('{{ $json.symbol }}', '{{ $json.price_timestamp }}', {{ $json.open_price !== null ? $json.open_price : 'NULL' }}, {{ $json.high_price !== null ? $json.high_price : 'NULL' }}, {{ $json.low_price !== null ? $json.low_price : 'NULL' }}, {{ $json.close_price !== null ? $json.close_price : 'NULL' }}, {{ $json.volume !== null ? $json.volume : 'NULL' }})\nON CONFLICT (symbol, price_timestamp)\nDO UPDATE SET \n  open_price = EXCLUDED.open_price,\n  high_price = EXCLUDED.high_price,\n  low_price = EXCLUDED.low_price,\n  close_price = EXCLUDED.close_price,\n  volume = EXCLUDED.volume;",
+        "options": {}
       },
       "id": "insert-database",
       "name": "Insert/Update Database",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        850,
-        300
+        1232,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -182,6 +180,7 @@
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }

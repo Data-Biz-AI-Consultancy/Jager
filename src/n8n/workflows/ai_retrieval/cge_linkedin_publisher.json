@@ -1,15 +1,14 @@
 {
   "id": "CgeLinkedinPublisher",
   "name": "CGE - LinkedIn Publisher",
-  "active": true,
   "nodes": [
     {
       "parameters": {
         "rule": {
           "interval": [
             {
-              "field": "cronExpression",
-              "expression": "*/15 * * * *"
+              "field": "minutes",
+              "minutesInterval": 15
             }
           ]
         }
@@ -19,8 +18,8 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        100,
-        300
+        112,
+        304
       ]
     },
     {
@@ -34,8 +33,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        300,
-        300
+        304,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -65,8 +64,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        500,
-        300
+        512,
+        304
       ],
       "credentials": {
         "linkedInOAuth2Api": {
@@ -101,17 +100,15 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\"author\":\"urn:li:person:{{ $json.sub }}\",\"commentary\":\"{{ $('Fetch Due Posts').item.json.content.replace(/\\n/g, '\\\\n').replace(/\"/g, '\\\\\"') }}\",\"visibility\":\"PUBLIC\",\"distribution\":{\"feedDistribution\":\"MAIN_FEED\",\"targetEntities\":[],\"thirdPartyDistributionChannels\":[]},\"lifecycleState\":\"PUBLISHED\",\"isReshareDisabledByAuthor\":false}",
-        "options": {
-          "includeResponseHeadersAndStatus": true
-        }
+        "options": {}
       },
       "id": "publish-to-linkedin",
       "name": "Publish to LinkedIn",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        700,
-        300
+        704,
+        304
       ],
       "credentials": {
         "linkedInOAuth2Api": {
@@ -123,7 +120,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Fetch Due Posts').item.json.id }};",
+        "query": "UPDATE t_content_generation.linkedin_posts\nSET status = 'published',\n    is_published = TRUE,\n    published_at = NOW(),\n    external_post_id = '{{ $json.headers[\"x-restli-id\"] || \"\" }}',\n    updated_at = NOW()\nWHERE id = {{ $('Fetch Due Posts').item.json.id }};",
         "options": {}
       },
       "id": "update-db-on-success",
@@ -131,8 +128,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        900,
-        300
+        912,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -153,8 +150,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 1,
       "position": [
-        1100,
-        300
+        1104,
+        304
       ],
       "credentials": {
         "slackApi": {
@@ -221,6 +218,7 @@
       ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
