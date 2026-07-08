@@ -208,6 +208,26 @@
           "name": "postgres Credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=UPDATE s_buffer.posts\nSET\n  reactions = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'reactions'), 0),\n  comments = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'comments'), 0),\n  shares = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'shares'), 0),\n  reposts = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'reposts'), 0),\n  clicks = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'clicks'), 0),\n  reach = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'reach'), 0),\n  impressions = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'impressions'), 0),\n  views = COALESCE((SELECT (m->>'value')::integer FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'views'), 0),\n  engagement_rate = COALESCE((SELECT (m->>'value')::numeric FROM jsonb_array_elements(metrics) m WHERE m->>'type' = 'engagementRate'), 0.00)\nWHERE id = '{{ $json.id }}';"
+      },
+      "id": "extract-metrics-node",
+      "name": "Extract metrics to columns",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     }
   ],
   "connections": {
@@ -287,6 +307,17 @@
         [
           {
             "node": "Insert/Update Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert/Update Database": {
+      "main": [
+        [
+          {
+            "node": "Extract metrics to columns",
             "type": "main",
             "index": 0
           }
