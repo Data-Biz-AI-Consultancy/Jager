@@ -25,11 +25,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "CREATE SHARE IF NOT EXISTS \"{{ $env.MOTHERDUCK_DATABASE || 'staging' }}_share\"\nFROM \"{{ $env.MOTHERDUCK_DATABASE || 'staging' }}\"\n(ACCESS ORGANIZATION, VISIBILITY DISCOVERABLE, UPDATE AUTOMATIC);",
+        "query": "CREATE DATABASE IF NOT EXISTS \"{{ $env.MOTHERDUCK_DATABASE || 'staging' }}\";\n\nCREATE SHARE IF NOT EXISTS \"{{ $env.MOTHERDUCK_DATABASE || 'staging' }}_share\"\nFROM \"{{ $env.MOTHERDUCK_DATABASE || 'staging' }}\"\n(ACCESS ORGANIZATION, VISIBILITY DISCOVERABLE, UPDATE AUTOMATIC);",
         "options": {}
       },
-      "id": "update-motherduck-share",
-      "name": "Create Motherduck Share",
+      "id": "motherduck-init",
+      "name": "Motherduck Init",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
@@ -49,7 +49,7 @@
       "main": [
         [
           {
-            "node": "Create Motherduck Share",
+            "node": "Motherduck Init",
             "type": "main",
             "index": 0
           }
