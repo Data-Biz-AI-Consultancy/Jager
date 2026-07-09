@@ -1,6 +1,6 @@
 {
-  "id": "data-ingestion-jager-olap",
-  "name": "Data Ingestion - Jager OLAP (Postgres to Motherduck)",
+  "id": "motherduck-data-ingestion-jager",
+  "name": "MotherDuck Data Ingestion - Jager",
   "nodes": [
     {
       "parameters": {
@@ -399,27 +399,6 @@
           "name": "Motherduck OLAP Credential"
         }
       }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE SHARE {{ $env.MOTHERDUCK_DATABASE || 'staging' }}_share;",
-        "options": {}
-      },
-      "id": "update-motherduck-share",
-      "name": "Update Motherduck Share",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1400,
-        500
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "motherduck-db",
-          "name": "Motherduck OLAP Credential"
-        }
-      }
     }
   ],
   "connections": {
@@ -521,17 +500,6 @@
         ]
       ]
     },
-    "Write Zernio Account Analytics": {
-      "main": [
-        [
-          {
-            "node": "Update Motherduck Share",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read Zernio Follower Timeline": {
       "main": [
         [
@@ -587,17 +555,6 @@
         ]
       ]
     },
-    "Write Zernio Decay": {
-      "main": [
-        [
-          {
-            "node": "Update Motherduck Share",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read Buffer Channels": {
       "main": [
         [
@@ -625,17 +582,6 @@
         [
           {
             "node": "Write Buffer Posts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write Buffer Posts": {
-      "main": [
-        [
-          {
-            "node": "Update Motherduck Share",
             "type": "main",
             "index": 0
           }
