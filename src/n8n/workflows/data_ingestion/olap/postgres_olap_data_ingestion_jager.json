@@ -114,8 +114,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1232,
-        112
+        784,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -135,8 +135,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1456,
-        112
+        1008,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -156,8 +156,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1680,
-        112
+        784,
+        496
       ],
       "credentials": {
         "postgres": {
@@ -177,8 +177,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1904,
-        112
+        1008,
+        496
       ],
       "credentials": {
         "postgres": {
@@ -199,7 +199,7 @@
       "typeVersion": 2.5,
       "position": [
         784,
-        304
+        688
       ],
       "credentials": {
         "postgres": {
@@ -220,7 +220,7 @@
       "typeVersion": 2.5,
       "position": [
         1008,
-        304
+        688
       ],
       "credentials": {
         "postgres": {
@@ -240,8 +240,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1232,
-        304
+        784,
+        880
       ],
       "credentials": {
         "postgres": {
@@ -261,8 +261,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1456,
-        304
+        1008,
+        880
       ],
       "credentials": {
         "postgres": {
@@ -282,8 +282,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1680,
-        304
+        784,
+        1072
       ],
       "credentials": {
         "postgres": {
@@ -303,8 +303,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1904,
-        304
+        1008,
+        1072
       ],
       "credentials": {
         "postgres": {
@@ -325,7 +325,7 @@
       "typeVersion": 2.5,
       "position": [
         784,
-        496
+        1264
       ],
       "credentials": {
         "postgres": {
@@ -346,7 +346,7 @@
       "typeVersion": 2.5,
       "position": [
         1008,
-        496
+        1264
       ],
       "credentials": {
         "postgres": {
@@ -366,8 +366,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1232,
-        496
+        784,
+        1456
       ],
       "credentials": {
         "postgres": {
@@ -387,8 +387,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1456,
-        496
+        1008,
+        1456
       ],
       "credentials": {
         "postgres": {
@@ -408,8 +408,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        784,
-        688
+        1284,
+        112
       ],
       "credentials": {
         "postgres": {
@@ -429,8 +429,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1008,
-        688
+        1508,
+        112
       ],
       "credentials": {
         "postgres": {
@@ -450,8 +450,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        784,
-        880
+        1284,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -471,8 +471,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1008,
-        880
+        1508,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -492,8 +492,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        784,
-        1072
+        1284,
+        496
       ],
       "credentials": {
         "postgres": {
@@ -513,8 +513,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1008,
-        1072
+        1508,
+        496
       ],
       "credentials": {
         "postgres": {
@@ -534,8 +534,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        784,
-        1264
+        1284,
+        688
       ],
       "credentials": {
         "postgres": {
@@ -555,8 +555,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1008,
-        1264
+        1508,
+        688
       ],
       "credentials": {
         "postgres": {
@@ -576,8 +576,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        784,
-        1456
+        1284,
+        880
       ],
       "credentials": {
         "postgres": {
@@ -597,8 +597,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1008,
-        1456
+        1508,
+        880
       ],
       "credentials": {
         "postgres": {
@@ -618,8 +618,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        784,
-        1648
+        1284,
+        1072
       ],
       "credentials": {
         "postgres": {
@@ -639,8 +639,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1008,
-        1648
+        1508,
+        1072
       ],
       "credentials": {
         "postgres": {
@@ -660,8 +660,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        784,
-        1840
+        1284,
+        1264
       ],
       "credentials": {
         "postgres": {
@@ -681,8 +681,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1008,
-        1840
+        1508,
+        1264
       ],
       "credentials": {
         "postgres": {
@@ -703,7 +703,7 @@
       "typeVersion": 2.5,
       "position": [
         1284,
-        688
+        1456
       ],
       "credentials": {
         "postgres": {
@@ -724,7 +724,7 @@
       "typeVersion": 2.5,
       "position": [
         1508,
-        688
+        1456
       ],
       "credentials": {
         "postgres": {
@@ -744,8 +744,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1284,
-        880
+        1784,
+        112
       ],
       "credentials": {
         "postgres": {
@@ -765,8 +765,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1508,
-        880
+        2008,
+        112
       ],
       "credentials": {
         "postgres": {
@@ -786,8 +786,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1284,
-        1072
+        1784,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -807,8 +807,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1508,
-        1072
+        2008,
+        304
       ],
       "credentials": {
         "postgres": {
@@ -828,8 +828,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1284,
-        1264
+        1784,
+        496
       ],
       "credentials": {
         "postgres": {
@@ -849,8 +849,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1508,
-        1264
+        2008,
+        496
       ],
       "credentials": {
         "postgres": {
@@ -870,8 +870,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1284,
-        1456
+        1784,
+        688
       ],
       "credentials": {
         "postgres": {
@@ -891,8 +891,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1508,
-        1456
+        2008,
+        688
       ],
       "credentials": {
         "postgres": {
@@ -912,8 +912,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1284,
-        1648
+        1784,
+        880
       ],
       "credentials": {
         "postgres": {
@@ -933,8 +933,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1508,
-        1648
+        2008,
+        880
       ],
       "credentials": {
         "postgres": {
@@ -976,7 +976,27 @@
             "index": 0
           },
           {
+            "node": "Read Zernio Post Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Zernio Account Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "Read Zernio Follower Timeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Zernio Post Timeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Zernio Decay",
             "type": "main",
             "index": 0
           },
@@ -986,12 +1006,72 @@
             "index": 0
           },
           {
+            "node": "Read Buffer Posts",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "Read LinkedIn Ugc Posts",
             "type": "main",
             "index": 0
           },
           {
+            "node": "Read LinkedIn Social Action Likes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn Social Action Comments",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn All Comments",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn All Likes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn Invitations",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn All Invitations",
+            "type": "main",
+            "index": 0
+          },
+          {
             "node": "Read LinkedIn Messages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn Following",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn Searches",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn Job Applications",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn Job Seeker Preferences",
             "type": "main",
             "index": 0
           }
@@ -1009,33 +1089,11 @@
         ]
       ]
     },
-    "Write Zernio Posts": {
-      "main": [
-        [
-          {
-            "node": "Read Zernio Post Analytics",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read Zernio Post Analytics": {
       "main": [
         [
           {
             "node": "Write Zernio Post Analytics",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write Zernio Post Analytics": {
-      "main": [
-        [
-          {
-            "node": "Read Zernio Account Analytics",
             "type": "main",
             "index": 0
           }
@@ -1064,33 +1122,11 @@
         ]
       ]
     },
-    "Write Zernio Follower Timeline": {
-      "main": [
-        [
-          {
-            "node": "Read Zernio Post Timeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read Zernio Post Timeline": {
       "main": [
         [
           {
             "node": "Write Zernio Post Timeline",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write Zernio Post Timeline": {
-      "main": [
-        [
-          {
-            "node": "Read Zernio Decay",
             "type": "main",
             "index": 0
           }
@@ -1119,17 +1155,6 @@
         ]
       ]
     },
-    "Write Buffer Channels": {
-      "main": [
-        [
-          {
-            "node": "Read Buffer Posts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read Buffer Posts": {
       "main": [
         [
@@ -1152,33 +1177,11 @@
         ]
       ]
     },
-    "Write LinkedIn Ugc Posts": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn Social Action Likes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read LinkedIn Social Action Likes": {
       "main": [
         [
           {
             "node": "Write LinkedIn Social Action Likes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write LinkedIn Social Action Likes": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn Social Action Comments",
             "type": "main",
             "index": 0
           }
@@ -1196,33 +1199,11 @@
         ]
       ]
     },
-    "Write LinkedIn Social Action Comments": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn All Comments",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read LinkedIn All Comments": {
       "main": [
         [
           {
             "node": "Write LinkedIn All Comments",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write LinkedIn All Comments": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn All Likes",
             "type": "main",
             "index": 0
           }
@@ -1240,33 +1221,11 @@
         ]
       ]
     },
-    "Write LinkedIn All Likes": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn Invitations",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read LinkedIn Invitations": {
       "main": [
         [
           {
             "node": "Write LinkedIn Invitations",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write LinkedIn Invitations": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn All Invitations",
             "type": "main",
             "index": 0
           }
@@ -1295,33 +1254,11 @@
         ]
       ]
     },
-    "Write LinkedIn Messages": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn Connections",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read LinkedIn Connections": {
       "main": [
         [
           {
             "node": "Write LinkedIn Connections",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write LinkedIn Connections": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn Following",
             "type": "main",
             "index": 0
           }
@@ -1339,17 +1276,6 @@
         ]
       ]
     },
-    "Write LinkedIn Following": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn Searches",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read LinkedIn Searches": {
       "main": [
         [
@@ -1361,33 +1287,11 @@
         ]
       ]
     },
-    "Write LinkedIn Searches": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn Job Applications",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Read LinkedIn Job Applications": {
       "main": [
         [
           {
             "node": "Write LinkedIn Job Applications",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write LinkedIn Job Applications": {
-      "main": [
-        [
-          {
-            "node": "Read LinkedIn Job Seeker Preferences",
             "type": "main",
             "index": 0
           }
