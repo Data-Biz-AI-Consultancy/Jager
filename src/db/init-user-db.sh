@@ -1,10 +1,17 @@
 #!/bin/sh
 set -e
 
+# Create databases
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
 	SELECT 'CREATE DATABASE n8n'
 	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'n8n')\gexec
 
+	SELECT 'CREATE DATABASE jager_olap'
+	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'jager_olap')\gexec
+EOSQL
+
+# Initialize OLTP database
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
 	CREATE SCHEMA IF NOT EXISTS s_reddit;
 	CREATE SCHEMA IF NOT EXISTS s_slack;
 	CREATE SCHEMA IF NOT EXISTS s_substack;
