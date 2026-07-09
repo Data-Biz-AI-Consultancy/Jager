@@ -152,24 +152,106 @@ async function run() {
     }
   }
 
+  // After all imports, repair any workflow that has a stale/orphaned versionId
+  // with no matching workflow_published_version row.  This can happen if a
+  // previous import cycle ran with active:true before this guard was added.
+  await repairPublishedVersions();
+
   await client.end();
+}
+
+/**
+ * For every workflow_entity row whose versionId does not exist in
+ * workflow_published_version, find the latest real workflow_history entry and
+ * insert the missing row.  This is idempotent and safe to run on every startup.
+ */
+async function repairPublishedVersions() {
+  const n8nTableExists = await client.query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name = 'workflow_published_version'
+    )
+  `);
+  if (!n8nTableExists.rows[0].exists) return;
+
+  // Find workflows whose current versionId has no published_version record.
+  const broken = await client.query(`
+    SELECT we.id, we."versionId"
+    FROM workflow_entity we
+    LEFT JOIN workflow_published_version wpv ON wpv."workflowId" = we.id
+    WHERE wpv."workflowId" IS NULL
+  `);
+
+  if (broken.rows.length === 0) return;
+
+  console.log(`Repairing workflow_published_version for ${broken.rows.length} workflow(s)...`);
+
+  for (const row of broken.rows) {
+    const workflowId = row.id;
+
+    // Find the latest non-autosaved history entry for this workflow.
+    const histRes = await client.query(`
+      SELECT "versionId" FROM workflow_history
+      WHERE "workflowId" = $1
+      ORDER BY "createdAt" DESC
+      LIMIT 1
+    `, [workflowId]);
+
+    if (histRes.rows.length === 0) {
+      console.warn(`  Skipping ${workflowId}: no workflow_history entries found.`);
+      continue;
+    }
+
+    const latestVersionId = histRes.rows[0].versionId;
+    const now = new Date().toISOString();
+
+    // Sync workflow_entity.versionId to the real latest history entry.
+    await client.query(
+      `UPDATE workflow_entity SET "versionId" = $1 WHERE id = $2`,
+      [latestVersionId, workflowId]
+    );
+
+    // Insert the missing workflow_published_version row.
+    await client.query(
+      `INSERT INTO workflow_published_version ("workflowId", "publishedVersionId", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $3)
+       ON CONFLICT DO NOTHING`,
+      [workflowId, latestVersionId, now]
+    );
+
+    console.log(`  Repaired ${workflowId} → publishedVersionId=${latestVersionId}`);
+  }
 }
 
 function importWorkflow(filePath) {
   let importPath = filePath;
   let tempPath = null;
   try {
-    // Strip tags from workflow JSON to avoid FK violations on workflows_tags
-    // (tags are UI-managed state; tag IDs in JSON may not exist in the n8n DB)
+    // Strip tags and force active:false before importing.
+    //
+    // WHY active:false: n8n 2.29+ uses a workflow_published_version table to
+    // track the live published version snapshot. When `n8n import:workflow`
+    // imports a workflow with active:true it writes a versionId to
+    // workflow_entity but does NOT create the matching workflow_published_version
+    // row, leaving an orphaned versionId. The UI then throws
+    // "Workflow could not be published: Version not found" because the publish
+    // path looks up that row and finds nothing.
+    //
+    // By always importing as inactive the CLI skips the activation path
+    // entirely. workflow_published_version gets populated correctly the first
+    // time the user (or our repair step below) activates the workflow through
+    // the proper n8n activation path.
     const workflowData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    if (workflowData.tags && workflowData.tags.length > 0) {
-      const stripped = { ...workflowData, tags: [] };
+    const needsTemp = (workflowData.tags && workflowData.tags.length > 0) || workflowData.active === true;
+    if (needsTemp) {
+      const stripped = { ...workflowData, tags: [], active: false };
       tempPath = filePath + '.tmp.json';
       fs.writeFileSync(tempPath, JSON.stringify(stripped));
       importPath = tempPath;
     }
   } catch (err) {
-    console.warn(`Could not strip tags from ${filePath}, importing as-is:`, err.message);
+    console.warn(`Could not strip tags/active from ${filePath}, importing as-is:`, err.message);
   }
 
   try {
