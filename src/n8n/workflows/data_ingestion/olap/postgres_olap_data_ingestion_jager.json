@@ -22,7 +22,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "CREATE SCHEMA IF NOT EXISTS s_zernio;\nCREATE SCHEMA IF NOT EXISTS s_buffer;",
+        "query": "CREATE SCHEMA IF NOT EXISTS s_zernio;\nCREATE SCHEMA IF NOT EXISTS s_buffer;\nCREATE SCHEMA IF NOT EXISTS s_linkedin;",
         "options": {}
       },
       "id": "create-schemas",
@@ -43,7 +43,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "CREATE TABLE IF NOT EXISTS s_zernio.linkedin_posts (\n  id VARCHAR(255) PRIMARY KEY,\n  content TEXT,\n  url VARCHAR(2048),\n  published_at TIMESTAMP,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_analytics (\n  post_id VARCHAR(255) PRIMARY KEY,\n  impressions INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  clicks INTEGER,\n  saves INTEGER,\n  sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_account_analytics (\n  account_id VARCHAR(255) PRIMARY KEY,\n  platform VARCHAR(50),\n  username VARCHAR(255),\n  impressions INTEGER,\n  members_reached INTEGER,\n  reactions INTEGER,\n  comments INTEGER,\n  reshares INTEGER,\n  post_saves INTEGER,\n  post_sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_follower_stats_timeline (\n  account_id VARCHAR(255),\n  date DATE,\n  followers_count INTEGER,\n  growth INTEGER,\n  growth_percentage DECIMAL(5,2),\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (account_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_timeline (\n  post_id VARCHAR(255),\n  date DATE,\n  impressions INTEGER,\n  reach INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  saves INTEGER,\n  clicks INTEGER,\n  views INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (post_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_content_decay (\n  platform VARCHAR(50),\n  bucket_order INTEGER,\n  bucket_label VARCHAR(50),\n  avg_pct_of_final DECIMAL(5,2),\n  post_count INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (platform, bucket_order)\n);\n\nCREATE TABLE IF NOT EXISTS s_buffer.channels (\n  id VARCHAR(255) PRIMARY KEY,\n  name VARCHAR(255),\n  service VARCHAR(100),\n  organization_id VARCHAR(255),\n  active BOOLEAN,\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_buffer.posts (\n  id VARCHAR(255) PRIMARY KEY,\n  text TEXT,\n  channel_id VARCHAR(255),\n  due_at TIMESTAMP,\n  status VARCHAR(50),\n  assets VARCHAR,\n  metrics VARCHAR,\n  reactions INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  reposts INTEGER,\n  clicks INTEGER,\n  reach INTEGER,\n  impressions INTEGER,\n  views INTEGER,\n  engagement_rate DECIMAL(10,2),\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP,\n  processed INTEGER\n);",
+        "query": "CREATE TABLE IF NOT EXISTS s_zernio.linkedin_posts (\n  id VARCHAR(255) PRIMARY KEY,\n  content TEXT,\n  url VARCHAR(2048),\n  published_at TIMESTAMP,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_analytics (\n  post_id VARCHAR(255) PRIMARY KEY,\n  impressions INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  clicks INTEGER,\n  saves INTEGER,\n  sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_account_analytics (\n  account_id VARCHAR(255) PRIMARY KEY,\n  platform VARCHAR(50),\n  username VARCHAR(255),\n  impressions INTEGER,\n  members_reached INTEGER,\n  reactions INTEGER,\n  comments INTEGER,\n  reshares INTEGER,\n  post_saves INTEGER,\n  post_sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_follower_stats_timeline (\n  account_id VARCHAR(255),\n  date DATE,\n  followers_count INTEGER,\n  growth INTEGER,\n  growth_percentage DECIMAL(5,2),\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (account_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_timeline (\n  post_id VARCHAR(255),\n  date DATE,\n  impressions INTEGER,\n  reach INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  saves INTEGER,\n  clicks INTEGER,\n  views INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (post_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_content_decay (\n  platform VARCHAR(50),\n  bucket_order INTEGER,\n  bucket_label VARCHAR(50),\n  avg_pct_of_final DECIMAL(5,2),\n  post_count INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (platform, bucket_order)\n);\n\nCREATE TABLE IF NOT EXISTS s_buffer.channels (\n  id VARCHAR(255) PRIMARY KEY,\n  name VARCHAR(255),\n  service VARCHAR(100),\n  organization_id VARCHAR(255),\n  active BOOLEAN,\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_buffer.posts (\n  id VARCHAR(255) PRIMARY KEY,\n  text TEXT,\n  channel_id VARCHAR(255),\n  due_at TIMESTAMP,\n  status VARCHAR(50),\n  assets VARCHAR,\n  metrics VARCHAR,\n  reactions INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  reposts INTEGER,\n  clicks INTEGER,\n  reach INTEGER,\n  impressions INTEGER,\n  views INTEGER,\n  engagement_rate DECIMAL(10,2),\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP,\n  processed INTEGER\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.ugc_posts (\n  id VARCHAR(255) PRIMARY KEY,\n  author VARCHAR(255),\n  content TEXT,\n  url VARCHAR(2048),\n  published_at TIMESTAMP WITH TIME ZONE,\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.social_action_likes (\n  id VARCHAR(255) PRIMARY KEY,\n  post_id VARCHAR(255) NOT NULL,\n  author VARCHAR(255),\n  published_at TIMESTAMP WITH TIME ZONE,\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.social_action_comments (\n  id VARCHAR(255) PRIMARY KEY,\n  post_id VARCHAR(255) NOT NULL,\n  author VARCHAR(255),\n  content TEXT,\n  published_at TIMESTAMP WITH TIME ZONE,\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.all_comments (\n  id VARCHAR(255) PRIMARY KEY,\n  post_id VARCHAR(255) NOT NULL,\n  author VARCHAR(255),\n  content TEXT,\n  published_at TIMESTAMP WITH TIME ZONE,\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.all_likes (\n  id VARCHAR(255) PRIMARY KEY,\n  post_id VARCHAR(255) NOT NULL,\n  author VARCHAR(255),\n  published_at TIMESTAMP WITH TIME ZONE,\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.invitations (\n  id VARCHAR(255) PRIMARY KEY,\n  to_name VARCHAR(255),\n  from_name VARCHAR(255),\n  direction VARCHAR(50),\n  inviter_profile_url VARCHAR(2048),\n  invitee_profile_url VARCHAR(2048),\n  message TEXT,\n  sent_at TIMESTAMP WITH TIME ZONE,\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.all_invitations (\n  id VARCHAR(255) PRIMARY KEY,\n  to_name VARCHAR(255),\n  from_name VARCHAR(255),\n  direction VARCHAR(50),\n  inviter_profile_url VARCHAR(2048),\n  invitee_profile_url VARCHAR(2048),\n  message TEXT,\n  sent_at TIMESTAMP WITH TIME ZONE,\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.messages (\n  id VARCHAR(255) PRIMARY KEY,\n  conversation_id VARCHAR(255) NOT NULL,\n  sender_name VARCHAR(255),\n  recipient_name VARCHAR(255),\n  sender_profile_url VARCHAR(2048),\n  recipient_profile_urls VARCHAR(2048),\n  subject VARCHAR(1024),\n  content TEXT,\n  folder VARCHAR(50),\n  sent_at TIMESTAMP WITH TIME ZONE,\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.connections (\n  id VARCHAR(255) PRIMARY KEY,\n  first_name VARCHAR(255),\n  last_name VARCHAR(255),\n  profile_url VARCHAR(2048),\n  email_address VARCHAR(255),\n  company VARCHAR(255),\n  position VARCHAR(255),\n  connected_at TIMESTAMP WITH TIME ZONE,\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.following (\n  id VARCHAR(255) PRIMARY KEY,\n  entity_name VARCHAR(255),\n  profile_url VARCHAR(2048),\n  type VARCHAR(100),\n  followed_at TIMESTAMP WITH TIME ZONE,\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.searches (\n  id VARCHAR(255) PRIMARY KEY,\n  query_text TEXT,\n  searched_at TIMESTAMP WITH TIME ZONE,\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.job_applications (\n  id VARCHAR(255) PRIMARY KEY,\n  company_name VARCHAR(255),\n  job_title VARCHAR(255),\n  application_date TIMESTAMP WITH TIME ZONE,\n  status VARCHAR(100),\n  job_url VARCHAR(2048),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  processed INTEGER DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS s_linkedin.job_seeker_preferences (\n  id VARCHAR(255) PRIMARY KEY,\n  dream_companies TEXT,\n  job_titles TEXT,\n  locations TEXT,\n  job_types TEXT,\n  industries TEXT,\n  company_sizes TEXT,\n  activity_level VARCHAR(255),\n  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),\n  processed INTEGER DEFAULT 0\n);",
         "options": {}
       },
       "id": "init-motherduck-tables",
@@ -396,6 +396,552 @@
           "name": "Postgres OLAP Credential"
         }
       }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.ugc_posts;",
+        "options": {}
+      },
+      "id": "read-linkedin-ugc-posts",
+      "name": "Read LinkedIn Ugc Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        688
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.ugc_posts (id, author, content, url, published_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.author ? \"'\" + String($json.author).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.content ? \"'\" + String($json.content).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.url ? \"'\" + String($json.url).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.published_at ? \"'\" + String($json.published_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  author = EXCLUDED.author,\n  content = EXCLUDED.content,\n  url = EXCLUDED.url,\n  published_at = EXCLUDED.published_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-ugc-posts",
+      "name": "Write LinkedIn Ugc Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        688
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.social_action_likes;",
+        "options": {}
+      },
+      "id": "read-linkedin-social-action-likes",
+      "name": "Read LinkedIn Social Action Likes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.social_action_likes (id, post_id, author, published_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.post_id ? \"'\" + String($json.post_id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.author ? \"'\" + String($json.author).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.published_at ? \"'\" + String($json.published_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  post_id = EXCLUDED.post_id,\n  author = EXCLUDED.author,\n  published_at = EXCLUDED.published_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-social-action-likes",
+      "name": "Write LinkedIn Social Action Likes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.social_action_comments;",
+        "options": {}
+      },
+      "id": "read-linkedin-social-action-comments",
+      "name": "Read LinkedIn Social Action Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        1072
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.social_action_comments (id, post_id, author, content, published_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.post_id ? \"'\" + String($json.post_id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.author ? \"'\" + String($json.author).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.content ? \"'\" + String($json.content).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.published_at ? \"'\" + String($json.published_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  post_id = EXCLUDED.post_id,\n  author = EXCLUDED.author,\n  content = EXCLUDED.content,\n  published_at = EXCLUDED.published_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-social-action-comments",
+      "name": "Write LinkedIn Social Action Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        1072
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.all_comments;",
+        "options": {}
+      },
+      "id": "read-linkedin-all-comments",
+      "name": "Read LinkedIn All Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.all_comments (id, post_id, author, content, published_at, updated_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.post_id ? \"'\" + String($json.post_id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.author ? \"'\" + String($json.author).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.content ? \"'\" + String($json.content).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.published_at ? \"'\" + String($json.published_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.updated_at ? \"'\" + String($json.updated_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  post_id = EXCLUDED.post_id,\n  author = EXCLUDED.author,\n  content = EXCLUDED.content,\n  published_at = EXCLUDED.published_at,\n  updated_at = EXCLUDED.updated_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-all-comments",
+      "name": "Write LinkedIn All Comments",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.all_likes;",
+        "options": {}
+      },
+      "id": "read-linkedin-all-likes",
+      "name": "Read LinkedIn All Likes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        1456
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.all_likes (id, post_id, author, published_at, updated_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.post_id ? \"'\" + String($json.post_id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.author ? \"'\" + String($json.author).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.published_at ? \"'\" + String($json.published_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.updated_at ? \"'\" + String($json.updated_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  post_id = EXCLUDED.post_id,\n  author = EXCLUDED.author,\n  published_at = EXCLUDED.published_at,\n  updated_at = EXCLUDED.updated_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-all-likes",
+      "name": "Write LinkedIn All Likes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        1456
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.invitations;",
+        "options": {}
+      },
+      "id": "read-linkedin-invitations",
+      "name": "Read LinkedIn Invitations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        1648
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.invitations (id, to_name, from_name, direction, inviter_profile_url, invitee_profile_url, message, sent_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.to_name ? \"'\" + String($json.to_name).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.from_name ? \"'\" + String($json.from_name).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.direction ? \"'\" + String($json.direction).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.inviter_profile_url ? \"'\" + String($json.inviter_profile_url).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.invitee_profile_url ? \"'\" + String($json.invitee_profile_url).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.message ? \"'\" + String($json.message).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.sent_at ? \"'\" + String($json.sent_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  to_name = EXCLUDED.to_name,\n  from_name = EXCLUDED.from_name,\n  direction = EXCLUDED.direction,\n  inviter_profile_url = EXCLUDED.inviter_profile_url,\n  invitee_profile_url = EXCLUDED.invitee_profile_url,\n  message = EXCLUDED.message,\n  sent_at = EXCLUDED.sent_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-invitations",
+      "name": "Write LinkedIn Invitations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        1648
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.all_invitations;",
+        "options": {}
+      },
+      "id": "read-linkedin-all-invitations",
+      "name": "Read LinkedIn All Invitations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        1840
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.all_invitations (id, to_name, from_name, direction, inviter_profile_url, invitee_profile_url, message, sent_at, updated_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.to_name ? \"'\" + String($json.to_name).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.from_name ? \"'\" + String($json.from_name).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.direction ? \"'\" + String($json.direction).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.inviter_profile_url ? \"'\" + String($json.inviter_profile_url).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.invitee_profile_url ? \"'\" + String($json.invitee_profile_url).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.message ? \"'\" + String($json.message).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.sent_at ? \"'\" + String($json.sent_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.updated_at ? \"'\" + String($json.updated_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  to_name = EXCLUDED.to_name,\n  from_name = EXCLUDED.from_name,\n  direction = EXCLUDED.direction,\n  inviter_profile_url = EXCLUDED.inviter_profile_url,\n  invitee_profile_url = EXCLUDED.invitee_profile_url,\n  message = EXCLUDED.message,\n  sent_at = EXCLUDED.sent_at,\n  updated_at = EXCLUDED.updated_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-all-invitations",
+      "name": "Write LinkedIn All Invitations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        1840
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.messages;",
+        "options": {}
+      },
+      "id": "read-linkedin-messages",
+      "name": "Read LinkedIn Messages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1284,
+        688
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.messages (id, conversation_id, sender_name, recipient_name, sender_profile_url, recipient_profile_urls, subject, content, folder, sent_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.conversation_id ? \"'\" + String($json.conversation_id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.sender_name ? \"'\" + String($json.sender_name).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.recipient_name ? \"'\" + String($json.recipient_name).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.sender_profile_url ? \"'\" + String($json.sender_profile_url).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.recipient_profile_urls ? \"'\" + String($json.recipient_profile_urls).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.subject ? \"'\" + String($json.subject).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.content ? \"'\" + String($json.content).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.folder ? \"'\" + String($json.folder).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.sent_at ? \"'\" + String($json.sent_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  conversation_id = EXCLUDED.conversation_id,\n  sender_name = EXCLUDED.sender_name,\n  recipient_name = EXCLUDED.recipient_name,\n  sender_profile_url = EXCLUDED.sender_profile_url,\n  recipient_profile_urls = EXCLUDED.recipient_profile_urls,\n  subject = EXCLUDED.subject,\n  content = EXCLUDED.content,\n  folder = EXCLUDED.folder,\n  sent_at = EXCLUDED.sent_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-messages",
+      "name": "Write LinkedIn Messages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1508,
+        688
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.connections;",
+        "options": {}
+      },
+      "id": "read-linkedin-connections",
+      "name": "Read LinkedIn Connections",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1284,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.connections (id, first_name, last_name, profile_url, email_address, company, position, connected_at, updated_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.first_name ? \"'\" + String($json.first_name).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.last_name ? \"'\" + String($json.last_name).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.profile_url ? \"'\" + String($json.profile_url).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.email_address ? \"'\" + String($json.email_address).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.company ? \"'\" + String($json.company).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.position ? \"'\" + String($json.position).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.connected_at ? \"'\" + String($json.connected_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.updated_at ? \"'\" + String($json.updated_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  first_name = EXCLUDED.first_name,\n  last_name = EXCLUDED.last_name,\n  profile_url = EXCLUDED.profile_url,\n  email_address = EXCLUDED.email_address,\n  company = EXCLUDED.company,\n  position = EXCLUDED.position,\n  connected_at = EXCLUDED.connected_at,\n  updated_at = EXCLUDED.updated_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-connections",
+      "name": "Write LinkedIn Connections",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1508,
+        880
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.following;",
+        "options": {}
+      },
+      "id": "read-linkedin-following",
+      "name": "Read LinkedIn Following",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1284,
+        1072
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.following (id, entity_name, profile_url, type, followed_at, updated_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.entity_name ? \"'\" + String($json.entity_name).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.profile_url ? \"'\" + String($json.profile_url).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.type ? \"'\" + String($json.type).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.followed_at ? \"'\" + String($json.followed_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.updated_at ? \"'\" + String($json.updated_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  entity_name = EXCLUDED.entity_name,\n  profile_url = EXCLUDED.profile_url,\n  type = EXCLUDED.type,\n  followed_at = EXCLUDED.followed_at,\n  updated_at = EXCLUDED.updated_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-following",
+      "name": "Write LinkedIn Following",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1508,
+        1072
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.searches;",
+        "options": {}
+      },
+      "id": "read-linkedin-searches",
+      "name": "Read LinkedIn Searches",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1284,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.searches (id, query_text, searched_at, updated_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.query_text ? \"'\" + String($json.query_text).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.searched_at ? \"'\" + String($json.searched_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.updated_at ? \"'\" + String($json.updated_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  query_text = EXCLUDED.query_text,\n  searched_at = EXCLUDED.searched_at,\n  updated_at = EXCLUDED.updated_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-searches",
+      "name": "Write LinkedIn Searches",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1508,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.job_applications;",
+        "options": {}
+      },
+      "id": "read-linkedin-job-applications",
+      "name": "Read LinkedIn Job Applications",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1284,
+        1456
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.job_applications (id, company_name, job_title, application_date, status, job_url, updated_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.company_name ? \"'\" + String($json.company_name).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.job_title ? \"'\" + String($json.job_title).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.application_date ? \"'\" + String($json.application_date).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.status ? \"'\" + String($json.status).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.job_url ? \"'\" + String($json.job_url).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.updated_at ? \"'\" + String($json.updated_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  company_name = EXCLUDED.company_name,\n  job_title = EXCLUDED.job_title,\n  application_date = EXCLUDED.application_date,\n  status = EXCLUDED.status,\n  job_url = EXCLUDED.job_url,\n  updated_at = EXCLUDED.updated_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-job-applications",
+      "name": "Write LinkedIn Job Applications",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1508,
+        1456
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_linkedin.job_seeker_preferences;",
+        "options": {}
+      },
+      "id": "read-linkedin-job-seeker-preferences",
+      "name": "Read LinkedIn Job Seeker Preferences",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1284,
+        1648
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_linkedin.job_seeker_preferences (id, dream_companies, job_titles, locations, job_types, industries, company_sizes, activity_level, updated_at, processed)\nVALUES ({{ $json.id ? \"'\" + String($json.id).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.dream_companies ? \"'\" + String($json.dream_companies).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.job_titles ? \"'\" + String($json.job_titles).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.locations ? \"'\" + String($json.locations).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.job_types ? \"'\" + String($json.job_types).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.industries ? \"'\" + String($json.industries).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.company_sizes ? \"'\" + String($json.company_sizes).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.activity_level ? \"'\" + String($json.activity_level).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.updated_at ? \"'\" + String($json.updated_at).replace(/'/g, \"''\") + \"'\" : \"NULL\" }}, {{ $json.processed !== null && $json.processed !== undefined ? $json.processed : \"NULL\" }})\nON CONFLICT (id) DO UPDATE SET\n  dream_companies = EXCLUDED.dream_companies,\n  job_titles = EXCLUDED.job_titles,\n  locations = EXCLUDED.locations,\n  job_types = EXCLUDED.job_types,\n  industries = EXCLUDED.industries,\n  company_sizes = EXCLUDED.company_sizes,\n  activity_level = EXCLUDED.activity_level,\n  updated_at = EXCLUDED.updated_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-linkedin-job-seeker-preferences",
+      "name": "Write LinkedIn Job Seeker Preferences",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1508,
+        1648
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
     }
   ],
   "connections": {
@@ -436,6 +982,16 @@
           },
           {
             "node": "Read Buffer Channels",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn Ugc Posts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read LinkedIn Messages",
             "type": "main",
             "index": 0
           }
@@ -579,6 +1135,270 @@
         [
           {
             "node": "Write Buffer Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn Ugc Posts": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Ugc Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn Ugc Posts": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn Social Action Likes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn Social Action Likes": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Social Action Likes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn Social Action Likes": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn Social Action Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn Social Action Comments": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Social Action Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn Social Action Comments": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn All Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn All Comments": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn All Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn All Comments": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn All Likes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn All Likes": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn All Likes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn All Likes": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn Invitations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn Invitations": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Invitations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn Invitations": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn All Invitations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn All Invitations": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn All Invitations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn Messages": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn Messages": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn Connections": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn Connections": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn Following",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn Following": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Following",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn Following": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn Searches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn Searches": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Searches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn Searches": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn Job Applications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn Job Applications": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Job Applications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write LinkedIn Job Applications": {
+      "main": [
+        [
+          {
+            "node": "Read LinkedIn Job Seeker Preferences",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read LinkedIn Job Seeker Preferences": {
+      "main": [
+        [
+          {
+            "node": "Write LinkedIn Job Seeker Preferences",
             "type": "main",
             "index": 0
           }
