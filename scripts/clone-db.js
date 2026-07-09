@@ -67,8 +67,8 @@ function usage() {
 Usage: node scripts/clone-db.js <PROD_DATABASE_URL> [options]
 
 Options:
-  --skip-n8n, --jager-only    Only clone the 'jager' database, skip 'n8n' database
-  --skip-jager, --n8n-only    Only clone the 'n8n' database, skip 'jager' database
+  --skip-n8n, --jager-only    Only clone the 'jager' and 'jager_olap' databases, skip 'n8n' database
+  --skip-jager, --n8n-only    Only clone the 'n8n' database, skip 'jager' and 'jager_olap' databases
   --include-history           Include n8n execution log table data (execution_entity,
                               execution_data, execution_metadata). By default these
                               tables are skipped as they can be very large.
@@ -107,8 +107,9 @@ const numJobs    = (jobsIdx !== -1 && args[jobsIdx + 1])
 
 // ─── URLs ─────────────────────────────────────────────────────────────────────
 
-let PROD_JAGER_URL = connectionString || process.env.PROD_DATABASE_URL || process.env.PROD_JAGER_URL;
-let PROD_N8N_URL   = process.env.PROD_N8N_URL;
+let PROD_JAGER_URL      = connectionString || process.env.PROD_DATABASE_URL || process.env.PROD_JAGER_URL;
+let PROD_N8N_URL        = process.env.PROD_N8N_URL;
+let PROD_JAGER_OLAP_URL = process.env.PROD_JAGER_OLAP_URL;
 
 if (PROD_JAGER_URL) {
   try {
@@ -118,8 +119,17 @@ if (PROD_JAGER_URL) {
       PROD_N8N_URL = urlObj.toString();
     }
   } catch {
-    // Simple fallback string replacement if URL parsing fails
     PROD_N8N_URL = PROD_JAGER_URL.replace(/\/jager(\?|$)/, '/n8n$1');
+  }
+
+  try {
+    const urlObj = new URL(PROD_JAGER_URL);
+    if (urlObj.pathname !== '/jager_olap') {
+      urlObj.pathname = '/jager_olap';
+      PROD_JAGER_OLAP_URL = urlObj.toString();
+    }
+  } catch {
+    PROD_JAGER_OLAP_URL = PROD_JAGER_URL.replace(/\/jager(\?|$)/, '/jager_olap$1');
   }
 }
 
@@ -360,8 +370,14 @@ async function cloneDatabase(dbName, prodUrl) {
     } else {
       console.log("Production URL for 'jager' not available. Skipping.");
     }
+
+    if (PROD_JAGER_OLAP_URL) {
+      tasks.push(cloneDatabase('jager_olap', PROD_JAGER_OLAP_URL));
+    } else {
+      console.log("Production URL for 'jager_olap' not available. Skipping.");
+    }
   } else {
-    console.log("Skipping 'jager' database clone.");
+    console.log("Skipping 'jager' and 'jager_olap' database clone.");
   }
 
   if (!skipN8N) {
