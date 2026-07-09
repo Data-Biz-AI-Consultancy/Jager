@@ -11,8 +11,40 @@ base_name = os.path.splitext(os.path.basename(file_path))[0]
 clean_prefix = re.sub(r'[^a-zA-Z0-9_]', '_', base_name)
 clean_prefix = re.sub(r'_+', '_', clean_prefix).strip('_')
 
-# Database connection to local OLAP Postgres
-db_url = "postgresql://jager:jager@localhost:5432/jager_olap"
+import sys
+
+# Load .env file manually if it exists (to avoid dependency on dotenv package)
+env_vars = {}
+if os.path.exists(".env"):
+    with open(".env", "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, val = line.split("=", 1)
+                env_vars[key.strip()] = val.strip().strip('"').strip("'")
+
+# Determine DB URL: check env first, then fall back to local dev unless --prod is specified
+db_url = os.environ.get("OLAP_DATABASE_URL") or env_vars.get("OLAP_DATABASE_URL")
+if not db_url:
+    if "--prod" in sys.argv:
+        prod_url = os.environ.get("PROD_DATABASE_URL") or env_vars.get("PROD_DATABASE_URL")
+        if prod_url:
+            from urllib.parse import urlparse, urlunparse
+            parsed = urlparse(prod_url)
+            # Safely replace only the database path (e.g. /jager -> /jager_olap)
+            if parsed.path == "/jager":
+                db_url = urlunparse(parsed._replace(path="/jager_olap"))
+            else:
+                db_url = prod_url
+        else:
+            print("Error: --prod flag specified but no valid PROD_DATABASE_URL found in env.")
+            sys.exit(1)
+    else:
+        db_url = "postgresql://jager:jager@localhost:5432/jager_olap"
+
+print(f"Connecting to database at: {db_url.split('@')[-1]} (credentials masked)")
 engine = create_engine(db_url)
 
 tabs = ["ENGAGEMENT", "TOP POSTS", "FOLLOWERS"]
@@ -59,8 +91,13 @@ for tab in tabs:
             # Ensure proper types
             df['engagements'] = pd.to_numeric(df['engagements'], errors='coerce')
             df['impressions'] = pd.to_numeric(df['impressions'], errors='coerce')
+        elif tab == "FOLLOWERS":
+            # Skip first 2 metadata/empty rows. Headers are on row 2, data starts on row 3.
+            raw_df = pd.read_excel(file_path, sheet_name=tab, header=None)
+            df = raw_df.iloc[3:].copy()
+            df.columns = [clean_column_name(c) for c in raw_df.iloc[2]]
         else:
-            # Standard import for other tabs
+            # Standard import for other tabs (ENGAGEMENT)
             df = pd.read_excel(file_path, sheet_name=tab)
             df.columns = [clean_column_name(c) for c in df.columns]
             
