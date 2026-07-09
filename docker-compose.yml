@@ -49,7 +49,7 @@ services:
       - GENERIC_TIMEZONE=Europe/Berlin
       - N8N_PROXY_HOPS=1
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
-      - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-jager}
+      - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
       - MOTHERDUCK_HOST=${MOTHERDUCK_HOST:-pg.us-east-1-aws.motherduck.com}
       - MOTHERDUCK_USER=${MOTHERDUCK_USER:-postgres}
     depends_on:
