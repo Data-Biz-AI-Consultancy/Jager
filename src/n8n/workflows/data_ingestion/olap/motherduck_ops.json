@@ -1,0 +1,65 @@
+{
+  "id": "motherduck-ops",
+  "name": "MotherDuck Operations",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE SHARE IF NOT EXISTS \"{{ $env.MOTHERDUCK_DATABASE || 'staging' }}_share\"\nFROM \"{{ $env.MOTHERDUCK_DATABASE || 'staging' }}\"\n(ACCESS ORGANIZATION, VISIBILITY DISCOVERABLE, UPDATE AUTOMATIC);",
+        "options": {}
+      },
+      "id": "update-motherduck-share",
+      "name": "Create Motherduck Share",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        450,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Motherduck Share",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}

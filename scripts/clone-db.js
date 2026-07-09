@@ -7,6 +7,26 @@ const os = require('os');
 
 const execAsync = promisify(exec);
 
+// Load .env manually if present
+if (fs.existsSync('.env')) {
+  const envContent = fs.readFileSync('.env', 'utf8');
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const match = trimmed.match(/^([^=]+)=(.*)$/);
+    if (match) {
+      const key = match[1].trim();
+      let val = match[2].trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (!process.env[key]) {
+        process.env[key] = val;
+      }
+    }
+  }
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
@@ -393,6 +413,25 @@ async function cloneDatabase(dbName, prodUrl) {
         console.error('Warning: failed to import credentials.json:', e.message);
       }
     }
+    // Deduplicate and ensure constraints on local n8n database tables (due to production database version mismatch/duplicates)
+    console.log('Fixing unique constraints and indexes in local n8n database...');
+    try {
+      await execAsync(
+        `${dockerComposeCmd} exec -T db psql -U jager -d n8n -c "` +
+          `DELETE FROM workflow_statistics a USING workflow_statistics b WHERE a.id < b.id AND a.name = b.name AND a.\\\"workflowId\\\" = b.\\\"workflowId\\\"; ` +
+          `ALTER TABLE workflow_statistics DROP CONSTRAINT IF EXISTS \\\"UQ_workflow_statistics\\\"; ` +
+          `CREATE UNIQUE INDEX IF NOT EXISTS \\\"IDX_workflow_statistics_workflow_name\\\" ON public.workflow_statistics USING btree (\\\"workflowId\\\", name); ` +
+          `DELETE FROM insights_metadata a USING insights_metadata b WHERE a.\\\"metaId\\\" < b.\\\"metaId\\\" AND a.\\\"workflowId\\\" = b.\\\"workflowId\\\"; ` +
+          `CREATE UNIQUE INDEX IF NOT EXISTS \\\"IDX_1d8ab99d5861c9388d2dc1cf73\\\" ON public.insights_metadata USING btree (\\\"workflowId\\\"); ` +
+          `DELETE FROM shared_workflow a USING shared_workflow b WHERE a.ctid < b.ctid AND a.\\\"workflowId\\\" = b.\\\"workflowId\\\" AND a.\\\"projectId\\\" = b.\\\"projectId\\\"; ` +
+          `ALTER TABLE ONLY public.shared_workflow ADD CONSTRAINT \\\"PK_5ba87620386b847201c9531c58f\\\" PRIMARY KEY (\\\"workflowId\\\", \\\"projectId\\\");"`,
+        { maxBuffer: 10 * 1024 * 1024 }
+      );
+      console.log('Database constraints and indexes ensured successfully.');
+    } catch (e) {
+      console.error('Warning: failed to ensure database constraints:', e.message);
+    }
+
     console.log('n8n database updated. Refresh the n8n browser tab to see the new data.');
   }
 

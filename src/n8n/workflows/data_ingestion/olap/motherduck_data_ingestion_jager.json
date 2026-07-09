@@ -1,0 +1,597 @@
+{
+  "id": "motherduck-data-ingestion-jager",
+  "name": "MotherDuck Data Ingestion - Jager",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE SCHEMA IF NOT EXISTS s_zernio;\nCREATE SCHEMA IF NOT EXISTS s_buffer;",
+        "options": {}
+      },
+      "id": "create-schemas",
+      "name": "Create Schemas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        250,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS s_zernio.linkedin_posts (\n  id VARCHAR(255) PRIMARY KEY,\n  content TEXT,\n  url VARCHAR(2048),\n  published_at TIMESTAMP,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_analytics (\n  post_id VARCHAR(255) PRIMARY KEY,\n  impressions INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  clicks INTEGER,\n  saves INTEGER,\n  sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_account_analytics (\n  account_id VARCHAR(255) PRIMARY KEY,\n  platform VARCHAR(50),\n  username VARCHAR(255),\n  impressions INTEGER,\n  members_reached INTEGER,\n  reactions INTEGER,\n  comments INTEGER,\n  reshares INTEGER,\n  post_saves INTEGER,\n  post_sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_follower_stats_timeline (\n  account_id VARCHAR(255),\n  date DATE,\n  followers_count INTEGER,\n  growth INTEGER,\n  growth_percentage DECIMAL(5,2),\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (account_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_timeline (\n  post_id VARCHAR(255),\n  date DATE,\n  impressions INTEGER,\n  reach INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  saves INTEGER,\n  clicks INTEGER,\n  views INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (post_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_content_decay (\n  platform VARCHAR(50),\n  bucket_order INTEGER,\n  bucket_label VARCHAR(50),\n  avg_pct_of_final DECIMAL(5,2),\n  post_count INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (platform, bucket_order)\n);\n\nCREATE TABLE IF NOT EXISTS s_buffer.channels (\n  id VARCHAR(255) PRIMARY KEY,\n  name VARCHAR(255),\n  service VARCHAR(100),\n  organization_id VARCHAR(255),\n  active BOOLEAN,\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_buffer.posts (\n  id VARCHAR(255) PRIMARY KEY,\n  text TEXT,\n  channel_id VARCHAR(255),\n  due_at TIMESTAMP,\n  status VARCHAR(50),\n  assets VARCHAR,\n  metrics VARCHAR,\n  reactions INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  reposts INTEGER,\n  clicks INTEGER,\n  reach INTEGER,\n  impressions INTEGER,\n  views INTEGER,\n  engagement_rate DECIMAL(10,2),\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP,\n  processed INTEGER\n);",
+        "options": {}
+      },
+      "id": "init-motherduck-tables",
+      "name": "Init Motherduck Tables",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        400,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_posts;",
+        "options": {}
+      },
+      "id": "read-zernio-posts",
+      "name": "Read Zernio Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        600,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_posts (id, content, url, published_at, fetched_at)\nVALUES ('{{ $json.id }}', '{{ $json.content ? $json.content.replace(/'/g, \"''\") : \"\" }}', '{{ $json.url }}', '{{ $json.published_at }}', '{{ $json.fetched_at }}')\nON CONFLICT (id) DO UPDATE SET\n  content = EXCLUDED.content,\n  url = EXCLUDED.url,\n  published_at = EXCLUDED.published_at,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-posts",
+      "name": "Write Zernio Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_post_analytics;",
+        "options": {}
+      },
+      "id": "read-zernio-post-analytics",
+      "name": "Read Zernio Post Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_post_analytics (post_id, impressions, likes, comments, shares, clicks, saves, sends, fetched_at)\nVALUES ('{{ $json.post_id }}', {{ $json.impressions }}, {{ $json.likes }}, {{ $json.comments }}, {{ $json.shares }}, {{ $json.clicks }}, {{ $json.saves }}, {{ $json.sends }}, '{{ $json.fetched_at }}')\nON CONFLICT (post_id) DO UPDATE SET\n  impressions = EXCLUDED.impressions,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  clicks = EXCLUDED.clicks,\n  saves = EXCLUDED.saves,\n  sends = EXCLUDED.sends,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-post-analytics",
+      "name": "Write Zernio Post Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1200,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_account_analytics;",
+        "options": {}
+      },
+      "id": "read-zernio-account-analytics",
+      "name": "Read Zernio Account Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1400,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_account_analytics (account_id, platform, username, impressions, members_reached, reactions, comments, reshares, post_saves, post_sends, fetched_at)\nVALUES ('{{ $json.account_id }}', '{{ $json.platform }}', '{{ $json.username }}', {{ $json.impressions }}, {{ $json.members_reached }}, {{ $json.reactions }}, {{ $json.comments }}, {{ $json.reshares }}, {{ $json.post_saves }}, {{ $json.post_sends }}, '{{ $json.fetched_at }}')\nON CONFLICT (account_id) DO UPDATE SET\n  platform = EXCLUDED.platform,\n  username = EXCLUDED.username,\n  impressions = EXCLUDED.impressions,\n  members_reached = EXCLUDED.members_reached,\n  reactions = EXCLUDED.reactions,\n  comments = EXCLUDED.comments,\n  reshares = EXCLUDED.reshares,\n  post_saves = EXCLUDED.post_saves,\n  post_sends = EXCLUDED.post_sends,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-account-analytics",
+      "name": "Write Zernio Account Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1600,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_follower_stats_timeline;",
+        "options": {}
+      },
+      "id": "read-zernio-follower-timeline",
+      "name": "Read Zernio Follower Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        600,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_follower_stats_timeline (account_id, date, followers_count, growth, growth_percentage, fetched_at)\nVALUES ('{{ $json.account_id }}', '{{ new Date($json.date).toISOString().split(\u0027T\u0027)[0] }}', {{ $json.followers_count }}, {{ $json.growth }}, {{ $json.growth_percentage }}, '{{ $json.fetched_at }}')\nON CONFLICT (account_id, date) DO UPDATE SET\n  followers_count = EXCLUDED.followers_count,\n  growth = EXCLUDED.growth,\n  growth_percentage = EXCLUDED.growth_percentage,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-follower-timeline",
+      "name": "Write Zernio Follower Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_post_timeline;",
+        "options": {}
+      },
+      "id": "read-zernio-post-timeline",
+      "name": "Read Zernio Post Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_post_timeline (post_id, date, impressions, reach, likes, comments, shares, saves, clicks, views, fetched_at)\nVALUES ('{{ $json.post_id }}', '{{ new Date($json.date).toISOString().split(\u0027T\u0027)[0] }}', {{ $json.impressions }}, {{ $json.reach }}, {{ $json.likes }}, {{ $json.comments }}, {{ $json.shares }}, {{ $json.saves }}, {{ $json.clicks }}, {{ $json.views }}, '{{ $json.fetched_at }}')\nON CONFLICT (post_id, date) DO UPDATE SET\n  impressions = EXCLUDED.impressions,\n  reach = EXCLUDED.reach,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  saves = EXCLUDED.saves,\n  clicks = EXCLUDED.clicks,\n  views = EXCLUDED.views,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-post-timeline",
+      "name": "Write Zernio Post Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1200,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_content_decay;",
+        "options": {}
+      },
+      "id": "read-zernio-decay",
+      "name": "Read Zernio Decay",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1400,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_content_decay (platform, bucket_order, bucket_label, avg_pct_of_final, post_count, fetched_at)\nVALUES ('{{ $json.platform }}', {{ $json.bucket_order }}, '{{ $json.bucket_label }}', {{ $json.avg_pct_of_final }}, {{ $json.post_count }}, '{{ $json.fetched_at }}')\nON CONFLICT (platform, bucket_order) DO UPDATE SET\n  bucket_label = EXCLUDED.bucket_label,\n  avg_pct_of_final = EXCLUDED.avg_pct_of_final,\n  post_count = EXCLUDED.post_count,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-decay",
+      "name": "Write Zernio Decay",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1600,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_buffer.channels;",
+        "options": {}
+      },
+      "id": "read-buffer-channels",
+      "name": "Read Buffer Channels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        600,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_buffer.channels (id, name, service, organization_id, active, created_at, updated_at)\nVALUES ('{{ $json.id }}', '{{ $json.name ? $json.name.replace(/'/g, \"''\") : \"\" }}', '{{ $json.service }}', '{{ $json.organization_id }}', {{ $json.active }}, '{{ $json.created_at }}', '{{ $json.updated_at }}')\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  service = EXCLUDED.service,\n  organization_id = EXCLUDED.organization_id,\n  active = EXCLUDED.active,\n  created_at = EXCLUDED.created_at,\n  updated_at = EXCLUDED.updated_at;",
+        "options": {}
+      },
+      "id": "write-buffer-channels",
+      "name": "Write Buffer Channels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        800,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_buffer.posts;",
+        "options": {}
+      },
+      "id": "read-buffer-posts",
+      "name": "Read Buffer Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1000,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_buffer.posts (id, text, channel_id, due_at, status, assets, metrics, reactions, comments, shares, reposts, clicks, reach, impressions, views, engagement_rate, created_at, updated_at, processed)\nVALUES ('{{ $json.id }}', '{{ $json.text ? $json.text.replace(/'/g, \"''\") : \"\" }}', '{{ $json.channel_id }}', '{{ $json.due_at }}', '{{ $json.status }}', '{{ JSON.stringify($json.assets) }}', '{{ JSON.stringify($json.metrics) }}', {{ $json.reactions }}, {{ $json.comments }}, {{ $json.shares }}, {{ $json.reposts }}, {{ $json.clicks }}, {{ $json.reach }}, {{ $json.impressions }}, {{ $json.views }}, {{ $json.engagement_rate }}, '{{ $json.created_at }}', '{{ $json.updated_at }}', {{ $json.processed }})\nON CONFLICT (id) DO UPDATE SET\n  text = EXCLUDED.text,\n  channel_id = EXCLUDED.channel_id,\n  due_at = EXCLUDED.due_at,\n  status = EXCLUDED.status,\n  assets = EXCLUDED.assets,\n  metrics = EXCLUDED.metrics,\n  reactions = EXCLUDED.reactions,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  reposts = EXCLUDED.reposts,\n  clicks = EXCLUDED.clicks,\n  reach = EXCLUDED.reach,\n  impressions = EXCLUDED.impressions,\n  views = EXCLUDED.views,\n  engagement_rate = EXCLUDED.engagement_rate,\n  created_at = EXCLUDED.created_at,\n  updated_at = EXCLUDED.updated_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-buffer-posts",
+      "name": "Write Buffer Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1200,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Schemas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Schemas": {
+      "main": [
+        [
+          {
+            "node": "Init Motherduck Tables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Motherduck Tables": {
+      "main": [
+        [
+          {
+            "node": "Read Zernio Posts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Zernio Follower Timeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Buffer Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Posts": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Zernio Posts": {
+      "main": [
+        [
+          {
+            "node": "Read Zernio Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Post Analytics": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Zernio Post Analytics": {
+      "main": [
+        [
+          {
+            "node": "Read Zernio Account Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Account Analytics": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Account Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Follower Timeline": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Follower Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Zernio Follower Timeline": {
+      "main": [
+        [
+          {
+            "node": "Read Zernio Post Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Post Timeline": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Post Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Zernio Post Timeline": {
+      "main": [
+        [
+          {
+            "node": "Read Zernio Decay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Decay": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Decay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Buffer Channels": {
+      "main": [
+        [
+          {
+            "node": "Write Buffer Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Buffer Channels": {
+      "main": [
+        [
+          {
+            "node": "Read Buffer Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Buffer Posts": {
+      "main": [
+        [
+          {
+            "node": "Write Buffer Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
