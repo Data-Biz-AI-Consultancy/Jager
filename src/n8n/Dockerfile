@@ -3,6 +3,15 @@ FROM n8nio/n8n:latest
 
 USER root
 
+# Download DuckDB standalone CLI binary
+RUN wget -q https://github.com/duckdb/duckdb/releases/download/v1.1.3/duckdb_cli-linux-aarch64.zip && \
+    unzip duckdb_cli-linux-aarch64.zip && \
+    mv duckdb /usr/local/bin/duckdb && \
+    rm duckdb_cli-linux-aarch64.zip
+
+# Copy MotherDuck sync script
+COPY scripts/sync_to_motherduck.js /etc/n8n/sync_to_motherduck.js
+
 # Copy custom entrypoint and workflows
 COPY src/n8n/docker-entrypoint-custom.sh /docker-entrypoint-custom.sh
 RUN chmod +x /docker-entrypoint-custom.sh

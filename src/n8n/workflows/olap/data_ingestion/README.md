@@ -21,7 +21,8 @@ This directory contains n8n workflows designed to manage and sync data ingestion
 
 ### 4. [MotherDuck Data Ingestion - Jager](./motherduck_data_ingestion_jager.json)
 *   **Workflow ID**: `motherduck-data-ingestion-jager`
-*   **Purpose**: Replicates processed data from PostgreSQL source tables into MotherDuck OLAP tables (cloud-based).
+*   **Trigger**: Runs automatically daily via a `Schedule Trigger`.
+*   **Purpose**: Replicates processed data from PostgreSQL source tables into MotherDuck OLAP tables using a custom Python DuckDB sync script that implements high-water mark incremental loads.
 
 ## Local Import & Setup
 These workflows are automatically imported into the local n8n instance upon running `docker compose up --build`.
