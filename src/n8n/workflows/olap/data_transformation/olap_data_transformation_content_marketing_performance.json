@@ -1,0 +1,62 @@
+{
+  "id": "olap-data-transformation-cmp",
+  "name": "OLAP Data Transformation - Content Marketing Performance",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE SCHEMA IF NOT EXISTS staging;\nCREATE SCHEMA IF NOT EXISTS intermediate;\nCREATE SCHEMA IF NOT EXISTS marts;\n\n-- Staging for LinkedIn Posts\nCREATE OR REPLACE VIEW staging.stg_zernio__linkedin_posts AS\nSELECT \n  id AS post_id,\n  content AS content,\n  url AS post_url,\n  published_at AT TIME ZONE 'Europe/Berlin' AS published_at_berlin,\n  fetched_at AT TIME ZONE 'Europe/Berlin' AS fetched_at_berlin\nFROM s_zernio.linkedin_posts;\n\n-- Staging for LinkedIn Post Analytics\nCREATE OR REPLACE VIEW staging.stg_zernio__linkedin_post_analytics AS\nSELECT \n  post_id AS post_id,\n  COALESCE(impressions, 0) AS impressions,\n  COALESCE(likes, 0) AS likes,\n  COALESCE(comments, 0) AS comments,\n  COALESCE(shares, 0) AS shares,\n  COALESCE(clicks, 0) AS clicks,\n  COALESCE(saves, 0) AS saves,\n  COALESCE(sends, 0) AS sends,\n  fetched_at AT TIME ZONE 'Europe/Berlin' AS fetched_at_berlin\nFROM s_zernio.linkedin_post_analytics;\n\n-- Intermediate Layer\nCREATE OR REPLACE VIEW intermediate.int_linkedin_post_engagement AS\nSELECT \n  p.post_id AS post_id,\n  p.content AS content,\n  p.post_url AS post_url,\n  p.published_at_berlin AS published_at_berlin,\n  a.impressions AS impressions,\n  a.likes AS likes,\n  a.comments AS comments,\n  a.shares AS shares,\n  a.clicks AS clicks,\n  a.saves AS saves,\n  a.sends AS sends,\n  (a.likes + a.comments + a.shares + a.clicks + a.saves + a.sends) AS total_interactions,\n  CASE \n    WHEN a.impressions > 0 THEN \n      ROUND((a.likes + a.comments + a.shares + a.clicks + a.saves + a.sends)::NUMERIC / a.impressions, 4)\n    ELSE 0.0000 \n  END AS engagement_rate,\n  NOW() AT TIME ZONE 'Europe/Berlin' AS calculated_at_berlin\nFROM staging.stg_zernio__linkedin_posts p\nLEFT JOIN staging.stg_zernio__linkedin_post_analytics a ON p.post_id = a.post_id;\n\n-- Marts Layer\nCREATE TABLE IF NOT EXISTS marts.fct_linkedin_company_page_post_engagement (\n  post_id VARCHAR(255) PRIMARY KEY,\n  content TEXT,\n  post_url VARCHAR(2048),\n  published_at_berlin TIMESTAMP,\n  impressions INTEGER DEFAULT 0,\n  likes INTEGER DEFAULT 0,\n  comments INTEGER DEFAULT 0,\n  shares INTEGER DEFAULT 0,\n  clicks INTEGER DEFAULT 0,\n  saves INTEGER DEFAULT 0,\n  sends INTEGER DEFAULT 0,\n  total_interactions INTEGER DEFAULT 0,\n  engagement_rate DECIMAL(10, 4) DEFAULT 0.0000,\n  calculated_at_berlin TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'Europe/Berlin')\n);\n\nINSERT INTO marts.fct_linkedin_company_page_post_engagement (\n  post_id, content, post_url, published_at_berlin,\n  impressions, likes, comments, shares, clicks, saves, sends,\n  total_interactions, engagement_rate, calculated_at_berlin\n)\nSELECT \n  post_id AS post_id,\n  content AS content,\n  post_url AS post_url,\n  published_at_berlin AS published_at_berlin,\n  impressions AS impressions,\n  likes AS likes,\n  comments AS comments,\n  shares AS shares,\n  clicks AS clicks,\n  saves AS saves,\n  sends AS sends,\n  total_interactions AS total_interactions,\n  engagement_rate AS engagement_rate,\n  calculated_at_berlin AS calculated_at_berlin\nFROM intermediate.int_linkedin_post_engagement\nON CONFLICT (post_id) DO UPDATE SET\n  content = EXCLUDED.content,\n  post_url = EXCLUDED.post_url,\n  published_at_berlin = EXCLUDED.published_at_berlin,\n  impressions = EXCLUDED.impressions,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  clicks = EXCLUDED.clicks,\n  saves = EXCLUDED.saves,\n  sends = EXCLUDED.sends,\n  total_interactions = EXCLUDED.total_interactions,\n  engagement_rate = EXCLUDED.engagement_rate,\n  calculated_at_berlin = EXCLUDED.calculated_at_berlin;",
+        "options": {}
+      },
+      "id": "run-transformations",
+      "name": "Run Transformations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        380,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Transformations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
