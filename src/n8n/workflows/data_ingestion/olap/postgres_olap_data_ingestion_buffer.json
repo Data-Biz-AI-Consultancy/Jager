@@ -16,7 +16,7 @@
       "typeVersion": 1.2,
       "position": [
         112,
-        2032
+        2128
       ]
     },
     {
@@ -31,7 +31,7 @@
       "typeVersion": 2.5,
       "position": [
         336,
-        2032
+        2128
       ],
       "credentials": {
         "postgres": {
@@ -52,7 +52,7 @@
       "typeVersion": 2.5,
       "position": [
         560,
-        2032
+        2128
       ],
       "credentials": {
         "postgres": {
@@ -73,7 +73,7 @@
       "typeVersion": 2.5,
       "position": [
         784,
-        3376
+        2032
       ],
       "credentials": {
         "postgres": {
@@ -94,7 +94,7 @@
       "typeVersion": 2.5,
       "position": [
         1008,
-        3376
+        2032
       ],
       "credentials": {
         "postgres": {
@@ -115,7 +115,7 @@
       "typeVersion": 2.5,
       "position": [
         784,
-        3760
+        2224
       ],
       "credentials": {
         "postgres": {
@@ -136,7 +136,7 @@
       "typeVersion": 2.5,
       "position": [
         1008,
-        3760
+        2224
       ],
       "credentials": {
         "postgres": {
@@ -207,5 +207,10 @@
         ]
       ]
     }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
   }
 }
