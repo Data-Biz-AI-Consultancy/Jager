@@ -404,7 +404,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const data = item.json;\n  const buckets = data.buckets || [];\n  for (const b of buckets) {\n    results.push({\n      json: {\n        platform: 'linkedin',\n        bucket_order: b.bucket_order || b.bucketOrder,\n        bucket_label: b.bucket_label || b.bucketLabel,\n        avg_pct_of_final: b.avg_pct_of_final || b.avgPctOfFinal || 0,\n        post_count: b.post_count || b.postCount || 0\n      }\n    });\n  }\n}\nreturn results;"
+        "jsCode": "const items = $input.all();\nconst results = [];\nfor (const item of items) {\n  const data = item.json;\n  const buckets = data.buckets || [];\n  for (const b of buckets) {\n    results.push({\n      json: {\n        platform: 'linkedin',\n        bucket_order: b.bucket_order ?? b.bucketOrder ?? 0,\n        bucket_label: b.bucket_label ?? b.bucketLabel ?? '',\n        avg_pct_of_final: b.avg_pct_of_final || b.avgPctOfFinal || 0,\n        post_count: b.post_count || b.postCount || 0\n      }\n    });\n  }\n}\nreturn results;"
       },
       "id": "parse-content-decay",
       "name": "Parse Content Decay",
