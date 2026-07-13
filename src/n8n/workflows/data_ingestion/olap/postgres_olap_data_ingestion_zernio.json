@@ -1,0 +1,443 @@
+{
+  "id": "postgres-olap-ingestion-zernio",
+  "name": "Postgres OLAP Data Ingestion - Zernio",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        2032
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE SCHEMA IF NOT EXISTS s_zernio;",
+        "options": {}
+      },
+      "id": "create-schemas",
+      "name": "Create Schemas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        336,
+        2032
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS s_zernio.linkedin_posts (\n  id VARCHAR(255) PRIMARY KEY,\n  content TEXT,\n  url VARCHAR(2048),\n  published_at TIMESTAMP,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_analytics (\n  post_id VARCHAR(255) PRIMARY KEY,\n  impressions INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  clicks INTEGER,\n  saves INTEGER,\n  sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_account_analytics (\n  account_id VARCHAR(255) PRIMARY KEY,\n  platform VARCHAR(50),\n  username VARCHAR(255),\n  impressions INTEGER,\n  members_reached INTEGER,\n  reactions INTEGER,\n  comments INTEGER,\n  reshares INTEGER,\n  post_saves INTEGER,\n  post_sends INTEGER,\n  fetched_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_follower_stats_timeline (\n  account_id VARCHAR(255),\n  date DATE,\n  followers_count INTEGER,\n  growth INTEGER,\n  growth_percentage DECIMAL(5,2),\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (account_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_post_timeline (\n  post_id VARCHAR(255),\n  date DATE,\n  impressions INTEGER,\n  reach INTEGER,\n  likes INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  saves INTEGER,\n  clicks INTEGER,\n  views INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (post_id, date)\n);\n\nCREATE TABLE IF NOT EXISTS s_zernio.linkedin_content_decay (\n  platform VARCHAR(50),\n  bucket_order INTEGER,\n  bucket_label VARCHAR(50),\n  avg_pct_of_final DECIMAL(5,2),\n  post_count INTEGER,\n  fetched_at TIMESTAMP,\n  PRIMARY KEY (platform, bucket_order)\n);",
+        "options": {}
+      },
+      "id": "init-motherduck-tables",
+      "name": "Init Motherduck Tables",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        560,
+        2032
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_posts;",
+        "options": {}
+      },
+      "id": "read-zernio-posts",
+      "name": "Read Zernio Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_posts (id, content, url, published_at, fetched_at)\nVALUES ('{{ $json.id }}', '{{ $json.content ? $json.content.replace(/'/g, \"''\") : \"\" }}', '{{ $json.url }}', '{{ $json.published_at }}', '{{ $json.fetched_at }}')\nON CONFLICT (id) DO UPDATE SET\n  content = EXCLUDED.content,\n  url = EXCLUDED.url,\n  published_at = EXCLUDED.published_at,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-posts",
+      "name": "Write Zernio Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_post_analytics;",
+        "options": {}
+      },
+      "id": "read-zernio-post-analytics",
+      "name": "Read Zernio Post Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        688
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_post_analytics (post_id, impressions, likes, comments, shares, clicks, saves, sends, fetched_at)\nVALUES ('{{ $json.post_id }}', {{ $json.impressions }}, {{ $json.likes }}, {{ $json.comments }}, {{ $json.shares }}, {{ $json.clicks }}, {{ $json.saves }}, {{ $json.sends }}, '{{ $json.fetched_at }}')\nON CONFLICT (post_id) DO UPDATE SET\n  impressions = EXCLUDED.impressions,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  clicks = EXCLUDED.clicks,\n  saves = EXCLUDED.saves,\n  sends = EXCLUDED.sends,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-post-analytics",
+      "name": "Write Zernio Post Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        688
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_account_analytics;",
+        "options": {}
+      },
+      "id": "read-zernio-account-analytics",
+      "name": "Read Zernio Account Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_account_analytics (account_id, platform, username, impressions, members_reached, reactions, comments, reshares, post_saves, post_sends, fetched_at)\nVALUES ('{{ $json.account_id }}', '{{ $json.platform }}', '{{ $json.username }}', {{ $json.impressions }}, {{ $json.members_reached }}, {{ $json.reactions }}, {{ $json.comments }}, {{ $json.reshares }}, {{ $json.post_saves }}, {{ $json.post_sends }}, '{{ $json.fetched_at }}')\nON CONFLICT (account_id) DO UPDATE SET\n  platform = EXCLUDED.platform,\n  username = EXCLUDED.username,\n  impressions = EXCLUDED.impressions,\n  members_reached = EXCLUDED.members_reached,\n  reactions = EXCLUDED.reactions,\n  comments = EXCLUDED.comments,\n  reshares = EXCLUDED.reshares,\n  post_saves = EXCLUDED.post_saves,\n  post_sends = EXCLUDED.post_sends,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-account-analytics",
+      "name": "Write Zernio Account Analytics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        1264
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_follower_stats_timeline;",
+        "options": {}
+      },
+      "id": "read-zernio-follower-timeline",
+      "name": "Read Zernio Follower Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        1840
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_follower_stats_timeline (account_id, date, followers_count, growth, growth_percentage, fetched_at)\nVALUES ('{{ $json.account_id }}', '{{ new Date($json.date).toISOString().split('T')[0] }}', {{ $json.followers_count }}, {{ $json.growth }}, {{ $json.growth_percentage }}, '{{ $json.fetched_at }}')\nON CONFLICT (account_id, date) DO UPDATE SET\n  followers_count = EXCLUDED.followers_count,\n  growth = EXCLUDED.growth,\n  growth_percentage = EXCLUDED.growth_percentage,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-follower-timeline",
+      "name": "Write Zernio Follower Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        1840
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_post_timeline;",
+        "options": {}
+      },
+      "id": "read-zernio-post-timeline",
+      "name": "Read Zernio Post Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        2416
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_post_timeline (post_id, date, impressions, reach, likes, comments, shares, saves, clicks, views, fetched_at)\nVALUES ('{{ $json.post_id }}', '{{ new Date($json.date).toISOString().split('T')[0] }}', {{ $json.impressions }}, {{ $json.reach }}, {{ $json.likes }}, {{ $json.comments }}, {{ $json.shares }}, {{ $json.saves }}, {{ $json.clicks }}, {{ $json.views }}, '{{ $json.fetched_at }}')\nON CONFLICT (post_id, date) DO UPDATE SET\n  impressions = EXCLUDED.impressions,\n  reach = EXCLUDED.reach,\n  likes = EXCLUDED.likes,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  saves = EXCLUDED.saves,\n  clicks = EXCLUDED.clicks,\n  views = EXCLUDED.views,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-post-timeline",
+      "name": "Write Zernio Post Timeline",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        2416
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_zernio.linkedin_content_decay;",
+        "options": {}
+      },
+      "id": "read-zernio-decay",
+      "name": "Read Zernio Decay",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        2992
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_zernio.linkedin_content_decay (platform, bucket_order, bucket_label, avg_pct_of_final, post_count, fetched_at)\nVALUES ('{{ $json.platform }}', {{ $json.bucket_order }}, '{{ $json.bucket_label }}', {{ $json.avg_pct_of_final }}, {{ $json.post_count }}, '{{ $json.fetched_at }}')\nON CONFLICT (platform, bucket_order) DO UPDATE SET\n  bucket_label = EXCLUDED.bucket_label,\n  avg_pct_of_final = EXCLUDED.avg_pct_of_final,\n  post_count = EXCLUDED.post_count,\n  fetched_at = EXCLUDED.fetched_at;",
+        "options": {}
+      },
+      "id": "write-zernio-decay",
+      "name": "Write Zernio Decay",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        2992
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-olap-db",
+          "name": "Postgres OLAP Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Schemas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Schemas": {
+      "main": [
+        [
+          {
+            "node": "Init Motherduck Tables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Motherduck Tables": {
+      "main": [
+        [
+          {
+            "node": "Read Zernio Posts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Zernio Post Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Zernio Account Analytics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Zernio Follower Timeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Zernio Post Timeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read Zernio Decay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Posts": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Post Analytics": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Post Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Account Analytics": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Account Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Follower Timeline": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Follower Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Post Timeline": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Post Timeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Zernio Decay": {
+      "main": [
+        [
+          {
+            "node": "Write Zernio Decay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

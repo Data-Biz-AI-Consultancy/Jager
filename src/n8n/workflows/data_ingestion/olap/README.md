@@ -4,26 +4,30 @@ This directory contains n8n workflows designed to manage and sync data ingestion
 
 ## Workflows
 
-### 1. [Postgres OLAP Data Ingestion - Jager](./postgres_olap_data_ingestion_jager.json)
-*   **Workflow ID**: `postgres-olap-data-ingestion-jager`
+### 1. [Postgres OLAP Data Ingestion - Zernio](./postgres_olap_data_ingestion_zernio.json)
+*   **Workflow ID**: `postgres-olap-ingestion-zernio`
 *   **Trigger**: Runs automatically every 6 hours via a `Schedule Trigger`.
-*   **Purpose**: Replicates processed data from the PostgreSQL `jager` (OLTP) database into the `jager_olap` (OLAP) database on the same instance.
-*   **Schemas Managed**:
-    *   `s_zernio`: Contains LinkedIn post text, followers stats timeline, post analytics, account analytics, post timeline, and content decay analysis.
-    *   `s_buffer`: Contains Buffer social posting channels and processed posts.
-*   **Key Operations**:
-    1.  **Schema & Table Initialization**: Automatically creates schemas (`s_zernio`, `s_buffer`) and target tables using `CREATE TABLE IF NOT EXISTS`.
-    2.  **Data Replication**: Performs incremental updates and inserts from the application database utilizing `ON CONFLICT` clauses on primary keys to avoid duplicates.
+*   **Purpose**: Replicates Zernio LinkedIn Analytics data (`s_zernio` schema) from the PostgreSQL `jager` (OLTP) database into the `jager_olap` (OLAP) database.
+
+### 2. [Postgres OLAP Data Ingestion - Buffer](./postgres_olap_data_ingestion_buffer.json)
+*   **Workflow ID**: `postgres-olap-ingestion-buffer`
+*   **Trigger**: Runs automatically every 6 hours via a `Schedule Trigger`.
+*   **Purpose**: Replicates Buffer analytics data (`s_buffer` schema) from the PostgreSQL `jager` (OLTP) database into the `jager_olap` (OLAP) database.
+
+### 3. [Postgres OLAP Data Ingestion - LinkedIn](./postgres_olap_data_ingestion_linkedin.json)
+*   **Workflow ID**: `postgres-olap-ingestion-linkedin`
+*   **Trigger**: Runs automatically every 6 hours via a `Schedule Trigger`.
+*   **Purpose**: Replicates LinkedIn member portability data (`s_linkedin` schema) from the PostgreSQL `jager` (OLTP) database into the `jager_olap` (OLAP) database.
 
 ---
 
-### 2. [MotherDuck Data Ingestion - Jager](./motherduck_data_ingestion_jager.json)
+### 4. [MotherDuck Data Ingestion - Jager](./motherduck_data_ingestion_jager.json)
 *   **Workflow ID**: `motherduck-data-ingestion-jager`
 *   **Purpose**: Replicates processed data from PostgreSQL source tables into MotherDuck OLAP tables (cloud-based).
 
 ---
 
-### 3. [MotherDuck Operations](./motherduck_ops.json)
+### 5. [MotherDuck Operations](./motherduck_ops.json)
 *   **Workflow ID**: `motherduck-ops`
 *   **Purpose**: Performs periodic configuration and sharing operations on MotherDuck (e.g. creating shares).
 
@@ -32,6 +36,6 @@ These workflows are automatically imported into the local n8n instance upon runn
 
 To manually trigger workflow imports from the workspace JSON files, ensure the containers are running and use:
 ```bash
-docker compose exec n8n n8n import:workflow --input /etc/n8n/workflows/data_ingestion/olap/postgres_olap_data_ingestion_jager.json
+docker compose exec n8n n8n import:workflow --input /etc/n8n/workflows/data_ingestion/olap/postgres_olap_data_ingestion_zernio.json
 ```
 
