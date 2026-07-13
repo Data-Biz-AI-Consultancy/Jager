@@ -1,6 +1,6 @@
-# Postgres & MotherDuck OLAP Workflows
+# OLAP Data Ingestion Workflows
 
-This directory contains n8n workflows designed to manage and sync data ingestion to OLAP databases.
+This directory contains n8n workflows designed to manage and sync data ingestion from the OLTP PostgreSQL database (`jager`) to the OLAP PostgreSQL database (`jager_olap`) and MotherDuck.
 
 ## Workflows
 
@@ -23,18 +23,10 @@ This directory contains n8n workflows designed to manage and sync data ingestion
 *   **Workflow ID**: `motherduck-data-ingestion-jager`
 *   **Purpose**: Replicates processed data from PostgreSQL source tables into MotherDuck OLAP tables (cloud-based).
 
----
-
-### 5. [MotherDuck Operations](./motherduck_ops.json)
-*   **Workflow ID**: `motherduck-ops`
-*   **Purpose**: Performs periodic configuration and sharing operations on MotherDuck (e.g. creating shares).
-
 ## Local Import & Setup
 These workflows are automatically imported into the local n8n instance upon running `docker compose up --build`.
 
 To manually trigger workflow imports from the workspace JSON files, ensure the containers are running and use:
 ```bash
-docker compose exec n8n n8n import:workflow --input /etc/n8n/workflows/data_ingestion/olap/postgres_olap_data_ingestion_zernio.json
+docker compose exec n8n n8n import:workflow --input /etc/n8n/workflows/olap/data_ingestion/postgres_olap_data_ingestion_zernio.json
 ```
-
-

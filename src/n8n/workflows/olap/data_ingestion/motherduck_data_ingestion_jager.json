@@ -1,0 +1,222 @@
+{
+  "id": "motherduck-data-ingestion-jager",
+  "name": "MotherDuck Data Ingestion - Jager",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE SCHEMA IF NOT EXISTS s_buffer;",
+        "options": {}
+      },
+      "id": "create-schemas",
+      "name": "Create Schemas",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        336,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE IF NOT EXISTS s_buffer.channels (\n  id VARCHAR(255) PRIMARY KEY,\n  name VARCHAR(255),\n  service VARCHAR(100),\n  organization_id VARCHAR(255),\n  active BOOLEAN,\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP\n);\n\nCREATE TABLE IF NOT EXISTS s_buffer.posts (\n  id VARCHAR(255) PRIMARY KEY,\n  text TEXT,\n  channel_id VARCHAR(255),\n  due_at TIMESTAMP,\n  status VARCHAR(50),\n  assets VARCHAR,\n  metrics VARCHAR,\n  reactions INTEGER,\n  comments INTEGER,\n  shares INTEGER,\n  reposts INTEGER,\n  clicks INTEGER,\n  reach INTEGER,\n  impressions INTEGER,\n  views INTEGER,\n  engagement_rate DECIMAL(10,2),\n  created_at TIMESTAMP,\n  updated_at TIMESTAMP,\n  processed INTEGER\n);",
+        "options": {}
+      },
+      "id": "init-motherduck-tables",
+      "name": "Init Motherduck Tables",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        560,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_buffer.channels;",
+        "options": {}
+      },
+      "id": "read-buffer-channels",
+      "name": "Read Buffer Channels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        784,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_buffer.channels (id, name, service, organization_id, active, created_at, updated_at)\nVALUES ('{{ $json.id }}', '{{ $json.name ? $json.name.replace(/'/g, \"''\") : \"\" }}', '{{ $json.service }}', '{{ $json.organization_id }}', {{ $json.active }}, '{{ $json.created_at }}', '{{ $json.updated_at }}')\nON CONFLICT (id) DO UPDATE SET\n  name = EXCLUDED.name,\n  service = EXCLUDED.service,\n  organization_id = EXCLUDED.organization_id,\n  active = EXCLUDED.active,\n  created_at = EXCLUDED.created_at,\n  updated_at = EXCLUDED.updated_at;",
+        "options": {}
+      },
+      "id": "write-buffer-channels",
+      "name": "Write Buffer Channels",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1008,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM s_buffer.posts;",
+        "options": {}
+      },
+      "id": "read-buffer-posts",
+      "name": "Read Buffer Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1232,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_buffer.posts (id, text, channel_id, due_at, status, assets, metrics, reactions, comments, shares, reposts, clicks, reach, impressions, views, engagement_rate, created_at, updated_at, processed)\nVALUES ('{{ $json.id }}', '{{ $json.text ? $json.text.replace(/'/g, \"''\") : \"\" }}', '{{ $json.channel_id }}', '{{ $json.due_at }}', '{{ $json.status }}', '{{ JSON.stringify($json.assets) }}', '{{ JSON.stringify($json.metrics) }}', {{ $json.reactions }}, {{ $json.comments }}, {{ $json.shares }}, {{ $json.reposts }}, {{ $json.clicks }}, {{ $json.reach }}, {{ $json.impressions }}, {{ $json.views }}, {{ $json.engagement_rate }}, '{{ $json.created_at }}', '{{ $json.updated_at }}', {{ $json.processed }})\nON CONFLICT (id) DO UPDATE SET\n  text = EXCLUDED.text,\n  channel_id = EXCLUDED.channel_id,\n  due_at = EXCLUDED.due_at,\n  status = EXCLUDED.status,\n  assets = EXCLUDED.assets,\n  metrics = EXCLUDED.metrics,\n  reactions = EXCLUDED.reactions,\n  comments = EXCLUDED.comments,\n  shares = EXCLUDED.shares,\n  reposts = EXCLUDED.reposts,\n  clicks = EXCLUDED.clicks,\n  reach = EXCLUDED.reach,\n  impressions = EXCLUDED.impressions,\n  views = EXCLUDED.views,\n  engagement_rate = EXCLUDED.engagement_rate,\n  created_at = EXCLUDED.created_at,\n  updated_at = EXCLUDED.updated_at,\n  processed = EXCLUDED.processed;",
+        "options": {}
+      },
+      "id": "write-buffer-posts",
+      "name": "Write Buffer Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1456,
+        304
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "motherduck-db",
+          "name": "Motherduck OLAP Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Create Schemas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Schemas": {
+      "main": [
+        [
+          {
+            "node": "Init Motherduck Tables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Init Motherduck Tables": {
+      "main": [
+        [
+          {
+            "node": "Read Buffer Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Buffer Channels": {
+      "main": [
+        [
+          {
+            "node": "Write Buffer Channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Buffer Channels": {
+      "main": [
+        [
+          {
+            "node": "Read Buffer Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Buffer Posts": {
+      "main": [
+        [
+          {
+            "node": "Write Buffer Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
