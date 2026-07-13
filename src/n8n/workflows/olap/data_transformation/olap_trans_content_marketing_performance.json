@@ -1,6 +1,6 @@
 {
-  "id": "content-marketing-performance",
-  "name": "Content Marketing Performance",
+  "id": "olap-trans-content-marketing",
+  "name": "OLAP Data Transformation - Content Marketing Performance",
   "nodes": [
     {
       "parameters": {
