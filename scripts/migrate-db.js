@@ -928,8 +928,24 @@ async function run() {
   }
   await client.query(ddl);
 
-  // Deduplicate and ensure primary key constraints for s_linkedin tables (invitations, messages, connections, searches)
-  const tablesToFix = ['invitations', 'messages', 'connections', 'searches'];
+  // Deduplicate and ensure primary key constraints for s_linkedin tables
+  const tablesToFix = [
+    'ugc_posts',
+    'social_action_likes',
+    'social_action_comments',
+    'all_comments',
+    'all_likes',
+    'invitations',
+    'all_invitations',
+    'messages',
+    'all_messages',
+    'connections',
+    'following',
+    'searches',
+    'job_applications',
+    'job_seeker_preferences',
+    'instant_reposts'
+  ];
   for (const table of tablesToFix) {
     console.log(`Ensuring primary key on s_linkedin.${table}...`);
     await client.query(`
