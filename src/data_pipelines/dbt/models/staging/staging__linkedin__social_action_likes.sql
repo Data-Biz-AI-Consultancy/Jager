@@ -1,3 +1,8 @@
+{{ config(
+    materialized='view',
+    schema='staging'
+) }}
+
 SELECT 
   post_id AS post_id,
   COUNT(id) AS likes_count

@@ -1,3 +1,8 @@
+{{ config(
+    materialized='table',
+    schema='marts'
+) }}
+
 SELECT 
   post_id AS post_id,
   content AS content,

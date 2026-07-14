@@ -1,3 +1,8 @@
+{{ config(
+    materialized='view',
+    schema='intermediate'
+) }}
+
 SELECT 
   p.post_id AS post_id,
   p.content AS content,
@@ -17,5 +22,6 @@ SELECT
     ELSE 0.0000 
   END AS engagement_rate,
   NOW() AT TIME ZONE 'Europe/Berlin' AS calculated_at_berlin
-FROM {{ ref('stg_zernio__linkedin_posts') }} p
-LEFT JOIN {{ ref('stg_zernio__linkedin_post_analytics') }} a ON p.post_id = a.post_id
+FROM {{ ref('staging__zernio__linkedin_posts') }} p
+LEFT JOIN {{ ref('staging__zernio__linkedin_post_analytics') }} a ON p.post_id = a.post_id
+

@@ -1,3 +1,8 @@
+{{ config(
+    materialized='table',
+    schema='marts'
+) }}
+
 SELECT 
   linkedin_post_id AS linkedin_post_id,
   urn AS urn,

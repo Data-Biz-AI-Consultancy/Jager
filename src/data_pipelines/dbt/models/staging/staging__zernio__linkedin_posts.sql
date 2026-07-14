@@ -1,3 +1,8 @@
+{{ config(
+    materialized='view',
+    schema='staging'
+) }}
+
 SELECT 
   id AS post_id,
   content AS content,

@@ -1,4 +1,10 @@
+{{ config(
+    materialized='view',
+    schema='intermediate'
+) }}
+
 WITH personal_posts_joined AS (
+
   SELECT 
     p.post_id AS urn,
     regexp_replace(p.post_id, '^.*:', '') AS linkedin_post_id,
@@ -7,9 +13,9 @@ WITH personal_posts_joined AS (
     p.published_at_berlin AS published_at_berlin,
     COALESCE(l.likes_count, 0) AS likes_count,
     COALESCE(c.comments_count, 0) AS comments_count
-  FROM {{ ref('stg_linkedin__ugc_posts') }} p
-  LEFT JOIN {{ ref('stg_linkedin__social_action_likes') }} l ON p.post_id = l.post_id
-  LEFT JOIN {{ ref('stg_linkedin__social_action_comments') }} c ON p.post_id = c.post_id
+  FROM {{ ref('staging__linkedin__ugc_posts') }} p
+  LEFT JOIN {{ ref('staging__linkedin__social_action_likes') }} l ON p.post_id = l.post_id
+  LEFT JOIN {{ ref('staging__linkedin__social_action_comments') }} c ON p.post_id = c.post_id
 ),
 -- Pick the single closest Buffer post per LinkedIn post (within 5 min)
 linkedin_enriched AS (
@@ -28,14 +34,14 @@ linkedin_enriched AS (
     COALESCE(b.reposts, 0)  AS buf_reposts,
     COALESCE(b.clicks, 0)   AS buf_clicks
   FROM personal_posts_joined p
-  LEFT JOIN {{ ref('stg_buffer__linkedin_posts') }} b
+  LEFT JOIN {{ ref('staging__buffer__linkedin_posts') }} b
     ON ABS(epoch(p.published_at_berlin) - epoch(b.published_at_berlin)) < 300
   ORDER BY p.linkedin_post_id, ABS(epoch(p.published_at_berlin) - epoch(b.published_at_berlin)) ASC
 ),
 -- Buffer posts with no LinkedIn match within 5 min (keep them for completeness)
 buffer_unmatched AS (
   SELECT b.*
-  FROM {{ ref('stg_buffer__linkedin_posts') }} b
+  FROM {{ ref('staging__buffer__linkedin_posts') }} b
   WHERE NOT EXISTS (
     SELECT 1 FROM personal_posts_joined p
     WHERE ABS(epoch(p.published_at_berlin) - epoch(b.published_at_berlin)) < 300
