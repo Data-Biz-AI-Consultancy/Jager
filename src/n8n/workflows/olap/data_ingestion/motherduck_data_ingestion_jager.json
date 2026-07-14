@@ -31,7 +31,7 @@
       "typeVersion": 4.2,
       "position": [
         350,
-        304
+        204
       ]
     },
     {
@@ -45,8 +45,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        550,
-        304
+        350,
+        404
       ]
     }
   ],
@@ -58,13 +58,7 @@
             "node": "Trigger Buffer Ingestion",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Trigger Buffer Ingestion": {
-      "main": [
-        [
+          },
           {
             "node": "Trigger Zernio Ingestion",
             "type": "main",
