@@ -20,4 +20,3 @@ SELECT
   engagement_rate AS engagement_rate,
   calculated_at_berlin AS calculated_at_berlin
 FROM {{ ref('intermediate__linkedin__post_engagement') }}
-
