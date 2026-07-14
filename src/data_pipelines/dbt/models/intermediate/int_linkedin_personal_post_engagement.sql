@@ -34,14 +34,14 @@ linkedin_enriched AS (
     COALESCE(buffer_posts.reposts, 0)  AS buf_reposts,
     COALESCE(buffer_posts.clicks, 0)   AS buf_clicks
   FROM personal_posts_joined personal_posts
-  LEFT JOIN {{ ref('staging__buffer__linkedin_posts') }} buffer_posts
+  LEFT JOIN {{ ref('int_buffer__linkedin_posts') }} buffer_posts
     ON ABS(epoch(personal_posts.published_at_berlin) - epoch(buffer_posts.published_at_berlin)) < 300
   ORDER BY personal_posts.linkedin_post_id, ABS(epoch(personal_posts.published_at_berlin) - epoch(buffer_posts.published_at_berlin)) ASC
 ),
 -- Buffer posts with no LinkedIn match within 5 min (keep them for completeness)
 buffer_unmatched AS (
   SELECT buffer_posts.*
-  FROM {{ ref('staging__buffer__linkedin_posts') }} buffer_posts
+  FROM {{ ref('int_buffer__linkedin_posts') }} buffer_posts
   WHERE NOT EXISTS (
     SELECT 1 FROM personal_posts_joined personal_posts
     WHERE ABS(epoch(personal_posts.published_at_berlin) - epoch(buffer_posts.published_at_berlin)) < 300

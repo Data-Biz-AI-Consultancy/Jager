@@ -1,15 +1,15 @@
 {{ config(
     materialized='view',
-    schema='staging',
-    alias='stg_buffer__linkedin_posts'
+    schema='intermediate',
+    alias='int_buffer__linkedin_posts'
 ) }}
 
 SELECT 
-  posts.id AS buffer_post_id,
-  posts.text AS content,
-  MD5(LOWER(REGEXP_REPLACE(TRIM(COALESCE(posts.text, '')), '\s+', '', 'g'))) AS content_hash,
+  posts.buffer_post_id AS buffer_post_id,
+  posts.content AS content,
+  posts.content_hash AS content_hash,
   posts.due_at AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Berlin' AS published_at_berlin,
-  COALESCE(posts.reactions, 0) AS likes,
+  COALESCE(posts.likes, 0) AS likes,
   COALESCE(posts.comments, 0) AS comments,
   COALESCE(posts.shares, 0) AS shares,
   COALESCE(posts.reposts, 0) AS reposts,
@@ -18,7 +18,6 @@ SELECT
   COALESCE(posts.impressions, 0) AS impressions,
   COALESCE(posts.views, 0) AS views,
   COALESCE(posts.engagement_rate, 0.0000) AS engagement_rate
-FROM {{ source('s_buffer', 'posts') }} posts
-JOIN {{ source('s_buffer', 'channels') }} channels ON posts.channel_id = channels.id
+FROM {{ ref('staging__buffer__posts') }} posts
+JOIN {{ ref('staging__buffer__channels') }} channels ON posts.channel_id = channels.channel_id
 WHERE channels.service = 'linkedin'
-

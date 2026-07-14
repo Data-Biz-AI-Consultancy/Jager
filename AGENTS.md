@@ -9,6 +9,8 @@
 ### Staging Models
 - For all staging models in the dbt project (located under `dbt/models/staging/`), the SQL file name must always be prefixed with the target schema name followed by a double underscore (e.g., `staging__<source_name>__<table_name>.sql`).
 - References to these models in downstream models (intermediate, marts) must use this fully prefixed name.
+- Staging models are strictly 1:1 atomic models mapped to a single ODS source table. **Never use JOINs in staging models.** Any logic requiring a JOIN must be promoted to an intermediate model.
+
 
 ### SQL Coding Style (Table Aliasing)
 - Do not use short aliases (e.g., `p.`, `c.`, `a.`, `l.`, `b.`) in SQL queries.
