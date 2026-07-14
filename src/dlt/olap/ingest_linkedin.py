@@ -1,28 +1,13 @@
-import os
-import sys
-import logging
 import dlt
-from dlt.destinations import motherduck
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
+from olap.utils import setup_logging, get_db_engine, create_motherduck_pipeline
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("ingest-linkedin")
+logger = setup_logging("ingest-linkedin")
 
 def run_ingestion():
-    pg_url = os.getenv("DATABASE_URL", "postgresql://jager:jager@db:5432/jager")
-    motherduck_token = os.getenv("MOTHERDUCK_TOKEN")
-    motherduck_database = os.getenv("MOTHERDUCK_DATABASE", "staging")
-
-    if not motherduck_token:
-        logger.error("MOTHERDUCK_TOKEN environment variable is not set")
-        sys.exit(1)
-
-    # Set DLT configurations
-    os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
-
     logger.info("Connecting to PostgreSQL database")
-    engine = create_engine(pg_url)
+    engine = get_db_engine()
 
     # Define the resources
     @dlt.resource(name="ugc_posts", write_disposition="merge", primary_key="id")
@@ -117,15 +102,8 @@ def run_ingestion():
                 yield dict(row._mapping)
 
     logger.info("Starting DLT pipeline")
-    pipeline = dlt.pipeline(
+    pipeline = create_motherduck_pipeline(
         pipeline_name="linkedin_ingestion",
-        destination=motherduck(
-            credentials={
-                "database": motherduck_database,
-                "password": motherduck_token
-            },
-            loader_file_format="jsonl"
-        ),
         dataset_name="s_linkedin",  # Target schema name
     )
 
