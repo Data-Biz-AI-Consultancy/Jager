@@ -32,7 +32,15 @@ def run_ingestion():
             for row in result:
                 yield dict(row._mapping)
 
-    @dlt.resource(name="posts", write_disposition="merge", primary_key="id")
+    @dlt.resource(
+        name="posts",
+        write_disposition="merge",
+        primary_key="id",
+        columns={
+            "assets": {"data_type": "json"},
+            "metrics": {"data_type": "json"}
+        }
+    )
     def get_posts():
         with engine.connect() as conn:
             result = conn.execute(text("SELECT id, text, channel_id, due_at, status, assets, metrics, reactions, comments, shares, reposts, clicks, reach, impressions, views, engagement_rate, created_at, updated_at, processed FROM s_buffer.posts"))
@@ -44,7 +52,7 @@ def run_ingestion():
 
     logger.info(f"Starting DLT pipeline")
     pipeline = dlt.pipeline(
-        pipeline_name="buffer_ingestion_v2",
+        pipeline_name="buffer_ingestion_v3",
         destination=motherduck(
             credentials={
                 "database": motherduck_database,
