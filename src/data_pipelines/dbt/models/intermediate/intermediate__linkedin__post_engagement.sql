@@ -25,5 +25,3 @@ SELECT
   NOW() AT TIME ZONE 'Europe/Berlin' AS calculated_at_berlin
 FROM {{ ref('staging__zernio__linkedin_posts') }} posts
 LEFT JOIN {{ ref('staging__zernio__linkedin_post_analytics') }} analytics ON posts.post_id = analytics.post_id
-
-

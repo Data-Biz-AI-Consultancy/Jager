@@ -21,4 +21,5 @@ SELECT
   total_interactions AS total_interactions,
   engagement_rate AS engagement_rate,
   calculated_at_berlin AS calculated_at_berlin
-FROM {{ ref('int_linkedin_personal_post_engagement') }}
+FROM {{ ref('intermediate__linkedin__personal_post_engagement') }}
+
