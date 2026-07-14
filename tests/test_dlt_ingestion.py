@@ -3,8 +3,9 @@ import sys
 import pytest
 from unittest.mock import MagicMock, patch
 
-# Add src/dlt to Python path so we can import the modules
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/dlt')))
+# Add src/data_pipelines to Python path so we can import the modules
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/data_pipelines')))
+
 
 # Mock DLT and its destination module to avoid actual MotherDuck initialization during imports
 sys.modules['dlt'] = MagicMock()
