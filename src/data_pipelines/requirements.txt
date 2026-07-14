@@ -4,3 +4,6 @@ psycopg2-binary==2.9.9
 sqlalchemy==2.0.30
 pydantic==2.7.2
 dlt[duckdb,parquet]>=1.0.0
+dbt-core>=1.7.0
+dbt-duckdb>=1.7.0
+

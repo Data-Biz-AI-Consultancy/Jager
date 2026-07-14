@@ -1,0 +1,6 @@
+jager_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "md:{{ env_var('MOTHERDUCK_DATABASE', 'staging') }}"
