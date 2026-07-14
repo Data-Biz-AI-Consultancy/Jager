@@ -52,7 +52,7 @@ services:
       - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
       - MOTHERDUCK_HOST=${MOTHERDUCK_HOST:-pg.us-east-1-aws.motherduck.com}
       - MOTHERDUCK_USER=${MOTHERDUCK_USER:-postgres}
-      - DLT_SERVICE_URL=${DLT_SERVICE_URL:-http://dlt:8000}
+      - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://data-pipeline:8000}
     depends_on:
       - db
     volumes:
@@ -74,7 +74,7 @@ services:
     depends_on:
       - db
 
-  dlt:
+  data-pipeline:
     build:
       context: ./
       dockerfile: src/dlt/Dockerfile

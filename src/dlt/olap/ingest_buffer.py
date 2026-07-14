@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import dlt
+from dlt.destinations import motherduck
 from sqlalchemy import create_engine, text
 
 # Set up logging
@@ -34,20 +35,25 @@ def run_ingestion():
             result = conn.execute(text("SELECT id, text, channel_id, due_at, status, assets, metrics, reactions, comments, shares, reposts, clicks, reach, impressions, views, engagement_rate, created_at, updated_at, processed FROM s_buffer.posts"))
             for row in result:
                 row_dict = dict(row._mapping)
+                if row_dict.get("engagement_rate") is not None:
+                    row_dict["engagement_rate"] = float(row_dict["engagement_rate"])
                 yield row_dict
 
-    # Form MotherDuck credentials
-    md_credentials = f"md://{motherduck_database}?token={motherduck_token}"
-
-    logger.info(f"Starting DLT pipeline with destination MotherDuck (database: {motherduck_database})")
+    logger.info(f"Starting DLT pipeline")
     pipeline = dlt.pipeline(
         pipeline_name="buffer_ingestion",
-        destination="duckdb",
+        destination=motherduck(
+            credentials={
+                "database": motherduck_database,
+                "password": motherduck_token
+            },
+            loader_file_format="jsonl"
+        ),
         dataset_name="s_buffer",  # Target schema name
     )
 
     # Run the pipeline
-    load_info = pipeline.run([get_channels, get_posts], credentials=md_credentials)
+    load_info = pipeline.run([get_channels, get_posts])
     logger.info(f"Pipeline execution completed successfully:\n{load_info}")
 
 if __name__ == "__main__":

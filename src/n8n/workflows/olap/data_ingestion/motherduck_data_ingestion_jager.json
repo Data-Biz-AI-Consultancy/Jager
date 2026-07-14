@@ -22,7 +22,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DLT_SERVICE_URL || 'http://dlt:8000' }}/run/ingest_buffer",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_buffer",
         "options": {}
       },
       "id": "trigger-buffer-ingestion",
