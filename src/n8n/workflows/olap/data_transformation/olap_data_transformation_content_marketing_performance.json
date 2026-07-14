@@ -16,7 +16,7 @@
       "typeVersion": 1.2,
       "position": [
         112,
-        300
+        304
       ]
     },
     {
@@ -30,8 +30,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        300,
-        300
+        304,
+        304
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -53,7 +53,7 @@
       "typeVersion": 2.5,
       "position": [
         480,
-        300
+        304
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -74,8 +74,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        660,
-        300
+        672,
+        304
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -96,8 +96,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        840,
-        300
+        848,
+        304
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -154,7 +154,7 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
