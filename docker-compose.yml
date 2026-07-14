@@ -77,7 +77,7 @@ services:
   data-pipeline:
     build:
       context: ./
-      dockerfile: src/dlt/Dockerfile
+      dockerfile: src/data_pipelines/Dockerfile
     restart: always
     environment:
       - DATABASE_URL=postgresql://jager:jager@db:5432/jager

@@ -1,8 +1,9 @@
-# DLT Ingestion Pipelines
+# Data Pipelines Application
 
-This directory contains the Python scripts and configurations for data ingestion using **dlt** (Data Load Tool). 
+This is a data pipeline application written in Python. It contains scripts and configurations for orchestrating data ingestion using **dlt** (Data Load Tool) and transformations using **dbt** (Data Build Tool).
 
 The service is packaged inside the **`data-pipeline`** container service.
+
 
 ## Directory Structure
 

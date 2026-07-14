@@ -9,10 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY src/dlt/requirements.txt .
+COPY src/data_pipelines/requirements.txt .
 RUN uv pip install --system --no-cache -r requirements.txt
 
-COPY src/dlt/ .
+COPY src/data_pipelines/ .
+
 
 EXPOSE 8000
 
