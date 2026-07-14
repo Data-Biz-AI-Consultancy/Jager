@@ -4,3 +4,7 @@ jager_dbt:
     dev:
       type: duckdb
       path: "md:{{ env_var('MOTHERDUCK_DATABASE', 'staging') }}"
+    ci:
+      type: duckdb
+      path: /tmp/jager_ci.duckdb
+
