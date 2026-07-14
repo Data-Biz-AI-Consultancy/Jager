@@ -33,6 +33,21 @@
         350,
         304
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_zernio",
+        "options": {}
+      },
+      "id": "trigger-zernio-ingestion",
+      "name": "Trigger Zernio Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        550,
+        304
+      ]
     }
   ],
   "connections": {
@@ -41,6 +56,17 @@
         [
           {
             "node": "Trigger Buffer Ingestion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Buffer Ingestion": {
+      "main": [
+        [
+          {
+            "node": "Trigger Zernio Ingestion",
             "type": "main",
             "index": 0
           }
