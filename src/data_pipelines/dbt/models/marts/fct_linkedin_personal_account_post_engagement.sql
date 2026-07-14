@@ -1,6 +1,7 @@
 {{ config(
     materialized='table',
-    schema='marts'
+    schema='marts',
+    alias='fct_linkedin_personal_account_post_engagement'
 ) }}
 
 SELECT 

@@ -1,6 +1,7 @@
 {{ config(
     materialized='view',
-    schema='staging'
+    schema='staging',
+    alias='stg_zernio__linkedin_post_analytics'
 ) }}
 
 SELECT 

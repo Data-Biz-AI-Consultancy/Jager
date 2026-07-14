@@ -1,6 +1,7 @@
 {{ config(
     materialized='view',
-    schema='intermediate'
+    schema='intermediate',
+    alias='int_linkedin_personal_post_engagement'
 ) }}
 
 WITH personal_posts_joined AS (

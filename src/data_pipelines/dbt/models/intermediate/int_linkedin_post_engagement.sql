@@ -1,6 +1,7 @@
 {{ config(
     materialized='view',
-    schema='intermediate'
+    schema='intermediate',
+    alias='int_linkedin_post_engagement'
 ) }}
 
 SELECT 

@@ -1,6 +1,7 @@
 {{ config(
     materialized='view',
-    schema='staging'
+    schema='staging',
+    alias='stg_linkedin__social_action_likes'
 ) }}
 
 SELECT 
