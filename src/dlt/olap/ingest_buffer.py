@@ -1,5 +1,11 @@
+import os
+import sys
 import dlt
 from sqlalchemy import text
+
+# Add parent directory of the script's directory to sys.path to resolve 'olap'
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from olap.utils import setup_logging, get_db_engine, create_motherduck_pipeline
 
 # Set up logging
