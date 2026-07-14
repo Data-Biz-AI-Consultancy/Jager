@@ -5,91 +5,91 @@
 ) }}
 
 WITH personal_posts_joined AS (
-
   SELECT 
-    p.post_id AS urn,
-    regexp_replace(p.post_id, '^.*:', '') AS linkedin_post_id,
-    p.content AS content,
-    p.post_url AS post_url,
-    p.published_at_berlin AS published_at_berlin,
-    COALESCE(l.likes_count, 0) AS likes_count,
-    COALESCE(c.comments_count, 0) AS comments_count
-  FROM {{ ref('staging__linkedin__ugc_posts') }} p
-  LEFT JOIN {{ ref('staging__linkedin__social_action_likes') }} l ON p.post_id = l.post_id
-  LEFT JOIN {{ ref('staging__linkedin__social_action_comments') }} c ON p.post_id = c.post_id
+    ugc_posts.post_id AS urn,
+    regexp_replace(ugc_posts.post_id, '^.*:', '') AS linkedin_post_id,
+    ugc_posts.content AS content,
+    ugc_posts.post_url AS post_url,
+    ugc_posts.published_at_berlin AS published_at_berlin,
+    COALESCE(likes.likes_count, 0) AS likes_count,
+    COALESCE(comments.comments_count, 0) AS comments_count
+  FROM {{ ref('staging__linkedin__ugc_posts') }} ugc_posts
+  LEFT JOIN {{ ref('staging__linkedin__social_action_likes') }} likes ON ugc_posts.post_id = likes.post_id
+  LEFT JOIN {{ ref('staging__linkedin__social_action_comments') }} comments ON ugc_posts.post_id = comments.post_id
 ),
 -- Pick the single closest Buffer post per LinkedIn post (within 5 min)
 linkedin_enriched AS (
-  SELECT DISTINCT ON (p.linkedin_post_id)
-    p.linkedin_post_id::TEXT AS linkedin_post_id,
-    p.urn::TEXT AS urn,
-    p.content,
-    p.post_url,
-    p.published_at_berlin,
-    p.likes_count,
-    p.comments_count,
-    COALESCE(b.impressions, 0) AS impressions,
-    COALESCE(b.likes, 0)    AS buf_likes,
-    COALESCE(b.comments, 0) AS buf_comments,
-    COALESCE(b.shares, 0)   AS buf_shares,
-    COALESCE(b.reposts, 0)  AS buf_reposts,
-    COALESCE(b.clicks, 0)   AS buf_clicks
-  FROM personal_posts_joined p
-  LEFT JOIN {{ ref('staging__buffer__linkedin_posts') }} b
-    ON ABS(epoch(p.published_at_berlin) - epoch(b.published_at_berlin)) < 300
-  ORDER BY p.linkedin_post_id, ABS(epoch(p.published_at_berlin) - epoch(b.published_at_berlin)) ASC
+  SELECT DISTINCT ON (personal_posts.linkedin_post_id)
+    personal_posts.linkedin_post_id::TEXT AS linkedin_post_id,
+    personal_posts.urn::TEXT AS urn,
+    personal_posts.content,
+    personal_posts.post_url,
+    personal_posts.published_at_berlin,
+    personal_posts.likes_count,
+    personal_posts.comments_count,
+    COALESCE(buffer_posts.impressions, 0) AS impressions,
+    COALESCE(buffer_posts.likes, 0)    AS buf_likes,
+    COALESCE(buffer_posts.comments, 0) AS buf_comments,
+    COALESCE(buffer_posts.shares, 0)   AS buf_shares,
+    COALESCE(buffer_posts.reposts, 0)  AS buf_reposts,
+    COALESCE(buffer_posts.clicks, 0)   AS buf_clicks
+  FROM personal_posts_joined personal_posts
+  LEFT JOIN {{ ref('staging__buffer__linkedin_posts') }} buffer_posts
+    ON ABS(epoch(personal_posts.published_at_berlin) - epoch(buffer_posts.published_at_berlin)) < 300
+  ORDER BY personal_posts.linkedin_post_id, ABS(epoch(personal_posts.published_at_berlin) - epoch(buffer_posts.published_at_berlin)) ASC
 ),
 -- Buffer posts with no LinkedIn match within 5 min (keep them for completeness)
 buffer_unmatched AS (
-  SELECT b.*
-  FROM {{ ref('staging__buffer__linkedin_posts') }} b
+  SELECT buffer_posts.*
+  FROM {{ ref('staging__buffer__linkedin_posts') }} buffer_posts
   WHERE NOT EXISTS (
-    SELECT 1 FROM personal_posts_joined p
-    WHERE ABS(epoch(p.published_at_berlin) - epoch(b.published_at_berlin)) < 300
+    SELECT 1 FROM personal_posts_joined personal_posts
+    WHERE ABS(epoch(personal_posts.published_at_berlin) - epoch(buffer_posts.published_at_berlin)) < 300
   )
 )
 SELECT
-  e.linkedin_post_id AS linkedin_post_id,
-  e.urn AS urn,
-  e.content AS content,
-  e.post_url AS post_url,
-  e.published_at_berlin AS published_at_berlin,
-  e.impressions AS impressions,
-  GREATEST(e.likes_count, e.buf_likes) AS likes,
-  GREATEST(e.comments_count, e.buf_comments) AS comments,
-  e.buf_shares AS shares,
-  e.buf_reposts AS reposts,
-  e.buf_clicks AS clicks,
+  linkedin_enriched.linkedin_post_id AS linkedin_post_id,
+  linkedin_enriched.urn AS urn,
+  linkedin_enriched.content AS content,
+  linkedin_enriched.post_url AS post_url,
+  linkedin_enriched.published_at_berlin AS published_at_berlin,
+  linkedin_enriched.impressions AS impressions,
+  GREATEST(linkedin_enriched.likes_count, linkedin_enriched.buf_likes) AS likes,
+  GREATEST(linkedin_enriched.comments_count, linkedin_enriched.buf_comments) AS comments,
+  linkedin_enriched.buf_shares AS shares,
+  linkedin_enriched.buf_reposts AS reposts,
+  linkedin_enriched.buf_clicks AS clicks,
   0 AS saves,
   0 AS sends,
-  (GREATEST(e.likes_count, e.buf_likes) + GREATEST(e.comments_count, e.buf_comments) + e.buf_shares + e.buf_reposts + e.buf_clicks) AS total_interactions,
-  CASE WHEN e.impressions > 0 THEN
-    ROUND(CAST(GREATEST(e.likes_count, e.buf_likes) + GREATEST(e.comments_count, e.buf_comments) + e.buf_shares + e.buf_reposts + e.buf_clicks AS NUMERIC) / e.impressions, 4)
+  (GREATEST(linkedin_enriched.likes_count, linkedin_enriched.buf_likes) + GREATEST(linkedin_enriched.comments_count, linkedin_enriched.buf_comments) + linkedin_enriched.buf_shares + linkedin_enriched.buf_reposts + linkedin_enriched.buf_clicks) AS total_interactions,
+  CASE WHEN linkedin_enriched.impressions > 0 THEN
+    ROUND(CAST(GREATEST(linkedin_enriched.likes_count, linkedin_enriched.buf_likes) + GREATEST(linkedin_enriched.comments_count, linkedin_enriched.buf_comments) + linkedin_enriched.buf_shares + linkedin_enriched.buf_reposts + linkedin_enriched.buf_clicks AS NUMERIC) / linkedin_enriched.impressions, 4)
     ELSE 0.0000
   END AS engagement_rate,
   NOW() AT TIME ZONE 'Europe/Berlin' AS calculated_at_berlin
-FROM linkedin_enriched e
+FROM linkedin_enriched
 
 UNION ALL
 
 SELECT
-  bm.buffer_post_id::TEXT AS linkedin_post_id,
+  buffer_unmatched.buffer_post_id::TEXT AS linkedin_post_id,
   NULL::TEXT AS urn,
-  bm.content AS content,
+  buffer_unmatched.content AS content,
   NULL::TEXT AS post_url,
-  bm.published_at_berlin AS published_at_berlin,
-  bm.impressions AS impressions,
-  bm.likes AS likes,
-  bm.comments AS comments,
-  bm.shares AS shares,
-  bm.reposts AS reposts,
-  bm.clicks AS clicks,
+  buffer_unmatched.published_at_berlin AS published_at_berlin,
+  buffer_unmatched.impressions AS impressions,
+  buffer_unmatched.likes AS likes,
+  buffer_unmatched.comments AS comments,
+  buffer_unmatched.shares AS shares,
+  buffer_unmatched.reposts AS reposts,
+  buffer_unmatched.clicks AS clicks,
   0 AS saves,
   0 AS sends,
-  (bm.likes + bm.comments + bm.shares + bm.reposts + bm.clicks) AS total_interactions,
-  CASE WHEN bm.impressions > 0 THEN
-    ROUND(CAST(bm.likes + bm.comments + bm.shares + bm.reposts + bm.clicks AS NUMERIC) / bm.impressions, 4)
+  (buffer_unmatched.likes + buffer_unmatched.comments + buffer_unmatched.shares + buffer_unmatched.reposts + buffer_unmatched.clicks) AS total_interactions,
+  CASE WHEN buffer_unmatched.impressions > 0 THEN
+    ROUND(CAST(buffer_unmatched.likes + buffer_unmatched.comments + buffer_unmatched.shares + buffer_unmatched.reposts + buffer_unmatched.clicks AS NUMERIC) / buffer_unmatched.impressions, 4)
     ELSE 0.0000
   END AS engagement_rate,
   NOW() AT TIME ZONE 'Europe/Berlin' AS calculated_at_berlin
-FROM buffer_unmatched bm
+FROM buffer_unmatched
+
