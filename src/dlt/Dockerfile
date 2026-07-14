@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY src/dlt/requirements.txt .
 RUN uv pip install --system --no-cache -r requirements.txt
 
-COPY src/dlt/*.py .
+COPY src/dlt/ .
 
 EXPOSE 8000
 

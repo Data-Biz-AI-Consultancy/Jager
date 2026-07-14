@@ -14,7 +14,7 @@ def run_ingest_buffer():
     try:
         # Execute the python script as a subprocess
         result = subprocess.run(
-            ["python", "ingest_buffer.py"],
+            ["python", "olap/ingest_buffer.py"],
             capture_output=True,
             text=True,
             check=True
