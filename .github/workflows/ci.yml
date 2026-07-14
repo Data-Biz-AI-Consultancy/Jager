@@ -11,7 +11,7 @@ on:
       - master
 
 jobs:
-  test-dockerfile:
+  test-docker:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -24,6 +24,19 @@ jobs:
 
       - name: Run Dockerfile Context Unit Test
         run: node tests/test-dockerfile.js
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Dry run Docker Compose stack build and configuration
+        run: |
+          touch .env
+          echo "SLACK_OAUTH_TOKEN=dummy" >> .env
+          echo "SLACK_APP_TOKEN=dummy" >> .env
+          echo "OLLAMA_API_KEY=dummy" >> .env
+          echo "LINKEDIN_MEMBER_DATA_PORTABILITY_API_TOKEN=dummy" >> .env
+
+          docker compose --dry-run up --build
 
   test-python:
     runs-on: ubuntu-latest
@@ -43,25 +56,6 @@ jobs:
 
       - name: Run Python Backend Tests
         run: uv run --with pytest --with scikit-learn --with pandas --with fastapi --with httpx --with numpy --with sqlalchemy --with dlt pytest tests/
-
-  test-docker-compose:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Dry run Docker Compose stack build and configuration
-        run: |
-          touch .env
-          echo "SLACK_OAUTH_TOKEN=dummy" >> .env
-          echo "SLACK_APP_TOKEN=dummy" >> .env
-          echo "OLLAMA_API_KEY=dummy" >> .env
-          echo "LINKEDIN_MEMBER_DATA_PORTABILITY_API_TOKEN=dummy" >> .env
-
-          docker compose --dry-run up --build
 
   dbt-compile:
     runs-on: ubuntu-latest
