@@ -1,13 +1,14 @@
 {
   "id": "olap-dbt-transform-motherduck",
-
   "name": "OLAP Data Transformation - dbt Core Motherduck",
   "nodes": [
     {
       "parameters": {
         "rule": {
           "interval": [
-            {}
+            {
+              "triggerAtHour": 7
+            }
           ]
         }
       },
