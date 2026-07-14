@@ -140,4 +140,37 @@ def run_ingest_substack():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/run/dbt_transform")
+def run_dbt_transform():
+    logger.info("Triggered dbt pipeline execution")
+    try:
+        # Execute the dbt build command as a subprocess
+        result = subprocess.run(
+            ["dbt", "build", "--project-dir", "dbt", "--profiles-dir", "dbt"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        logger.info("dbt execution succeeded")
+        return {
+            "status": "success",
+            "stdout": result.stdout,
+            "stderr": result.stderr
+        }
+    except subprocess.CalledProcessError as e:
+        logger.error(f"dbt execution failed: {e.stderr}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "dbt execution failed",
+                "exit_code": e.returncode,
+                "stdout": e.stdout,
+                "stderr": e.stderr
+            }
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during dbt run: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
