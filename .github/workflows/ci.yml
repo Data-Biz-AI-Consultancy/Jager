@@ -36,8 +36,8 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Run Python ML Backend Tests
-        run: uv run --with pytest --with scikit-learn --with pandas --with fastapi --with httpx --with numpy pytest tests/
+      - name: Run Python Backend Tests
+        run: uv run --with pytest --with scikit-learn --with pandas --with fastapi --with httpx --with numpy --with sqlalchemy --with dlt pytest tests/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

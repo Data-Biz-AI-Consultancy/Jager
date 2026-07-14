@@ -48,6 +48,21 @@
         350,
         404
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_linkedin",
+        "options": {}
+      },
+      "id": "trigger-linkedin-ingestion",
+      "name": "Trigger LinkedIn Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        350,
+        604
+      ]
     }
   ],
   "connections": {
@@ -61,6 +76,11 @@
           },
           {
             "node": "Trigger Zernio Ingestion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger LinkedIn Ingestion",
             "type": "main",
             "index": 0
           }
