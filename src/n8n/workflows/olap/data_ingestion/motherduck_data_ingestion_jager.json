@@ -63,6 +63,21 @@
         336,
         592
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_substack",
+        "options": {}
+      },
+      "id": "trigger-substack-ingestion",
+      "name": "Trigger Substack Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        336,
+        784
+      ]
     }
   ],
   "connections": {
@@ -81,6 +96,11 @@
           },
           {
             "node": "Trigger LinkedIn Ingestion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Substack Ingestion",
             "type": "main",
             "index": 0
           }

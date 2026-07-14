@@ -71,3 +71,17 @@ def test_ingest_zernio(mock_dlt_utils):
         dataset_name="s_zernio"
     )
     mock_dlt_utils['pipeline_inst'].run.assert_called_once()
+
+def test_ingest_substack(mock_dlt_utils):
+    from olap import ingest_substack
+    
+    mock_dlt_utils['connection'].execute.return_value = []
+    
+    ingest_substack.run_ingestion()
+    
+    mock_dlt_utils['pipeline'].assert_called_once_with(
+        pipeline_name="substack_ingestion",
+        dataset_name="s_substack"
+    )
+    mock_dlt_utils['pipeline_inst'].run.assert_called_once()
+
