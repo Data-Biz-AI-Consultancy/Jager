@@ -18,6 +18,9 @@ def run_ingestion():
         logger.error("MOTHERDUCK_TOKEN environment variable is not set")
         sys.exit(1)
 
+    # Set DLT configurations
+    os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
+
     logger.info(f"Connecting to PostgreSQL database")
     engine = create_engine(pg_url)
 
@@ -41,7 +44,7 @@ def run_ingestion():
 
     logger.info(f"Starting DLT pipeline")
     pipeline = dlt.pipeline(
-        pipeline_name="buffer_ingestion",
+        pipeline_name="buffer_ingestion_v2",
         destination=motherduck(
             credentials={
                 "database": motherduck_database,
