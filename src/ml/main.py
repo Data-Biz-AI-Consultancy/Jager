@@ -7,6 +7,8 @@ from sqlalchemy import create_engine, text
 from train import train_model
 from predict import generate_predictions
 from backtest import run_backtest
+from linkedin_publishing_timeslot.linkedin_timeslot import train_and_predict_timeslots
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -129,3 +131,14 @@ def backtest_model(req: BacktestRequest):
     except Exception as e:
         logger.error(f"Unexpected error during backtest execution: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error occurred.")
+
+@app.post("/linkedin-timeslot/train-predict")
+def run_linkedin_timeslot_pipeline():
+    logger.info("Received request to train and predict LinkedIn best publishing timeslots.")
+    try:
+        res = train_and_predict_timeslots()
+        return res
+    except Exception as e:
+        logger.error(f"Error executing LinkedIn timeslots ML pipeline: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+

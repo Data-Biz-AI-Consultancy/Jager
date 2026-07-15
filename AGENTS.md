@@ -32,5 +32,9 @@
 ## Documentation Integrity
 - Always keep project README files (e.g. `README.md` at all levels) up to date when folders, scripts, configurations, or workflow files are added, moved, or deleted.
 
+## Machine Learning Service Conventions
+- In `src/ml`, organize ML scripts and pipelines inside subfolders based on use case (1 use case, 1 subfolder rule). Avoid placing use-case-specific files directly in the root of `src/ml`.
+
+
 
 

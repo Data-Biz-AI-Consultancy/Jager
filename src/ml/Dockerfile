@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY src/ml/requirements.txt .
 RUN uv pip install --system --no-cache -r requirements.txt
 
-COPY src/ml/*.py .
+COPY src/ml/ .
 
 EXPOSE 8000
 
