@@ -221,6 +221,7 @@ def test_linkedin_timeslot_train_validate():
         assert res['results']['personal']['status'] == 'trained'
         
         # Verify executed commands
+        mock_duckdb_conn.execute.assert_any_call("CREATE SCHEMA IF NOT EXISTS ds_features;")
         mock_duckdb_conn.execute.assert_any_call("CREATE SCHEMA IF NOT EXISTS ds_training;")
         mock_duckdb_conn.execute.assert_any_call("CREATE SCHEMA IF NOT EXISTS ds_prediction;")
 
@@ -279,5 +280,4 @@ def test_api_linkedin_timeslot_predict():
         data = response.json()
         assert data['status'] == "success"
         assert data['results']['personal']['prediction_type'] == 'ml_model'
-
 

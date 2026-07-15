@@ -21,9 +21,44 @@ def get_motherduck_connection():
     return duckdb.connect(connection_str)
 
 def initialize_schemas(conn):
-    logger.info("Initializing ds_training and ds_prediction schemas in MotherDuck if not exist...")
+    logger.info("Initializing ds_features, ds_training, and ds_prediction schemas in MotherDuck if not exist...")
+    conn.execute("CREATE SCHEMA IF NOT EXISTS ds_features;")
     conn.execute("CREATE SCHEMA IF NOT EXISTS ds_training;")
     conn.execute("CREATE SCHEMA IF NOT EXISTS ds_prediction;")
+
+    # Create a lightweight feature catalog for discoverability.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ds_features.feature_catalog (
+            feature_name VARCHAR(100),
+            feature_table VARCHAR(100),
+            entity_type VARCHAR(100),
+            data_type VARCHAR(50),
+            description VARCHAR(500),
+            owner VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_active BOOLEAN DEFAULT TRUE
+        );
+    """)
+
+    # Reusable post-level features for LinkedIn publishing-time models.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ds_features.linkedin_post_engagement_features (
+            feature_row_id BIGINT,
+            source_table VARCHAR(150),
+            channel_type VARCHAR(50),
+            published_at_berlin TIMESTAMP,
+            day_of_week INTEGER,
+            day_name VARCHAR(20),
+            hour_of_day INTEGER,
+            hour_bucket VARCHAR(20),
+            is_weekend BOOLEAN,
+            is_business_hour BOOLEAN,
+            impressions DOUBLE,
+            total_interactions DOUBLE,
+            engagement_rate DOUBLE,
+            feature_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
     
     # Create prediction recommendations table
     conn.execute("""
