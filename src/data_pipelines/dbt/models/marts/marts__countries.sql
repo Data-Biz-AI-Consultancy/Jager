@@ -1,7 +1,7 @@
 {{ config(
     materialized='table',
     schema='marts',
-    alias='dim_nager__countries'
+    alias='dim_countries'
 ) }}
 
 SELECT 

@@ -1,7 +1,7 @@
 {{ config(
     materialized='table',
     schema='marts',
-    alias='dim_nager__public_holidays'
+    alias='dim_public_holidays'
 ) }}
 
 SELECT 
