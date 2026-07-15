@@ -20,6 +20,8 @@
 ### Marts Models
 - For all marts models in the dbt project (located under `dbt/models/marts/`), the SQL file name must always be prefixed with `marts__` followed by the domain and a double underscore (e.g., `marts__linkedin__company_page_post_engagement.sql`).
 - The `alias` in the config block uses the `fct_` (or `dim_`) prefix (e.g., `alias='fct_linkedin_company_page_post_engagement'`), while the file name uses the `marts__` prefix.
+- Marts models representing core business concepts or shared dimensions should be named in an application-agnostic manner without the application name prefix (e.g., use `marts__countries.sql` with alias `dim_countries` instead of `marts__nager__countries.sql` with alias `dim_nager__countries`).
+
 
 
 ### SQL Coding Style (Table Aliasing)
