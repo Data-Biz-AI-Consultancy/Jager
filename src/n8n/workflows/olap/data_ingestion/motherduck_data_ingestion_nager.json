@@ -1,6 +1,6 @@
 {
-  "id": "motherduck-data-ingestion-holiday",
-  "name": "MotherDuck Data Ingestion - Holiday",
+  "id": "motherduck-data-ingestion-nager",
+  "name": "MotherDuck Data Ingestion - Nager",
   "nodes": [
     {
       "parameters": {
@@ -24,11 +24,11 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_holiday",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_nager",
         "options": {}
       },
-      "id": "trigger-holiday-ingestion",
-      "name": "Trigger Holiday Ingestion",
+      "id": "trigger-nager-ingestion",
+      "name": "Trigger Nager Ingestion",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -42,7 +42,7 @@
       "main": [
         [
           {
-            "node": "Trigger Holiday Ingestion",
+            "node": "Trigger Nager Ingestion",
             "type": "main",
             "index": 0
           }

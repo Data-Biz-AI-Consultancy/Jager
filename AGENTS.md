@@ -35,6 +35,10 @@
 ## Machine Learning Service Conventions
 - In `src/ml`, organize ML scripts and pipelines inside subfolders based on use case (1 use case, 1 subfolder rule). Avoid placing use-case-specific files directly in the root of `src/ml`.
 
+## Data Source Naming Conventions
+- Always use the specific data source application name to name files, directories, database schemas/datasets, and endpoints representing that data source (e.g., use `nager` instead of generic `holiday`).
+
+
 
 
 

@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from olap.utils import setup_logging, create_motherduck_pipeline
 
 # Set up logging
-logger = setup_logging("ingest-holiday")
+logger = setup_logging("ingest-nager")
 
 def fetch_json(url):
     req = urllib.request.Request(
@@ -57,10 +57,10 @@ def run_ingestion():
                 # Polite rate limiting sleep
                 time.sleep(0.05)
 
-    logger.info("Starting DLT pipeline for public holidays")
+    logger.info("Starting DLT pipeline for Nager public holidays")
     pipeline = create_motherduck_pipeline(
-        pipeline_name="holiday_ingestion",
-        dataset_name="s_holiday",  # Target schema name
+        pipeline_name="nager_ingestion",
+        dataset_name="s_nager",  # Target schema name
     )
 
     # Run the pipeline

@@ -140,13 +140,13 @@ def run_ingest_substack():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/run/ingest_holiday")
-def run_ingest_holiday():
-    logger.info("Triggered ingest_holiday pipeline execution")
+@app.post("/run/ingest_nager")
+def run_ingest_nager():
+    logger.info("Triggered ingest_nager pipeline execution")
     try:
         # Execute the python script as a subprocess
         result = subprocess.run(
-            ["python", "olap/ingest_holiday.py"],
+            ["python", "olap/ingest_nager.py"],
             capture_output=True,
             text=True,
             check=True
@@ -171,6 +171,7 @@ def run_ingest_holiday():
     except Exception as e:
         logger.error(f"Unexpected error during pipeline run: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 
