@@ -45,7 +45,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT title, cleaned_content FROM m_staging.substack_posts WHERE published_at >= NOW() - INTERVAL '60 days' AND author = 'Jimmy Pang' AND cleaned_content IS NOT NULL AND TRIM(cleaned_content) != '' ORDER BY published_at DESC;",
+        "query": "SELECT title, cleaned_content, published_at FROM m_staging.substack_posts WHERE published_at >= NOW() - INTERVAL '60 days' AND author = 'Jimmy Pang' AND cleaned_content IS NOT NULL AND TRIM(cleaned_content) != '' ORDER BY published_at DESC;",
         "options": {}
       },
       "id": "fetch-recent-substack-posts",
@@ -107,7 +107,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const recentLinkedIn = $('Fetch Recent LinkedIn Posts').all();\nconst recentSubstack = $('Fetch Recent Substack Posts').all();\nconst randomNotion = $('Fetch Random Seed Notion').first()?.json || {};\nconst randomSubstack = $('Fetch Random Seed Substack').first()?.json || {};\nlet queryText = '';\n\nconst allTexts = [];\nrecentLinkedIn.forEach(p => allTexts.push(p.json.content));\nrecentSubstack.forEach(p => allTexts.push(p.json.title + ' ' + p.json.cleaned_content));\nif (randomNotion.title) allTexts.push(randomNotion.title);\nif (randomSubstack.title) allTexts.push(randomSubstack.title);\n\nif (allTexts.length > 0) {\n  const allText = allTexts.join(' ');\n  const words = allText\n    .toLowerCase()\n    .replace(/[^\\w\\s]/g, '')\n    .split(/\\\\s+/)\n    .filter(w => w.length > 4)\n    .filter(w => !['about', 'their', 'there', 'would', 'could', 'should', 'these', 'those', 'where', 'which', 'other', 'another'].includes(w));\n  \n  const freq = {};\n  words.forEach(w => freq[w] = (freq[w] || 0) + 1);\n  \n  const uniqueWords = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);\n  queryText = uniqueWords.slice(0, 15).join(', ');\n}\n\nif (!queryText) {\n  queryText = 'fractional CDO roadmapping governance audit SaaS vendor negotiation, 0-to-1 data infrastructure dbt Snowflake BigQuery, customer acquisition CRM automation, AI voice agent, dashboard fatigue KPI operational metrics EBITDA, principal coaching pipeline tuning event-driven design';\n}\n\nreturn [{ json: { query: queryText } }];"
+        "jsCode": "const randomNotion = $('Fetch Random Seed Notion').first()?.json || {};\nconst randomSubstack = $('Fetch Random Seed Substack').first()?.json || {};\n\nconst useSubstack = Math.random() > 0.5;\nlet queryText = useSubstack ? (randomSubstack.title || randomNotion.title) : (randomNotion.title || randomSubstack.title);\n\nif (!queryText) {\n  queryText = 'fractional CDO roadmapping governance audit SaaS vendor negotiation, 0-to-1 data infrastructure dbt Snowflake BigQuery, customer acquisition CRM automation, AI voice agent, dashboard fatigue KPI operational metrics EBITDA, principal coaching pipeline tuning event-driven design';\n}\n\nreturn [{ json: { query: queryText } }];"
       },
       "id": "prepare-rag-query",
       "name": "Prepare RAG Query",
