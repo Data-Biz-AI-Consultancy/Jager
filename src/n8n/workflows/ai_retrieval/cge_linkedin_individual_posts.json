@@ -121,7 +121,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT json_build_object('pageContent', content || E'\\nEngagement Metrics: ' || 'Likes: ' || likes || ', Comments: ' || comments || ', Shares/Reposts: ' || COALESCE(shares, 0) || ', Engagement Rate: ' || ROUND(engagement_rate * 100, 2) || '%') AS document FROM s_motherduck.fct_linkedin_personal_account_post_engagement WHERE content IS NOT NULL AND TRIM(content) != '' ORDER BY engagement_rate DESC LIMIT 5;",
+        "query": "SELECT json_build_object('pageContent', content || E'\\nEngagement Metrics: ' || 'Likes: ' || likes || ', Comments: ' || comments || ', Shares/Reposts: ' || COALESCE(shares, 0) || ', Engagement Rate: ' || ROUND((engagement_rate * 100)::numeric, 2) || '%') AS document FROM s_motherduck.fct_linkedin_personal_account_post_engagement WHERE content IS NOT NULL AND TRIM(content) != '' ORDER BY engagement_rate DESC LIMIT 5;",
         "options": {}
       },
       "id": "retrieve-top-performing-linkedin-posts",
