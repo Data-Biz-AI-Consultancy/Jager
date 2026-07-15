@@ -36,6 +36,11 @@ sys.modules['sqlalchemy'] = mock.MagicMock()
 import sqlalchemy
 sqlalchemy.create_engine.return_value = mock_engine
 
+# Global mock for duckdb to avoid dependency errors in environments where duckdb is not installed
+sys.modules['duckdb'] = mock.MagicMock()
+import duckdb
+
+
 # Mock pandas read_sql
 @pytest.fixture(autouse=True)
 def mock_pandas_read_sql():
