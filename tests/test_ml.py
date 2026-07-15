@@ -202,8 +202,8 @@ def test_linkedin_timeslot_train_validate():
     # For SHOW TABLES IN ds_training query
     mock_duckdb_conn.execute.return_value.fetchall.return_value = [('model_registry',)]
     
-    with mock.patch('utils.get_motherduck_connection', return_value=mock_duckdb_conn):
-        from linkedin_publishing_timeslot.linkedin_timeslot import train_and_validate
+    with mock.patch('linkedin_publishing_timeslot.train_pipeline.get_motherduck_connection', return_value=mock_duckdb_conn):
+        from linkedin_publishing_timeslot.train_pipeline import train_and_validate
         res = train_and_validate()
         
         assert res['status'] == "success"
@@ -223,10 +223,12 @@ def test_linkedin_timeslot_generate_predictions():
     dummy_model = mock.MagicMock()
     dummy_model.predict.return_value = np.zeros(168)
     
-    with mock.patch('utils.get_motherduck_connection', return_value=mock_duckdb_conn), \
+    with mock.patch('linkedin_publishing_timeslot.predict_pipeline.get_motherduck_connection', return_value=mock_duckdb_conn), \
          mock.patch('pickle.loads', return_value=dummy_model):
-        from linkedin_publishing_timeslot.linkedin_timeslot import generate_predictions as generate_linkedin_predictions
+        from linkedin_publishing_timeslot.predict_pipeline import generate_predictions as generate_linkedin_predictions
         res = generate_linkedin_predictions()
+
+
 
         
         assert res['status'] == "success"

@@ -1,8 +1,12 @@
 import os
 import logging
 import duckdb
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logger = logging.getLogger("ml-service.utils")
+
 
 def get_motherduck_connection():
     motherduck_token = os.getenv("MOTHERDUCK_TOKEN")

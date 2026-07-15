@@ -7,7 +7,8 @@ from sqlalchemy import create_engine, text
 from train import train_model
 from predict import generate_predictions
 from backtest import run_backtest
-from linkedin_publishing_timeslot.linkedin_timeslot import train_and_validate, generate_predictions as generate_linkedin_predictions
+from linkedin_publishing_timeslot.train_pipeline import train_and_validate
+from linkedin_publishing_timeslot.predict_pipeline import generate_predictions as generate_linkedin_predictions
 
 
 # Set up logging

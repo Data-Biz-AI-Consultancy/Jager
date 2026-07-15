@@ -1,20 +1,12 @@
-import os
-import logging
 import datetime
-import json
 import pickle
-import duckdb
+import logging
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
-from dotenv import load_dotenv
-
-load_dotenv()
-
-logger = logging.getLogger("ml-service.linkedin_timeslot")
-
 from utils import get_motherduck_connection, initialize_schemas
 
+logger = logging.getLogger("ml-service.linkedin_timeslot.train")
 
 def fetch_historical_data(conn):
     logger.info("Fetching historical LinkedIn post engagement data from marts...")
@@ -131,7 +123,6 @@ def train_and_validate():
             
             # Insert using DuckDB registered dataframe query
             conn.execute("INSERT INTO ds_training.validation_results (channel_type, published_at_berlin, day_of_week, hour_of_day, actual_engagement_rate, predicted_engagement_rate, absolute_error) SELECT channel_type, published_at_berlin, day_of_week, hour_of_day, actual_engagement_rate, predicted_engagement_rate, absolute_error FROM df_val_insert;")
-
             
             # Serialize model and save in ds_training model registry
             model_bytes = pickle.dumps(model)
@@ -152,64 +143,12 @@ def train_and_validate():
                 INSERT INTO ds_prediction.model_metadata (model_name, channel_type, trained_at, r2_score, val_mae, sample_size, hyperparameters)
                 VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?);
             """, ["random_forest_timeslots", channel, r2, mae, len(df_chan), "n_estimators=50"])
-
             
             results[channel] = {
                 "status": "trained",
                 "sample_size": len(df_chan),
                 "r2_score": r2,
                 "val_mae": mae
-            }
-            
-        return {"status": "success", "results": results}
-    finally:
-        conn.close()
-
-def generate_predictions():
-    conn = get_motherduck_connection()
-    try:
-        initialize_schemas(conn)
-        
-        # Check if we have registered models
-        tables = [t[0] for t in conn.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'ds_training';").fetchall()]
-        has_registry = 'model_registry' in tables
-
-        
-        results = {}
-        for channel in ['personal', 'company']:
-            model = None
-            if has_registry:
-                res = conn.execute("SELECT model_data FROM ds_training.model_registry WHERE channel_type = ?;", [channel]).fetchone()
-                if res:
-                    model = pickle.loads(res[0])
-            
-            if model is None:
-                logger.warning(f"No trained model found for channel {channel}. Generating heuristic predictions.")
-                generate_heuristic_for_channel(conn, channel)
-                results[channel] = {"prediction_type": "heuristic"}
-                continue
-                
-            # Create all 168 candidate slots
-            candidate_slots = []
-            for dow in range(7):
-                for hod in range(24):
-                    candidate_slots.append({'day_of_week': dow, 'hour_of_day': hod})
-                    
-            df_candidates = pd.DataFrame(candidate_slots)
-            preds = model.predict(df_candidates[['day_of_week', 'hour_of_day']].values)
-            df_candidates['predicted_engagement_rate'] = preds
-            df_candidates['channel_type'] = channel
-            
-            df_candidates = df_candidates.sort_values(by='predicted_engagement_rate', ascending=False)
-            df_candidates['recommendation_rank'] = range(1, len(df_candidates) + 1)
-            
-            # Save predictions
-            conn.execute("DELETE FROM ds_prediction.timeslot_recommendations WHERE channel_type = ?;", [channel])
-            conn.execute("INSERT INTO ds_prediction.timeslot_recommendations SELECT channel_type, day_of_week, hour_of_day, predicted_engagement_rate, recommendation_rank, CURRENT_TIMESTAMP FROM df_candidates;")
-            
-            results[channel] = {
-                "prediction_type": "ml_model",
-                "top_slots": df_candidates.head(5)[['day_of_week', 'hour_of_day', 'predicted_engagement_rate']].to_dict(orient='records')
             }
             
         return {"status": "success", "results": results}
