@@ -23,6 +23,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE SCHEMA IF NOT EXISTS s_notion;
 	CREATE SCHEMA IF NOT EXISTS s_zernio;
 	CREATE SCHEMA IF NOT EXISTS s_buffer;
+	CREATE SCHEMA IF NOT EXISTS s_motherduck;
 
 
 	CREATE TABLE IF NOT EXISTS s_reddit.subreddits_monitored (
