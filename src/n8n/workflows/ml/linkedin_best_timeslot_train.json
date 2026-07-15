@@ -7,8 +7,7 @@
         "rule": {
           "interval": [
             {
-              "field": "days",
-              "daysInterval": 7
+              "field": "weeks"
             }
           ]
         }
@@ -18,8 +17,8 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        100,
-        300
+        112,
+        304
       ]
     },
     {
@@ -33,8 +32,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        300,
-        300
+        336,
+        304
       ]
     }
   ],
@@ -51,7 +50,7 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
