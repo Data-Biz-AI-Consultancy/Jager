@@ -24,3 +24,7 @@ models:
     marts:
       +materialized: table
       +schema: marts
+    t_jager:
+      +materialized: table
+      +schema: t_jager
+
