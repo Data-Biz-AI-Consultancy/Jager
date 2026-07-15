@@ -173,4 +173,38 @@ def run_dbt_transform():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/run/reverse_etl")
+def run_reverse_etl():
+    logger.info("Triggered reverse_etl pipeline execution")
+    try:
+        # Execute the python script as a subprocess
+        result = subprocess.run(
+            ["python", "olap/reverse_etl.py"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        logger.info("Pipeline execution succeeded")
+        return {
+            "status": "success",
+            "stdout": result.stdout,
+            "stderr": result.stderr
+        }
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Pipeline execution failed: {e.stderr}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Pipeline execution failed",
+                "exit_code": e.returncode,
+                "stdout": e.stdout,
+                "stderr": e.stderr
+            }
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error during pipeline run: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 
