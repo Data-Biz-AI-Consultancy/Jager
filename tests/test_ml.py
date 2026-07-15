@@ -174,3 +174,57 @@ def test_api_evaluate():
     data = response.json()
     assert data['status'] == "success"
     assert data['evaluated_records_count'] == 1
+
+def test_linkedin_timeslot_train_predict():
+    # Mock duckdb connection and execution
+    mock_duckdb_conn = mock.MagicMock()
+    
+    # Mock fetch_historical_data query results
+    # Simulating data for personal and company posts
+    mock_df_personal = pd.DataFrame({
+        'published_at_berlin': [pd.Timestamp('2026-06-01 10:00:00')]*5,
+        'impressions': [1000]*5,
+        'total_interactions': [50]*5,
+        'engagement_rate': [0.05]*5
+    })
+    
+    mock_df_company = pd.DataFrame({
+        'published_at_berlin': [pd.Timestamp('2026-06-01 12:00:00')]*5,
+        'impressions': [500]*5,
+        'total_interactions': [25]*5,
+        'engagement_rate': [0.05]*5
+    })
+    
+    # Setup mock executes
+    mock_duckdb_conn.execute.return_value.df.side_effect = [mock_df_personal, mock_df_company]
+    
+    with mock.patch('linkedin_publishing_timeslot.linkedin_timeslot.get_motherduck_connection', return_value=mock_duckdb_conn):
+        from linkedin_publishing_timeslot.linkedin_timeslot import train_and_predict_timeslots
+        res = train_and_predict_timeslots()
+        
+        assert res['status'] == "success"
+        assert 'personal' in res['results']
+        assert 'company' in res['results']
+        
+        # Verify executed commands
+        mock_duckdb_conn.execute.assert_any_call("CREATE SCHEMA IF NOT EXISTS ds_training;")
+        mock_duckdb_conn.execute.assert_any_call("CREATE SCHEMA IF NOT EXISTS ds_prediction;")
+
+def test_api_linkedin_timeslot_endpoint():
+    client = TestClient(main.app)
+    
+    with mock.patch('main.train_and_predict_timeslots') as mock_pipeline:
+        mock_pipeline.return_value = {
+            "status": "success",
+            "results": {
+                "personal": {"sample_size": 5, "r2_score": 1.0, "top_slots": []},
+                "company": {"sample_size": 5, "r2_score": 1.0, "top_slots": []}
+            }
+        }
+        
+        response = client.post("/linkedin-timeslot/train-predict")
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == "success"
+        assert 'personal' in data['results']
+
