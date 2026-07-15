@@ -1,0 +1,66 @@
+import os
+import logging
+import duckdb
+from dotenv import load_dotenv
+
+load_dotenv()
+
+logger = logging.getLogger("ml-service.utils")
+
+
+def get_motherduck_connection():
+    motherduck_token = os.getenv("MOTHERDUCK_TOKEN")
+    if not motherduck_token:
+        logger.warning("MOTHERDUCK_TOKEN environment variable not set, attempting to use default connection...")
+    
+    db_name = os.getenv("MOTHERDUCK_DATABASE", "staging")
+    connection_str = f"md:{db_name}"
+    if motherduck_token:
+        connection_str += f"?token={motherduck_token}"
+        
+    return duckdb.connect(connection_str)
+
+def initialize_schemas(conn):
+    logger.info("Initializing ds_training and ds_prediction schemas in MotherDuck if not exist...")
+    conn.execute("CREATE SCHEMA IF NOT EXISTS ds_training;")
+    conn.execute("CREATE SCHEMA IF NOT EXISTS ds_prediction;")
+    
+    # Create prediction recommendations table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ds_prediction.timeslot_recommendations (
+            channel_type VARCHAR(50),
+            day_of_week INTEGER,
+            hour_of_day INTEGER,
+            predicted_engagement_rate DOUBLE,
+            recommendation_rank INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (channel_type, day_of_week, hour_of_day)
+        );
+    """)
+    
+    # Create model metadata table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ds_prediction.model_metadata (
+            model_name VARCHAR(100),
+            channel_type VARCHAR(50),
+            trained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            r2_score DOUBLE,
+            val_mae DOUBLE,
+            sample_size INTEGER,
+            hyperparameters VARCHAR(255)
+        );
+    """)
+    
+    # Create validation results table to store actual vs predicted for audit/monitoring
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ds_training.validation_results (
+            channel_type VARCHAR(50),
+            published_at_berlin TIMESTAMP,
+            day_of_week INTEGER,
+            hour_of_day INTEGER,
+            actual_engagement_rate DOUBLE,
+            predicted_engagement_rate DOUBLE,
+            absolute_error DOUBLE,
+            evaluated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)

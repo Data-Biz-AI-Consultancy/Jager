@@ -1,0 +1,59 @@
+{
+  "id": "linkedin-timeslot-predict",
+  "name": "ML - LinkedIn Publishing Timeslot Prediction",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "daily-prediction-trigger",
+      "name": "Daily Prediction Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/linkedin-timeslot/predict",
+        "options": {}
+      },
+      "id": "call-linkedin-timeslot-predict",
+      "name": "Call Predict Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Daily Prediction Trigger": {
+      "main": [
+        [
+          {
+            "node": "Call Predict Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}

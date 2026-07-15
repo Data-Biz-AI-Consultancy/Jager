@@ -4,7 +4,9 @@ import unittest.mock as mock
 import pytest
 import datetime
 import pandas as pd
+import numpy as np
 import warnings
+
 
 # Suppress deprecation warnings from third-party libraries
 warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
@@ -33,6 +35,15 @@ mock_engine = mock.MagicMock()
 sys.modules['sqlalchemy'] = mock.MagicMock()
 import sqlalchemy
 sqlalchemy.create_engine.return_value = mock_engine
+
+# Global mock for duckdb to avoid dependency errors in environments where duckdb is not installed
+sys.modules['duckdb'] = mock.MagicMock()
+import duckdb
+
+# Global mock for dotenv to avoid dependency errors in environments where python-dotenv is not installed
+mock_dotenv = mock.MagicMock()
+mock_dotenv.load_dotenv = mock.MagicMock(return_value=True)
+sys.modules['dotenv'] = mock_dotenv
 
 # Mock pandas read_sql
 @pytest.fixture(autouse=True)
@@ -174,3 +185,99 @@ def test_api_evaluate():
     data = response.json()
     assert data['status'] == "success"
     assert data['evaluated_records_count'] == 1
+
+def test_linkedin_timeslot_train_validate():
+    # Mock duckdb connection and execution
+    mock_duckdb_conn = mock.MagicMock()
+    
+    # Mock fetch_historical_data query results
+    # Simulating data for personal and company posts
+    mock_df_personal = pd.DataFrame({
+        'published_at_berlin': [pd.Timestamp('2026-06-01 10:00:00') + pd.Timedelta(days=i) for i in range(10)],
+        'impressions': [1000]*10,
+        'total_interactions': [50]*10,
+        'engagement_rate': [0.05]*10
+    })
+    
+    mock_df_company = pd.DataFrame({
+        'published_at_berlin': [pd.Timestamp('2026-06-01 12:00:00') + pd.Timedelta(days=i) for i in range(10)],
+        'impressions': [500]*10,
+        'total_interactions': [25]*10,
+        'engagement_rate': [0.05]*10
+    })
+    
+    # Setup mock executes
+    mock_duckdb_conn.execute.return_value.df.side_effect = [mock_df_personal, mock_df_company]
+    # For SHOW TABLES IN ds_training query
+    mock_duckdb_conn.execute.return_value.fetchall.return_value = [('model_registry',)]
+    
+    with mock.patch('linkedin_publishing_timeslot.train_pipeline.get_motherduck_connection', return_value=mock_duckdb_conn):
+        from linkedin_publishing_timeslot.train_pipeline import train_and_validate
+        res = train_and_validate()
+        
+        assert res['status'] == "success"
+        assert 'personal' in res['results']
+        assert 'company' in res['results']
+        assert res['results']['personal']['status'] == 'trained'
+        
+        # Verify executed commands
+        mock_duckdb_conn.execute.assert_any_call("CREATE SCHEMA IF NOT EXISTS ds_training;")
+        mock_duckdb_conn.execute.assert_any_call("CREATE SCHEMA IF NOT EXISTS ds_prediction;")
+
+def test_linkedin_timeslot_generate_predictions():
+    mock_duckdb_conn = mock.MagicMock()
+    mock_duckdb_conn.execute.return_value.fetchall.return_value = [('model_registry',)]
+    
+    # We mock pickle.loads to return a dummy trained model
+    dummy_model = mock.MagicMock()
+    dummy_model.predict.return_value = np.zeros(168)
+    
+    with mock.patch('linkedin_publishing_timeslot.predict_pipeline.get_motherduck_connection', return_value=mock_duckdb_conn), \
+         mock.patch('pickle.loads', return_value=dummy_model):
+        from linkedin_publishing_timeslot.predict_pipeline import generate_predictions as generate_linkedin_predictions
+        res = generate_linkedin_predictions()
+
+
+
+        
+        assert res['status'] == "success"
+        assert 'personal' in res['results']
+        assert 'company' in res['results']
+
+def test_api_linkedin_timeslot_train_validate():
+    client = TestClient(main.app)
+    
+    with mock.patch('main.train_and_validate') as mock_train:
+        mock_train.return_value = {
+            "status": "success",
+            "results": {
+                "personal": {"status": "trained", "sample_size": 10, "r2_score": 1.0, "val_mae": 0.0},
+                "company": {"status": "trained", "sample_size": 10, "r2_score": 1.0, "val_mae": 0.0}
+            }
+        }
+        
+        response = client.post("/linkedin-timeslot/train-validate")
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == "success"
+        assert 'personal' in data['results']
+
+def test_api_linkedin_timeslot_predict():
+    client = TestClient(main.app)
+    
+    with mock.patch('main.generate_linkedin_predictions') as mock_predict:
+        mock_predict.return_value = {
+            "status": "success",
+            "results": {
+                "personal": {"prediction_type": "ml_model", "top_slots": []},
+                "company": {"prediction_type": "ml_model", "top_slots": []}
+            }
+        }
+        
+        response = client.post("/linkedin-timeslot/predict")
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == "success"
+        assert data['results']['personal']['prediction_type'] == 'ml_model'
+
+
