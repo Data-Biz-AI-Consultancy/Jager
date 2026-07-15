@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: s_nager
+    schema: s_nager
+    tables:
+      - name: country_info
+      - name: public_holidays

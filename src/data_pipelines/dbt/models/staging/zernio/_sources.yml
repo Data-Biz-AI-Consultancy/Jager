@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: s_zernio
+    schema: s_zernio
+    tables:
+      - name: linkedin_posts
+      - name: linkedin_post_analytics
