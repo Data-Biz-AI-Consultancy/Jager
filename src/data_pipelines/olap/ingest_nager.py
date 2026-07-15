@@ -31,19 +31,36 @@ def fetch_json(url):
 
 def run_ingestion():
     logger.info("Fetching available countries")
-    countries = fetch_json("https://date.nager.at/api/v4/Countries/Available")
-    if not countries:
+    available_countries_list = fetch_json("https://date.nager.at/api/v4/Countries/Available")
+    if not available_countries_list:
         logger.error("Failed to fetch available countries list.")
         sys.exit(1)
     
-    logger.info(f"Found {len(countries)} available countries.")
+    logger.info(f"Found {len(available_countries_list)} available countries.")
     
+    @dlt.resource(name="available_countries", write_disposition="replace")
+    def get_available_countries():
+        for country in available_countries_list:
+            yield country
+
+    @dlt.resource(name="country_info", write_disposition="replace")
+    def get_country_info():
+        for country in available_countries_list:
+            country_code = country.get("countryCode")
+            if not country_code:
+                continue
+            logger.info(f"Fetching country info for {country_code}")
+            info = fetch_json(f"https://date.nager.at/api/v4/Countries/{country_code}")
+            if info:
+                yield info
+            time.sleep(0.05)
+
     # We will fetch holidays for years 2025, 2026, and 2027
     years = [2025, 2026, 2027]
     
     @dlt.resource(name="public_holidays", write_disposition="replace")
     def get_public_holidays():
-        for country in countries:
+        for country in available_countries_list:
             country_code = country.get("countryCode")
             if not country_code:
                 continue
@@ -57,14 +74,14 @@ def run_ingestion():
                 # Polite rate limiting sleep
                 time.sleep(0.05)
 
-    logger.info("Starting DLT pipeline for Nager public holidays")
+    logger.info("Starting DLT pipeline for Nager data")
     pipeline = create_motherduck_pipeline(
         pipeline_name="nager_ingestion",
         dataset_name="s_nager",  # Target schema name
     )
 
     # Run the pipeline
-    load_info = pipeline.run(get_public_holidays)
+    load_info = pipeline.run([get_available_countries, get_country_info, get_public_holidays])
     logger.info(f"Pipeline execution completed successfully:\n{load_info}")
 
 if __name__ == "__main__":
