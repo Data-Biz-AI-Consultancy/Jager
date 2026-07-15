@@ -65,14 +65,56 @@
     },
     {
       "parameters": {
-        "jsCode": "const recentLinkedIn = $('Fetch Recent LinkedIn Posts').all();\nconst recentSubstack = $('Fetch Recent Substack Posts').all();\nlet queryText = '';\n\nconst allTexts = [];\nrecentLinkedIn.forEach(p => allTexts.push(p.json.content));\nrecentSubstack.forEach(p => allTexts.push(p.json.title + ' ' + p.json.cleaned_content));\n\nif (allTexts.length > 0) {\n  const allText = allTexts.join(' ');\n  const words = allText\n    .toLowerCase()\n    .replace(/[^\\w\\s]/g, '')\n    .split(/\\\\s+/)\n    .filter(w => w.length > 4)\n    .filter(w => !['about', 'their', 'there', 'would', 'could', 'should', 'these', 'those', 'where', 'which', 'other', 'another'].includes(w));\n  \n  const freq = {};\n  words.forEach(w => freq[w] = (freq[w] || 0) + 1);\n  \n  const uniqueWords = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);\n  queryText = uniqueWords.slice(0, 15).join(', ');\n}\n\nif (!queryText) {\n  queryText = 'fractional CDO roadmapping governance audit SaaS vendor negotiation, 0-to-1 data infrastructure dbt Snowflake BigQuery, customer acquisition CRM automation, AI voice agent, dashboard fatigue KPI operational metrics EBITDA, principal coaching pipeline tuning event-driven design';\n}\n\nreturn [{ json: { query: queryText } }];"
+        "operation": "executeQuery",
+        "query": "SELECT title FROM m_staging.notion_pages ORDER BY RANDOM() LIMIT 1;",
+        "options": {}
+      },
+      "id": "fetch-random-seed-notion",
+      "name": "Fetch Random Seed Notion",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        580,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT title FROM m_staging.substack_posts WHERE author = 'Jimmy Pang' ORDER BY RANDOM() LIMIT 1;",
+        "options": {}
+      },
+      "id": "fetch-random-seed-substack",
+      "name": "Fetch Random Seed Substack",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        740,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const recentLinkedIn = $('Fetch Recent LinkedIn Posts').all();\nconst recentSubstack = $('Fetch Recent Substack Posts').all();\nconst randomNotion = $('Fetch Random Seed Notion').first()?.json || {};\nconst randomSubstack = $('Fetch Random Seed Substack').first()?.json || {};\nlet queryText = '';\n\nconst allTexts = [];\nrecentLinkedIn.forEach(p => allTexts.push(p.json.content));\nrecentSubstack.forEach(p => allTexts.push(p.json.title + ' ' + p.json.cleaned_content));\nif (randomNotion.title) allTexts.push(randomNotion.title);\nif (randomSubstack.title) allTexts.push(randomSubstack.title);\n\nif (allTexts.length > 0) {\n  const allText = allTexts.join(' ');\n  const words = allText\n    .toLowerCase()\n    .replace(/[^\\w\\s]/g, '')\n    .split(/\\\\s+/)\n    .filter(w => w.length > 4)\n    .filter(w => !['about', 'their', 'there', 'would', 'could', 'should', 'these', 'those', 'where', 'which', 'other', 'another'].includes(w));\n  \n  const freq = {};\n  words.forEach(w => freq[w] = (freq[w] || 0) + 1);\n  \n  const uniqueWords = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);\n  queryText = uniqueWords.slice(0, 15).join(', ');\n}\n\nif (!queryText) {\n  queryText = 'fractional CDO roadmapping governance audit SaaS vendor negotiation, 0-to-1 data infrastructure dbt Snowflake BigQuery, customer acquisition CRM automation, AI voice agent, dashboard fatigue KPI operational metrics EBITDA, principal coaching pipeline tuning event-driven design';\n}\n\nreturn [{ json: { query: queryText } }];"
       },
       "id": "prepare-rag-query",
       "name": "Prepare RAG Query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        580,
+        900,
         96
       ]
     },
@@ -239,7 +281,7 @@
         "messages": {
           "values": [
             {
-              "content": "=### YOUR PERSONA & CONTEXT ###\n{{ $json.giusy_persona }}\n\n### CONTENT STRATEGY & GUIDELINES ###\n{{ $json.content_strategy }}\n\n### USP & MARKET POSITIONING ###\n{{ $json.usp_positioning }}\n\n### YOUR TASK ###\nRead the Substack articles, past LinkedIn posts, and Notion notes provided below. Generate a high-impact, professional, and engaging LinkedIn post proposal for the Data Biz LinkedIn company account.\n\nCRITICAL SOURCE PRIORITIZATION RULES (MUST FOLLOW):\n1. PRIMARY SOURCE OF INSPIRATION (HIGH PRIORITY): You MUST heavily prioritize using the topics, writing styles, hooks, and structures of the top-performing LinkedIn posts under \"LinkedIn (High Engagement)\" (specifically those with the highest comments and shares/reposts metrics) to generate your content. The content style and structure that drove these high engagement metrics MUST override other sources.\n2. SECONDARY SOURCE OF INSPIRATION: The semantic search results under \"LinkedIn (Semantic Search)\" are secondary references.\n3. RAG/KNOWLEDGE SOURCE: Notion notes and Substack articles should be treated strictly as fresh informational or knowledge sources to extract insights from, but the structural format, hook templates, and writing style of the final output MUST be modeled after the top-performing \"LinkedIn (High Engagement)\" posts.\n\nCRITICAL SPEAKER IDENTITY:\nThe generated LinkedIn post MUST be written in the first-person plural (\"we\", \"us\", \"our\") representing Data Biz, an AI & Data Consultancy. The tone must be ROI-focused, direct, professional, completely allergic to corporate fluff, and visionary yet pragmatic. Never use buzzwords or deck theatre. Align with the Data Biz positioning statement: \"We help high-growth teams and executives cut through KPI confusion, prioritization chaos, and vague AI ambition. We fix the decisions behind the dashboards.\"\n\nCRITICAL CONTENT RULES (ALIGNED WITH STRATEGY):\n1. Highlight one of the core Data Biz hats/solutions:\n   - Fractional CDO / fractional data leadership.\n   - Slashing overhead by up to 70% using realistic AI voice/chat agents.\n   - Full-funnel social & CRM automation to stop leaks.\n   - Curing \"dashboard fatigue\" by focusing on EBITDA-driving operational metrics.\n2. Do NOT write from the perspective of Giusy or any assistant. The post must read as a direct message from the Data Biz team to its audience (Founders, Executives, or senior Data ICs).\n3. Do NOT include any Giusy conversational greetings (such as \"Ciao Don Jimmy\") or conversational sign-offs (such as \"Buon lavoro\").\n4. Do NOT include or hallucinate any URLs, links, or link placeholders.\n5. The output MUST be a valid JSON object starting with '{' and ending with '}'. Do not include markdown code fences or any conversational filler outside of the JSON.\n\nEnsure you:\n1. Match the formatting style, spacing, hook structures, and professional tone suitable for a modern AI & Data Consultancy page.\n2. Leverage the fresh insights from the Substack articles and Notion notes, applying them directly to the Data Biz positioning.\n3. Make sure the post is in English and written from the Data Biz corporate voice.\n\nReturn a JSON object with this exact structure:\n\n{\n  \"linkedin_post\": \"The complete, ready-to-publish LinkedIn post content.\",\n  \"brief_strategic_reasoning\": \"A short sentence explaining why you structured/wrote the post this way.\"\n}\n\n### SOURCE DATA ###\n{{ $json.text }}"
+              "content": "=### YOUR PERSONA & CONTEXT ###\n{{ $json.giusy_persona }}\n\n### CONTENT STRATEGY & GUIDELINES ###\n{{ $json.content_strategy }}\n\n### USP & MARKET POSITIONING ###\n{{ $json.usp_positioning }}\n\n### YOUR TASK ###\nRead the Substack articles, past LinkedIn posts, and Notion notes provided below. Generate a high-impact, professional, and engaging LinkedIn post proposal for the Data Biz LinkedIn company account.\n\nCRITICAL SOURCE PRIORITIZATION RULES (MUST FOLLOW):\n1. CORE CONTENT TOPICS & INSIGHTS (NOTION & SUBSTACK): The actual technical insights, core subjects, and specific topics for the new post MUST be drawn from the Notion notes and Substack articles (labeled \"Notion\" and \"Substack\" in SOURCE DATA). Do NOT copy or reuse the topics or subject matter from the top-performing LinkedIn posts.\n2. FORMATTING, STYLE, & TONE (HIGH PRIORITY): You MUST analyze the top-performing posts under \"LinkedIn (High Engagement)\" (especially those with high comments and shares/reposts) and mimic their formatting style, spacing, sentence length, hook patterns, and pacing. Apply these high-engagement structural templates to package the fresh topics/insights from the Notion/Substack sources.\n3. BACKGROUND STYLE REFERENCE: The semantic search results under \"LinkedIn (Semantic Search)\" are secondary references for style.\n\nCRITICAL SPEAKER IDENTITY:\nThe generated LinkedIn post MUST be written in the first-person plural (\"we\", \"us\", \"our\") representing Data Biz, an AI & Data Consultancy. The tone must be ROI-focused, direct, professional, completely allergic to corporate fluff, and visionary yet pragmatic. Never use buzzwords or deck theatre. Align with the Data Biz positioning statement: \"We help high-growth teams and executives cut through KPI confusion, prioritization chaos, and vague AI ambition. We fix the decisions behind the dashboards.\"\n\nCRITICAL CONTENT RULES (ALIGNED WITH STRATEGY):\n1. Highlight one of the core Data Biz hats/solutions:\n   - Fractional CDO / fractional data leadership.\n   - Slashing overhead by up to 70% using realistic AI voice/chat agents.\n   - Full-funnel social & CRM automation to stop leaks.\n   - Curing \"dashboard fatigue\" by focusing on EBITDA-driving operational metrics.\n2. Do NOT write from the perspective of Giusy or any assistant. The post must read as a direct message from the Data Biz team to its audience (Founders, Executives, or senior Data ICs).\n3. Do NOT include any Giusy conversational greetings (such as \"Ciao Don Jimmy\") or conversational sign-offs (such as \"Buon lavoro\").\n4. Do NOT include or hallucinate any URLs, links, or link placeholders.\n5. The output MUST be a valid JSON object starting with '{' and ending with '}'. Do not include markdown code fences or any conversational filler outside of the JSON.\n\nEnsure you:\n1. Match the formatting style, spacing, hook structures, and professional tone suitable for a modern AI & Data Consultancy page.\n2. Leverage the fresh insights from the Substack articles and Notion notes, applying them directly to the Data Biz positioning.\n3. Make sure the post is in English and written from the Data Biz corporate voice.\n\nReturn a JSON object with this exact structure:\n\n{\n  \"linkedin_post\": \"The complete, ready-to-publish LinkedIn post content.\",\n  \"brief_strategic_reasoning\": \"A short sentence explaining why you structured/wrote the post this way.\"\n}\n\n### SOURCE DATA ###\n{{ $json.text }}"
             }
           ]
         },
@@ -504,6 +546,28 @@
       ]
     },
     "Fetch Recent Substack Posts": {
+      "main": [
+        [
+          {
+            "node": "Fetch Random Seed Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Random Seed Notion": {
+      "main": [
+        [
+          {
+            "node": "Fetch Random Seed Substack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Random Seed Substack": {
       "main": [
         [
           {
