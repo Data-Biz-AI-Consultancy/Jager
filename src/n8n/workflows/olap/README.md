@@ -15,8 +15,13 @@ Contains workflows that ingest data into the Postgres OLAP and MotherDuck enviro
 Contains workflows that perform transformations within the OLAP database (`jager_olap`):
 *   [OLAP Data Transformation - Content Marketing Performance](./data_transformation/olap_data_transformation_content_marketing_performance.json)
 
-### 3. MotherDuck Operations
+### 3. [ReverseETL](./reverse_etl/README.md)
+Contains workflows that sync data back from OLAP databases (like MotherDuck) to OLTP databases (like PostgreSQL):
+*   [OLAP ReverseETL - Motherduck to Postgres](./reverse_etl/olap_reverse_etl_motherduck_postgres.json)
+
+### 4. MotherDuck Operations
 *   [MotherDuck Operations](./motherduck_ops.json): Performs periodic configuration and sharing operations on MotherDuck (e.g. creating shares).
+
 
 ## Local Import & Setup
 These workflows are automatically imported into the local n8n instance upon running `docker compose up --build`.

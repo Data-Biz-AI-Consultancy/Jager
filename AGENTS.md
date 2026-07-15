@@ -29,4 +29,8 @@
 ## Database Initialization and Migrations
 - Whenever `src/db/init-user-db.sh` is changed, the database migration script `scripts/migrate-db.js` must be updated to match the changes and keep schemas/tables in sync.
 
+## Documentation Integrity
+- Always keep project README files (e.g. `README.md` at all levels) up to date when folders, scripts, configurations, or workflow files are added, moved, or deleted.
+
+
 
