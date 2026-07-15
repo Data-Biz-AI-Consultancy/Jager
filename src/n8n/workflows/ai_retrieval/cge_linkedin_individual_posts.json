@@ -44,14 +44,35 @@
     },
     {
       "parameters": {
-        "jsCode": "const recentPosts = $('Fetch Recent LinkedIn Posts').all();\nlet queryText = '';\n\nif (recentPosts.length > 0) {\n  const allText = recentPosts.map(p => p.json.content).join(' ');\n  const words = allText\n    .toLowerCase()\n    .replace(/[^\\w\\s]/g, '')\n    .split(/\\\\s+/)\n    .filter(w => w.length > 4)\n    .filter(w => !['about', 'their', 'there', 'would', 'could', 'should', 'these', 'those', 'where', 'which', 'other', 'another'].includes(w));\n  \n  const freq = {};\n  words.forEach(w => freq[w] = (freq[w] || 0) + 1);\n  \n  const uniqueWords = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);\n  queryText = uniqueWords.slice(0, 15).join(', ');\n}\n\nif (!queryText) {\n  queryText = 'personal branding, content marketing, data engineering, artificial intelligence';\n}\n\nreturn [{ json: { query: queryText } }];"
+        "operation": "executeQuery",
+        "query": "SELECT title, cleaned_content FROM m_staging.substack_posts WHERE published_at >= NOW() - INTERVAL '60 days' AND author = 'Jimmy Pang' AND cleaned_content IS NOT NULL AND TRIM(cleaned_content) != '' ORDER BY published_at DESC;",
+        "options": {}
+      },
+      "id": "fetch-recent-substack-posts",
+      "name": "Fetch Recent Substack Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        420,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const recentLinkedIn = $('Fetch Recent LinkedIn Posts').all();\nconst recentSubstack = $('Fetch Recent Substack Posts').all();\nlet queryText = '';\n\nconst allTexts = [];\nrecentLinkedIn.forEach(p => allTexts.push(p.json.content));\nrecentSubstack.forEach(p => allTexts.push(p.json.title + ' ' + p.json.cleaned_content));\n\nif (allTexts.length > 0) {\n  const allText = allTexts.join(' ');\n  const words = allText\n    .toLowerCase()\n    .replace(/[^\\w\\s]/g, '')\n    .split(/\\\\s+/)\n    .filter(w => w.length > 4)\n    .filter(w => !['about', 'their', 'there', 'would', 'could', 'should', 'these', 'those', 'where', 'which', 'other', 'another'].includes(w));\n  \n  const freq = {};\n  words.forEach(w => freq[w] = (freq[w] || 0) + 1);\n  \n  const uniqueWords = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);\n  queryText = uniqueWords.slice(0, 15).join(', ');\n}\n\nif (!queryText) {\n  queryText = 'personal branding, content marketing, data engineering, artificial intelligence';\n}\n\nreturn [{ json: { query: queryText } }];"
       },
       "id": "prepare-rag-query",
       "name": "Prepare RAG Query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        420,
+        580,
         96
       ]
     },
@@ -472,6 +493,17 @@
       ]
     },
     "Fetch Recent LinkedIn Posts": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent Substack Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent Substack Posts": {
       "main": [
         [
           {
