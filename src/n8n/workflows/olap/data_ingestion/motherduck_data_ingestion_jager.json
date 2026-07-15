@@ -6,7 +6,9 @@
       "parameters": {
         "rule": {
           "interval": [
-            {}
+            {
+              "triggerAtHour": 3
+            }
           ]
         }
       },
@@ -16,7 +18,7 @@
       "typeVersion": 1.2,
       "position": [
         112,
-        400
+        496
       ]
     },
     {
