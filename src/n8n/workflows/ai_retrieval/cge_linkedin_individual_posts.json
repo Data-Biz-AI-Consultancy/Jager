@@ -23,14 +23,35 @@
     },
     {
       "parameters": {
-        "jsCode": "const queryText = 'personal branding, content marketing, data engineering, artificial intelligence';\nreturn [{ json: { query: queryText } }];"
+        "operation": "executeQuery",
+        "query": "SELECT content FROM s_linkedin.ugc_posts WHERE published_at >= NOW() - INTERVAL '7 days' AND content IS NOT NULL AND TRIM(content) != '' ORDER BY published_at DESC;",
+        "options": {}
+      },
+      "id": "fetch-recent-linkedin-posts",
+      "name": "Fetch Recent LinkedIn Posts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        260,
+        96
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const recentPosts = $('Fetch Recent LinkedIn Posts').all();\nlet queryText = '';\n\nif (recentPosts.length > 0) {\n  const allText = recentPosts.map(p => p.json.content).join(' ');\n  const words = allText\n    .toLowerCase()\n    .replace(/[^\\w\\s]/g, '')\n    .split(/\\\\s+/)\n    .filter(w => w.length > 4)\n    .filter(w => !['about', 'their', 'there', 'would', 'could', 'should', 'these', 'those', 'where', 'which', 'other', 'another'].includes(w));\n  \n  const freq = {};\n  words.forEach(w => freq[w] = (freq[w] || 0) + 1);\n  \n  const uniqueWords = Object.keys(freq).sort((a, b) => freq[b] - freq[a]);\n  queryText = uniqueWords.slice(0, 15).join(', ');\n}\n\nif (!queryText) {\n  queryText = 'personal branding, content marketing, data engineering, artificial intelligence';\n}\n\nreturn [{ json: { query: queryText } }];"
       },
       "id": "prepare-rag-query",
       "name": "Prepare RAG Query",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        336,
+        420,
         96
       ]
     },
@@ -440,6 +461,17 @@
   ],
   "connections": {
     "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Recent LinkedIn Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Recent LinkedIn Posts": {
       "main": [
         [
           {
