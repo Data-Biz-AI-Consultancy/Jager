@@ -1,6 +1,8 @@
 import os
 import logging
 import datetime
+import json
+import pickle
 import duckdb
 import pandas as pd
 import numpy as np
@@ -48,8 +50,24 @@ def initialize_schemas(conn):
             channel_type VARCHAR(50),
             trained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             r2_score DOUBLE,
+            val_mae DOUBLE,
             sample_size INTEGER,
             hyperparameters VARCHAR(255)
+        );
+    """)
+
+    
+    # Create validation results table to store actual vs predicted for audit/monitoring
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ds_training.validation_results (
+            channel_type VARCHAR(50),
+            published_at_berlin TIMESTAMP,
+            day_of_week INTEGER,
+            hour_of_day INTEGER,
+            actual_engagement_rate DOUBLE,
+            predicted_engagement_rate DOUBLE,
+            absolute_error DOUBLE,
+            evaluated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
 
@@ -97,21 +115,19 @@ def fetch_historical_data(conn):
     df = pd.concat([df_personal, df_company], ignore_index=True)
     return df
 
-
-def train_and_predict_timeslots():
+def train_and_validate():
     conn = get_motherduck_connection()
     try:
         initialize_schemas(conn)
         df = fetch_historical_data(conn)
         
         if df.empty or len(df) < 5:
-            logger.warning(f"Insufficient historical LinkedIn engagement data to train ML model (got {len(df)} records). Using fallback heuristic rule.")
-            generate_heuristic_recommendations(conn)
-            return {"status": "success", "message": "Insufficient data; generated heuristic recommendations."}
-        
+            logger.warning(f"Insufficient historical data to train model. Got {len(df)} records.")
+            return {"status": "error", "message": f"Insufficient historical data to train model ({len(df)} records)."}
+            
         # Feature Engineering: Extract Day of Week and Hour of Day
         df['published_at_berlin'] = pd.to_datetime(df['published_at_berlin'])
-        df['day_of_week'] = df['published_at_berlin'].dt.dayofweek # 0=Monday, 6=Sunday
+        df['day_of_week'] = df['published_at_berlin'].dt.dayofweek
         df['hour_of_day'] = df['published_at_berlin'].dt.hour
         
         # Save training data to ds_training schema
@@ -120,27 +136,120 @@ def train_and_predict_timeslots():
         conn.execute("TRUNCATE TABLE ds_training.linkedin_post_history;")
         conn.execute("INSERT INTO ds_training.linkedin_post_history SELECT * FROM df;")
         
+        # Truncate old validation results
+        conn.execute("TRUNCATE TABLE ds_training.validation_results;")
+        
         results = {}
         
         for channel in ['personal', 'company']:
             df_chan = df[df['channel_type'] == channel].copy()
-            if len(df_chan) < 3:
-                logger.warning(f"Insufficient data for channel: {channel}. Using fallback heuristic for this channel.")
+            if len(df_chan) < 5:
+                logger.warning(f"Insufficient data for channel {channel} to train/validate. Using fallback heuristic.")
                 generate_heuristic_for_channel(conn, channel)
+                results[channel] = {"status": "heuristic_fallback", "sample_size": len(df_chan)}
                 continue
                 
-            X = df_chan[['day_of_week', 'hour_of_day']].values
-            y = df_chan['engagement_rate'].values
+            # Time-based split: sort and hold out the last 20% for validation
+            df_chan = df_chan.sort_values(by='published_at_berlin').reset_index(drop=True)
+            split_idx = int(len(df_chan) * 0.8)
+            df_train = df_chan.iloc[:split_idx].copy()
+            df_val = df_chan.iloc[split_idx:].copy()
+            
+            # Train model
+            X_train = df_train[['day_of_week', 'hour_of_day']].values
+            y_train = df_train['engagement_rate'].values
             
             model = RandomForestRegressor(n_estimators=50, random_state=42)
-            model.fit(X, y)
-            r2 = float(model.score(X, y))
+            model.fit(X_train, y_train)
+            r2 = float(model.score(X_train, y_train))
             
+            # Validate model
+            X_val = df_val[['day_of_week', 'hour_of_day']].values
+            y_val = df_val['engagement_rate'].values
+            preds_val = model.predict(X_val)
+            mae = float(np.mean(np.abs(preds_val - y_val)))
+            
+            # Save validation predictions to validation_results table
+            df_val['predicted_engagement_rate'] = preds_val
+            df_val['absolute_error'] = np.abs(preds_val - y_val)
+            
+            # Prepare dataframe matching validation_results table structure
+            df_val_insert = pd.DataFrame({
+                'channel_type': df_val['channel_type'],
+                'published_at_berlin': df_val['published_at_berlin'],
+                'day_of_week': df_val['day_of_week'].astype(int),
+                'hour_of_day': df_val['hour_of_day'].astype(int),
+                'actual_engagement_rate': df_val['engagement_rate'].astype(float),
+                'predicted_engagement_rate': df_val['predicted_engagement_rate'].astype(float),
+                'absolute_error': df_val['absolute_error'].astype(float)
+            })
+            
+            # Insert using DuckDB registered dataframe query
+            conn.execute("INSERT INTO ds_training.validation_results (channel_type, published_at_berlin, day_of_week, hour_of_day, actual_engagement_rate, predicted_engagement_rate, absolute_error) SELECT channel_type, published_at_berlin, day_of_week, hour_of_day, actual_engagement_rate, predicted_engagement_rate, absolute_error FROM df_val_insert;")
+
+            
+            # Serialize model and save in ds_training model registry
+            model_bytes = pickle.dumps(model)
+            conn.execute("CREATE TABLE IF NOT EXISTS ds_training.model_registry (channel_type VARCHAR(50) PRIMARY KEY, model_data BYTEA, trained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);")
+            
+            trained_at_val = datetime.datetime.utcnow()
+            conn.execute("""
+                INSERT INTO ds_training.model_registry (channel_type, model_data, trained_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT (channel_type) 
+                DO UPDATE SET 
+                    model_data = EXCLUDED.model_data, 
+                    trained_at = EXCLUDED.trained_at;
+            """, [channel, model_bytes, trained_at_val])
+            
+            # Save metadata
+            conn.execute("""
+                INSERT INTO ds_prediction.model_metadata (model_name, channel_type, trained_at, r2_score, val_mae, sample_size, hyperparameters)
+                VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?);
+            """, ["random_forest_timeslots", channel, r2, mae, len(df_chan), "n_estimators=50"])
+
+            
+            results[channel] = {
+                "status": "trained",
+                "sample_size": len(df_chan),
+                "r2_score": r2,
+                "val_mae": mae
+            }
+            
+        return {"status": "success", "results": results}
+    finally:
+        conn.close()
+
+def generate_predictions():
+    conn = get_motherduck_connection()
+    try:
+        initialize_schemas(conn)
+        
+        # Check if we have registered models
+        tables = [t[0] for t in conn.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'ds_training';").fetchall()]
+        has_registry = 'model_registry' in tables
+
+        
+        results = {}
+        for channel in ['personal', 'company']:
+            model = None
+            if has_registry:
+                res = conn.execute("SELECT model_data FROM ds_training.model_registry WHERE channel_type = ?;", [channel]).fetchone()
+                if res:
+                    model = pickle.loads(res[0])
+            
+            if model is None:
+                logger.warning(f"No trained model found for channel {channel}. Generating heuristic predictions.")
+                generate_heuristic_for_channel(conn, channel)
+                results[channel] = {"prediction_type": "heuristic"}
+                continue
+                
+            # Create all 168 candidate slots
             candidate_slots = []
             for dow in range(7):
                 for hod in range(24):
                     candidate_slots.append({'day_of_week': dow, 'hour_of_day': hod})
-            
+                    
             df_candidates = pd.DataFrame(candidate_slots)
             preds = model.predict(df_candidates[['day_of_week', 'hour_of_day']].values)
             df_candidates['predicted_engagement_rate'] = preds
@@ -149,28 +258,18 @@ def train_and_predict_timeslots():
             df_candidates = df_candidates.sort_values(by='predicted_engagement_rate', ascending=False)
             df_candidates['recommendation_rank'] = range(1, len(df_candidates) + 1)
             
-            logger.info(f"Saving timeslot predictions for channel {channel} to ds_prediction.timeslot_recommendations...")
+            # Save predictions
             conn.execute("DELETE FROM ds_prediction.timeslot_recommendations WHERE channel_type = ?;", [channel])
             conn.execute("INSERT INTO ds_prediction.timeslot_recommendations SELECT channel_type, day_of_week, hour_of_day, predicted_engagement_rate, recommendation_rank, CURRENT_TIMESTAMP FROM df_candidates;")
             
-            conn.execute("""
-                INSERT INTO ds_prediction.model_metadata (model_name, channel_type, trained_at, r2_score, sample_size, hyperparameters)
-                VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?);
-            """, ["random_forest_timeslots", channel, r2, len(df_chan), "n_estimators=50"])
-            
             results[channel] = {
-                "sample_size": len(df_chan),
-                "r2_score": r2,
+                "prediction_type": "ml_model",
                 "top_slots": df_candidates.head(5)[['day_of_week', 'hour_of_day', 'predicted_engagement_rate']].to_dict(orient='records')
             }
             
         return {"status": "success", "results": results}
     finally:
         conn.close()
-
-def generate_heuristic_recommendations(conn):
-    for channel in ['personal', 'company']:
-        generate_heuristic_for_channel(conn, channel)
 
 def generate_heuristic_for_channel(conn, channel):
     conn.execute("DELETE FROM ds_prediction.timeslot_recommendations WHERE channel_type = ?;", [channel])
@@ -200,6 +299,6 @@ def generate_heuristic_for_channel(conn, channel):
     conn.execute("INSERT INTO ds_prediction.timeslot_recommendations SELECT channel_type, day_of_week, hour_of_day, predicted_engagement_rate, recommendation_rank, CURRENT_TIMESTAMP FROM df_heuristics;")
     
     conn.execute("""
-        INSERT INTO ds_prediction.model_metadata (model_name, channel_type, trained_at, r2_score, sample_size, hyperparameters)
-        VALUES (?, ?, CURRENT_TIMESTAMP, 0.0, 0, ?);
+        INSERT INTO ds_prediction.model_metadata (model_name, channel_type, trained_at, r2_score, val_mae, sample_size, hyperparameters)
+        VALUES (?, ?, CURRENT_TIMESTAMP, 0.0, 0.0, 0, ?);
     """, ["heuristic_fallback", channel, "heuristic_rules_v1"])

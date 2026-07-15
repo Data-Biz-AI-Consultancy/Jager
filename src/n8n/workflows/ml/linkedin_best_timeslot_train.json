@@ -1,0 +1,59 @@
+{
+  "id": "linkedin-timeslot-train",
+  "name": "ML - LinkedIn Publishing Timeslot Training & Validation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 7
+            }
+          ]
+        }
+      },
+      "id": "weekly-training-trigger",
+      "name": "Weekly Training Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/linkedin-timeslot/train-validate",
+        "options": {}
+      },
+      "id": "call-linkedin-timeslot-train-validate",
+      "name": "Call Train and Validate Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Weekly Training Trigger": {
+      "main": [
+        [
+          {
+            "node": "Call Train and Validate Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}

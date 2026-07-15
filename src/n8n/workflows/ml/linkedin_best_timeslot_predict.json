@@ -1,5 +1,5 @@
 {
-  "id": "linkedin-timeslot-ml",
+  "id": "linkedin-timeslot-predict",
   "name": "ML - LinkedIn Publishing Timeslot Prediction",
   "nodes": [
     {
@@ -8,13 +8,13 @@
           "interval": [
             {
               "field": "days",
-              "daysInterval": 7
+              "daysInterval": 1
             }
           ]
         }
       },
-      "id": "weekly-schedule-trigger",
-      "name": "Weekly Schedule Trigger",
+      "id": "daily-prediction-trigger",
+      "name": "Daily Prediction Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
@@ -25,11 +25,11 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/linkedin-timeslot/train-predict",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/linkedin-timeslot/predict",
         "options": {}
       },
-      "id": "call-linkedin-timeslot-pipeline",
-      "name": "Call LinkedIn Timeslot Pipeline",
+      "id": "call-linkedin-timeslot-predict",
+      "name": "Call Predict Pipeline",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -39,11 +39,11 @@
     }
   ],
   "connections": {
-    "Weekly Schedule Trigger": {
+    "Daily Prediction Trigger": {
       "main": [
         [
           {
-            "node": "Call LinkedIn Timeslot Pipeline",
+            "node": "Call Predict Pipeline",
             "type": "main",
             "index": 0
           }
