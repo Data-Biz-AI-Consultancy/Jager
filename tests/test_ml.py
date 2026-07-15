@@ -40,6 +40,10 @@ sqlalchemy.create_engine.return_value = mock_engine
 sys.modules['duckdb'] = mock.MagicMock()
 import duckdb
 
+# Global mock for dotenv to avoid dependency errors in environments where python-dotenv is not installed
+mock_dotenv = mock.MagicMock()
+mock_dotenv.load_dotenv = mock.MagicMock(return_value=True)
+sys.modules['dotenv'] = mock_dotenv
 
 # Mock pandas read_sql
 @pytest.fixture(autouse=True)
