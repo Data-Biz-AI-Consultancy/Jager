@@ -280,6 +280,7 @@ def save_feature_catalog(conn):
         }
     ]
     df_catalog = pd.DataFrame(catalog_rows)
+    conn.register("df_catalog", df_catalog)
     conn.execute("""
         INSERT INTO ds_features.feature_catalog (
             feature_name, feature_table, entity_type, data_type, description, owner, is_active
