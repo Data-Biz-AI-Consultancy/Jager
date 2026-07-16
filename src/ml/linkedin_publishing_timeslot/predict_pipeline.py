@@ -58,8 +58,8 @@ def generate_predictions():
                     
             df_candidates['channel_type'] = channel
             
-            # Rank by predicted_engagement_rate descending
-            df_candidates = df_candidates.sort_values(by='predicted_engagement_rate', ascending=False)
+            # Rank by predicted_total_interactions descending
+            df_candidates = df_candidates.sort_values(by='predicted_total_interactions', ascending=False)
             df_candidates['recommendation_rank'] = range(1, len(df_candidates) + 1)
             
             # Save predictions

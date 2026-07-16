@@ -465,13 +465,13 @@ def generate_heuristic_for_channel(conn, channel):
                 'channel_type': channel,
                 'day_of_week': dow,
                 'hour_of_day': hod,
-                'predicted_impressions': 0.0,
-                'predicted_total_interactions': 0.0,
+                'predicted_impressions': 100.0,
+                'predicted_total_interactions': rate * 100.0,
                 'predicted_engagement_rate': rate
             })
             
     df_heuristics = pd.DataFrame(candidate_slots)
-    df_heuristics = df_heuristics.sort_values(by='predicted_engagement_rate', ascending=False)
+    df_heuristics = df_heuristics.sort_values(by='predicted_total_interactions', ascending=False)
     df_heuristics['recommendation_rank'] = range(1, len(df_heuristics) + 1)
     
     conn.execute("INSERT INTO ds_prediction.timeslot_recommendations SELECT channel_type, day_of_week, hour_of_day, predicted_impressions, predicted_total_interactions, predicted_engagement_rate, recommendation_rank, CURRENT_TIMESTAMP FROM df_heuristics;")
