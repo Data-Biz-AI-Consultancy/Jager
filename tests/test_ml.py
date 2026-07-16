@@ -195,6 +195,13 @@ def test_linkedin_timeslot_train_validate():
     mock_df_personal = pd.DataFrame({
         'published_at_berlin': [pd.Timestamp('2026-06-01 10:00:00') + pd.Timedelta(days=i) for i in range(10)],
         'impressions': [1000]*10,
+        'likes': [10]*10,
+        'comments': [5]*10,
+        'shares': [2]*10,
+        'reposts': [1]*10,
+        'clicks': [20]*10,
+        'saves': [3]*10,
+        'sends': [4]*10,
         'total_interactions': [50]*10,
         'engagement_rate': [0.05]*10
     })
@@ -202,12 +209,25 @@ def test_linkedin_timeslot_train_validate():
     mock_df_company = pd.DataFrame({
         'published_at_berlin': [pd.Timestamp('2026-06-01 12:00:00') + pd.Timedelta(days=i) for i in range(10)],
         'impressions': [500]*10,
+        'likes': [5]*10,
+        'comments': [2]*10,
+        'shares': [1]*10,
+        'reposts': [0]*10,
+        'clicks': [10]*10,
+        'saves': [1]*10,
+        'sends': [2]*10,
         'total_interactions': [25]*10,
         'engagement_rate': [0.05]*10
     })
     
-    # Setup mock executes
-    mock_duckdb_conn.execute.return_value.df.side_effect = [mock_df_personal, mock_df_company]
+    # Mock public holidays
+    mock_df_holidays = pd.DataFrame({
+        'holiday_date': ['2026-06-01', '2026-06-05'],
+        'country_code': ['US', 'DE']
+    })
+    
+    # Setup mock executes: personal, company, public holidays
+    mock_duckdb_conn.execute.return_value.df.side_effect = [mock_df_personal, mock_df_company, mock_df_holidays]
     # For SHOW TABLES IN ds_training query
     mock_duckdb_conn.execute.return_value.fetchall.return_value = [('model_registry',)]
     
@@ -221,6 +241,7 @@ def test_linkedin_timeslot_train_validate():
         assert res['results']['personal']['status'] == 'trained'
         
         # Verify executed commands
+        mock_duckdb_conn.execute.assert_any_call("CREATE SCHEMA IF NOT EXISTS ds_features;")
         mock_duckdb_conn.execute.assert_any_call("CREATE SCHEMA IF NOT EXISTS ds_training;")
         mock_duckdb_conn.execute.assert_any_call("CREATE SCHEMA IF NOT EXISTS ds_prediction;")
 
@@ -228,12 +249,17 @@ def test_linkedin_timeslot_generate_predictions():
     mock_duckdb_conn = mock.MagicMock()
     mock_duckdb_conn.execute.return_value.fetchall.return_value = [('model_registry',)]
     
-    # We mock pickle.loads to return a dummy trained model
+    # We mock pickle.loads to return a dummy dictionary of models
     dummy_model = mock.MagicMock()
-    dummy_model.predict.return_value = np.zeros(168)
+    dummy_model.predict.side_effect = lambda x: np.zeros(len(x))
+    dummy_dict = {
+        'impressions': dummy_model,
+        'total_interactions': dummy_model,
+        'engagement_rate': dummy_model
+    }
     
     with mock.patch('linkedin_publishing_timeslot.predict_pipeline.get_motherduck_connection', return_value=mock_duckdb_conn), \
-         mock.patch('pickle.loads', return_value=dummy_model):
+         mock.patch('pickle.loads', return_value=dummy_dict):
         from linkedin_publishing_timeslot.predict_pipeline import generate_predictions as generate_linkedin_predictions
         res = generate_linkedin_predictions()
 
@@ -279,5 +305,4 @@ def test_api_linkedin_timeslot_predict():
         data = response.json()
         assert data['status'] == "success"
         assert data['results']['personal']['prediction_type'] == 'ml_model'
-
 

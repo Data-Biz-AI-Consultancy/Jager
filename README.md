@@ -17,6 +17,12 @@ We organize database tables into dedicated schemas following the `s_{{applicatio
 - `s_yahoo_finance`: stock index prices.
 - `prediction` & `training`: prediction outputs and ML trained models.
 
+### MotherDuck ML Schemas
+The ML service also initializes lightweight MotherDuck schemas for analytics and model workflows:
+- `ds_features`: reusable feature tables and a small `feature_catalog` for discoverability. The first table is `linkedin_post_engagement_features`, which stores LinkedIn post time features such as `day_of_week`, `hour_of_day`, `is_weekend`, `is_business_hour`, and `hour_bucket`.
+- `ds_training`: training snapshots, validation results, and serialized model registry entries.
+- `ds_prediction`: model metadata and generated prediction outputs such as LinkedIn timeslot recommendations.
+
 ---
 
 ## Getting Started

@@ -17,39 +17,76 @@ def generate_predictions():
         
         results = {}
         for channel in ['personal', 'company']:
-            model = None
+            model_dict = None
             if has_registry:
                 res = conn.execute("SELECT model_data FROM ds_training.model_registry WHERE channel_type = ?;", [channel]).fetchone()
                 if res:
-                    model = pickle.loads(res[0])
+                    loaded = pickle.loads(res[0])
+                    if isinstance(loaded, dict):
+                        model_dict = loaded
+                    else:
+                        # Legacy single model fallback
+                        model_dict = {'engagement_rate': loaded, 'impressions': None, 'total_interactions': None}
             
-            if model is None:
+            if model_dict is None:
                 logger.warning(f"No trained model found for channel {channel}. Generating heuristic predictions.")
                 generate_heuristic_for_channel(conn, channel)
                 results[channel] = {"prediction_type": "heuristic"}
                 continue
                 
-            # Create all 168 candidate slots
+            # Create all candidate slots (168 * 4 combinations of holiday flags)
             candidate_slots = []
             for dow in range(7):
                 for hod in range(24):
-                    candidate_slots.append({'day_of_week': dow, 'hour_of_day': hod})
+                    for hol_us in [False, True]:
+                        for hol_de in [False, True]:
+                            candidate_slots.append({
+                                'day_of_week': dow,
+                                'hour_of_day': hod,
+                                'is_holiday_US': hol_us,
+                                'is_holiday_DE': hol_de
+                            })
                     
             df_candidates = pd.DataFrame(candidate_slots)
-            preds = model.predict(df_candidates[['day_of_week', 'hour_of_day']].values)
-            df_candidates['predicted_engagement_rate'] = preds
+            feature_cols = ['day_of_week', 'hour_of_day', 'is_holiday_US', 'is_holiday_DE']
+            
+            # Predict each target
+            for target in ['impressions', 'total_interactions', 'engagement_rate']:
+                tgt_model = model_dict.get(target)
+                if tgt_model is not None:
+                    df_candidates[f'predicted_{target}'] = tgt_model.predict(df_candidates[feature_cols].values)
+                else:
+                    df_candidates[f'predicted_{target}'] = 0.0
+                    
             df_candidates['channel_type'] = channel
             
-            df_candidates = df_candidates.sort_values(by='predicted_engagement_rate', ascending=False)
-            df_candidates['recommendation_rank'] = range(1, len(df_candidates) + 1)
+            # Rank by predicted_total_interactions descending within each holiday scenario group
+            df_candidates['recommendation_rank'] = df_candidates.groupby(
+                ['is_holiday_US', 'is_holiday_DE']
+            )['predicted_total_interactions'].rank(
+                ascending=False, method='first'
+            ).astype(int)
             
             # Save predictions
             conn.execute("DELETE FROM ds_prediction.timeslot_recommendations WHERE channel_type = ?;", [channel])
-            conn.execute("INSERT INTO ds_prediction.timeslot_recommendations SELECT channel_type, day_of_week, hour_of_day, predicted_engagement_rate, recommendation_rank, CURRENT_TIMESTAMP FROM df_candidates;")
+            conn.execute("""
+                INSERT INTO ds_prediction.timeslot_recommendations (
+                    channel_type, day_of_week, hour_of_day, 
+                    is_holiday_US, is_holiday_DE,
+                    predicted_impressions, predicted_total_interactions, predicted_engagement_rate, 
+                    recommendation_rank
+                )
+                SELECT 
+                    channel_type, day_of_week, hour_of_day, 
+                    is_holiday_US, is_holiday_DE,
+                    predicted_impressions, predicted_total_interactions, predicted_engagement_rate, 
+                    recommendation_rank 
+                FROM df_candidates;
+            """)
             
             results[channel] = {
                 "prediction_type": "ml_model",
-                "top_slots": df_candidates.head(5)[['day_of_week', 'hour_of_day', 'predicted_engagement_rate']].to_dict(orient='records')
+                "top_slots": df_candidates.sort_values(by='predicted_total_interactions', ascending=False).head(5)[['day_of_week', 'hour_of_day', 'predicted_impressions', 'predicted_total_interactions', 'predicted_engagement_rate']].to_dict(orient='records')
             }
             
         return {"status": "success", "results": results}
