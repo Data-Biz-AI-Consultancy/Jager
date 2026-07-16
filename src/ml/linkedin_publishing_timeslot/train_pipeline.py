@@ -64,7 +64,7 @@ def fetch_public_holidays(conn):
             holiday_date,
             country_code
         FROM marts.dim_public_holidays
-        WHERE country_code IN ('US', 'DE', 'FR', 'IN');
+        WHERE country_code IN ('US', 'DE');
     """
     try:
         df_holidays = conn.execute(query).df()
@@ -94,13 +94,13 @@ def build_linkedin_post_engagement_features(df, df_holidays=None):
     
     # Process holiday features
     features['publish_date'] = features['published_at_berlin'].dt.date
-    for country in ['US', 'DE', 'FR', 'IN']:
+    for country in ['US', 'DE']:
         features[f'is_holiday_{country}'] = False
         
     if df_holidays is not None and not df_holidays.empty:
         df_holidays_normalized = df_holidays.copy()
         df_holidays_normalized['holiday_date'] = pd.to_datetime(df_holidays_normalized['holiday_date']).dt.date
-        for country in ['US', 'DE', 'FR', 'IN']:
+        for country in ['US', 'DE']:
             country_holidays = set(df_holidays_normalized[df_holidays_normalized['country_code'] == country]['holiday_date'])
             features[f'is_holiday_{country}'] = features['publish_date'].apply(lambda d: d in country_holidays)
             
@@ -121,8 +121,6 @@ def build_linkedin_post_engagement_features(df, df_holidays=None):
         'is_business_hour',
         'is_holiday_US',
         'is_holiday_DE',
-        'is_holiday_FR',
-        'is_holiday_IN',
         'impressions',
         'total_interactions',
         'engagement_rate',
@@ -195,24 +193,6 @@ def save_feature_catalog(conn):
             'description': 'True when publishing date falls on a public holiday in Germany.',
             'owner': 'ml-service',
             'is_active': True
-        },
-        {
-            'feature_name': 'is_holiday_FR',
-            'feature_table': 'linkedin_post_engagement_features',
-            'entity_type': 'linkedin_post',
-            'data_type': 'BOOLEAN',
-            'description': 'True when publishing date falls on a public holiday in France.',
-            'owner': 'ml-service',
-            'is_active': True
-        },
-        {
-            'feature_name': 'is_holiday_IN',
-            'feature_table': 'linkedin_post_engagement_features',
-            'entity_type': 'linkedin_post',
-            'data_type': 'BOOLEAN',
-            'description': 'True when publishing date falls on a public holiday in India.',
-            'owner': 'ml-service',
-            'is_active': True
         }
     ]
     df_catalog = pd.DataFrame(catalog_rows)
@@ -242,8 +222,6 @@ def save_linkedin_feature_store(conn, df, df_holidays=None):
             is_business_hour,
             is_holiday_US,
             is_holiday_DE,
-            is_holiday_FR,
-            is_holiday_IN,
             impressions,
             total_interactions,
             engagement_rate,
@@ -290,7 +268,7 @@ def train_and_validate():
             df_val = df_chan.iloc[split_idx:].copy()
             
             # Train model
-            feature_cols = ['day_of_week', 'hour_of_day', 'is_holiday_US', 'is_holiday_DE', 'is_holiday_FR', 'is_holiday_IN']
+            feature_cols = ['day_of_week', 'hour_of_day', 'is_holiday_US', 'is_holiday_DE']
             X_train = df_train[feature_cols].values
             y_train = df_train['engagement_rate'].values
             

@@ -55,8 +55,6 @@ def initialize_schemas(conn):
             is_business_hour BOOLEAN,
             is_holiday_US BOOLEAN,
             is_holiday_DE BOOLEAN,
-            is_holiday_FR BOOLEAN,
-            is_holiday_IN BOOLEAN,
             impressions DOUBLE,
             total_interactions DOUBLE,
             engagement_rate DOUBLE,

@@ -37,13 +37,11 @@ def generate_predictions():
                         'day_of_week': dow,
                         'hour_of_day': hod,
                         'is_holiday_US': False,
-                        'is_holiday_DE': False,
-                        'is_holiday_FR': False,
-                        'is_holiday_IN': False
+                        'is_holiday_DE': False
                     })
                     
             df_candidates = pd.DataFrame(candidate_slots)
-            feature_cols = ['day_of_week', 'hour_of_day', 'is_holiday_US', 'is_holiday_DE', 'is_holiday_FR', 'is_holiday_IN']
+            feature_cols = ['day_of_week', 'hour_of_day', 'is_holiday_US', 'is_holiday_DE']
             preds = model.predict(df_candidates[feature_cols].values)
             df_candidates['predicted_engagement_rate'] = preds
             df_candidates['channel_type'] = channel
