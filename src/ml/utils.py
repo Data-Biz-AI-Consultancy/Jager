@@ -41,12 +41,14 @@ def initialize_schemas(conn):
     """)
 
     # Reusable post-level features for LinkedIn publishing-time models.
+    conn.execute("DROP TABLE IF EXISTS ds_features.linkedin_post_engagement_features;")
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS ds_features.linkedin_post_engagement_features (
+        CREATE TABLE ds_features.linkedin_post_engagement_features (
             feature_row_id BIGINT,
             source_table VARCHAR(150),
             channel_type VARCHAR(50),
             published_at_berlin TIMESTAMP,
+            content VARCHAR,
             day_of_week INTEGER,
             day_name VARCHAR(20),
             hour_of_day INTEGER,
@@ -65,6 +67,12 @@ def initialize_schemas(conn):
             impressions DOUBLE,
             total_interactions DOUBLE,
             engagement_rate DOUBLE,
+            has_cta BOOLEAN,
+            has_question BOOLEAN,
+            sentiment_score DOUBLE,
+            sentiment_label VARCHAR(20),
+            topic_id INTEGER,
+            topic_label VARCHAR(200),
             feature_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
