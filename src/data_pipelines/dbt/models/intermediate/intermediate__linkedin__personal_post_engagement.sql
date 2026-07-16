@@ -9,6 +9,7 @@ WITH personal_posts_joined AS (
     ugc_posts.post_id AS urn,
     regexp_replace(ugc_posts.post_id, '^.*:', '') AS linkedin_post_id,
     ugc_posts.content AS content,
+    ugc_posts.content_hash AS content_hash,
     ugc_posts.post_url AS post_url,
     ugc_posts.published_at_berlin AS published_at_berlin,
     COALESCE(likes.likes_count, 0) AS likes_count,
@@ -17,7 +18,7 @@ WITH personal_posts_joined AS (
   LEFT JOIN {{ ref('staging__linkedin__social_action_likes') }} likes ON ugc_posts.post_id = likes.post_id
   LEFT JOIN {{ ref('staging__linkedin__social_action_comments') }} comments ON ugc_posts.post_id = comments.post_id
 ),
--- Pick the single closest Buffer post per LinkedIn post (within 5 min)
+-- Pick the single matching Buffer post per LinkedIn post by content_hash
 linkedin_enriched AS (
   SELECT DISTINCT ON (personal_posts.linkedin_post_id)
     personal_posts.linkedin_post_id::TEXT AS linkedin_post_id,
@@ -35,16 +36,16 @@ linkedin_enriched AS (
     COALESCE(buffer_posts.clicks, 0)   AS buf_clicks
   FROM personal_posts_joined personal_posts
   LEFT JOIN {{ ref('intermediate__buffer__linkedin_posts') }} buffer_posts
-    ON ABS(epoch(personal_posts.published_at_berlin) - epoch(buffer_posts.published_at_berlin)) < 300
-  ORDER BY personal_posts.linkedin_post_id, ABS(epoch(personal_posts.published_at_berlin) - epoch(buffer_posts.published_at_berlin)) ASC
+    ON personal_posts.content_hash = buffer_posts.content_hash
+  ORDER BY personal_posts.linkedin_post_id
 ),
--- Buffer posts with no LinkedIn match within 5 min (keep them for completeness)
+-- Buffer posts with no LinkedIn match by content_hash (keep them for completeness)
 buffer_unmatched AS (
   SELECT buffer_posts.*
   FROM {{ ref('intermediate__buffer__linkedin_posts') }} buffer_posts
   WHERE NOT EXISTS (
     SELECT 1 FROM personal_posts_joined personal_posts
-    WHERE ABS(epoch(personal_posts.published_at_berlin) - epoch(buffer_posts.published_at_berlin)) < 300
+    WHERE personal_posts.content_hash = buffer_posts.content_hash
   )
 )
 SELECT
