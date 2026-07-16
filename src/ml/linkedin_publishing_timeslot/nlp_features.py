@@ -2,12 +2,15 @@
 NLP feature extraction for LinkedIn post content.
 Provides:
   - extract_text_features: CTA/question detection + VADER sentiment
-  - extract_topic_features: BERTopic topic cluster ID + keywords
+  - extract_topic_features: TF-IDF + KMeans topic clustering (zero extra deps, uses sklearn)
 """
 
 import re
 import logging
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import normalize
 
 logger = logging.getLogger("ml-service.linkedin_timeslot.nlp")
 
@@ -89,63 +92,59 @@ def extract_text_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ── Topic modeling ────────────────────────────────────────────────────────────
-def extract_topic_features(df: pd.DataFrame, min_topic_size: int = 5) -> pd.DataFrame:
+# ── Topic modeling (TF-IDF + KMeans) ─────────────────────────────────────────
+def extract_topic_features(df: pd.DataFrame, min_topic_size: int = 5, n_topics: int = 8) -> pd.DataFrame:
     """
-    Fits a BERTopic model on the post content and assigns each post:
-      - topic_id (INTEGER): BERTopic cluster ID (-1 = outlier)
-      - topic_label (VARCHAR): comma-joined top keywords for that topic
-    Adds these columns to df in-place and returns it.
+    Clusters posts into topics using TF-IDF + KMeans (sklearn only, no extra deps).
+    Assigns each post:
+      - topic_id (INTEGER): cluster ID 0..n_topics-1, or -1 if insufficient data
+      - topic_label (VARCHAR): top 3 TF-IDF keywords for that cluster
     """
-    try:
-        from bertopic import BERTopic
-        from sentence_transformers import SentenceTransformer
-    except ImportError:
-        logger.warning("bertopic/sentence-transformers not installed. Skipping topic features.")
-        df["topic_id"] = -1
-        df["topic_label"] = "unknown"
-        return df
-
     content = df["content"].fillna("").tolist()
     valid_mask = [bool(c.strip()) for c in content]
     valid_docs = [c for c, v in zip(content, valid_mask) if v]
 
     if len(valid_docs) < min_topic_size:
-        logger.warning(f"Too few documents ({len(valid_docs)}) for topic modeling. Assigning topic_id=-1.")
+        logger.warning(
+            f"Too few documents ({len(valid_docs)}) for topic modeling. Assigning topic_id=-1."
+        )
         df["topic_id"] = -1
         df["topic_label"] = "unknown"
         return df
 
-    logger.info(f"Fitting BERTopic on {len(valid_docs)} documents...")
-    embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-    topic_model = BERTopic(
-        embedding_model=embedding_model,
-        min_topic_size=max(min_topic_size, 3),
-        verbose=False,
+    # Fit TF-IDF
+    n_clusters = min(n_topics, len(valid_docs) // 2)
+    logger.info(f"Fitting TF-IDF + KMeans ({n_clusters} clusters) on {len(valid_docs)} documents...")
+
+    vectorizer = TfidfVectorizer(
+        max_features=500,
+        stop_words="english",
+        ngram_range=(1, 2),
+        min_df=2,
     )
-    topics, _ = topic_model.fit_transform(valid_docs)
+    X = vectorizer.fit_transform(valid_docs)
+    X_norm = normalize(X)
 
-    # Build a map from topic_id -> label (top 3 words)
-    topic_info = topic_model.get_topic_info()
-    topic_label_map = {}
-    for _, row in topic_info.iterrows():
-        tid = row["Topic"]
-        words = topic_model.get_topic(tid)
-        if words:
-            label = ", ".join([w for w, _ in words[:3]])
-        else:
-            label = "unknown"
-        topic_label_map[tid] = label
+    km = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    cluster_ids = km.fit_predict(X_norm)
 
-    # Fill full array (including empty-content rows)
+    # Build cluster label from top TF-IDF terms per centroid
+    terms = vectorizer.get_feature_names_out()
+    cluster_label_map = {}
+    for cid, centroid in enumerate(km.cluster_centers_):
+        top_indices = centroid.argsort()[-3:][::-1]
+        label = ", ".join(terms[i] for i in top_indices)
+        cluster_label_map[cid] = label
+
+    # Re-align with original rows (including empty-content ones)
     topic_ids = []
     topic_labels = []
-    valid_iter = iter(topics)
+    valid_iter = iter(cluster_ids)
     for is_valid in valid_mask:
         if is_valid:
-            tid = next(valid_iter)
-            topic_ids.append(tid)
-            topic_labels.append(topic_label_map.get(tid, "unknown"))
+            cid = int(next(valid_iter))
+            topic_ids.append(cid)
+            topic_labels.append(cluster_label_map.get(cid, "unknown"))
         else:
             topic_ids.append(-1)
             topic_labels.append("unknown")
@@ -153,5 +152,5 @@ def extract_topic_features(df: pd.DataFrame, min_topic_size: int = 5) -> pd.Data
     df["topic_id"] = topic_ids
     df["topic_label"] = topic_labels
 
-    logger.info(f"BERTopic: assigned {len(set(t for t in topic_ids if t >= 0))} topics.")
+    logger.info(f"TF-IDF KMeans: assigned {n_clusters} topics.")
     return df

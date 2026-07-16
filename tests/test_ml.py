@@ -48,8 +48,6 @@ sys.modules['dotenv'] = mock_dotenv
 # Global mocks for NLP libraries (heavy dependencies; not installed in the test environment)
 sys.modules['vaderSentiment'] = mock.MagicMock()
 sys.modules['vaderSentiment.vaderSentiment'] = mock.MagicMock()
-sys.modules['bertopic'] = mock.MagicMock()
-sys.modules['sentence_transformers'] = mock.MagicMock()
 
 # Mock pandas read_sql
 @pytest.fixture(autouse=True)
