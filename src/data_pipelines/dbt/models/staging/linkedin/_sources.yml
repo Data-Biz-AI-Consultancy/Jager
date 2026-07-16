@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: s_linkedin
+    schema: s_linkedin
+    tables:
+      - name: ugc_posts
+      - name: social_action_likes
+      - name: social_action_comments

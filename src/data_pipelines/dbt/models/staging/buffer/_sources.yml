@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: s_buffer
+    schema: s_buffer
+    tables:
+      - name: posts
+      - name: channels
