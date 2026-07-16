@@ -8,11 +8,10 @@ SELECT
   id AS buffer_post_id,
   -- Normalize Buffer text to match LinkedIn native post style:
   --   1. Normalize curly/smart double-quotes → straight double-quotes
-  --   2. Strip @handle mentions
+  --   2. Strip @ symbol from handles but keep the names (e.g., @Microsoft -> Microsoft)
   --   3. Strip leading/trailing " from every line (covers wrapped lines, stray
   --      quote-only lines, and trailing unmatched quotes in one pass)
-  --   4. Collapse 3+ consecutive newlines → double newline (clean up empty lines
-  --      left behind by quote stripping)
+  --   4. Collapse 3+ consecutive newlines → double newline
   --   5. Remove extra whitespace before closing parentheses
   --   6. Collapse runs of multiple spaces into one
   TRIM(
@@ -22,28 +21,33 @@ SELECT
           REGEXP_REPLACE(
             REGEXP_REPLACE(
               REGEXP_REPLACE(
-                text,
-                '[\x{201C}\x{201D}]',  -- 1. Curly → straight double-quotes
+                REGEXP_REPLACE(
+                  text,
+                  '\r\n',                  -- Normalize CRLF to LF
+                  '\n',
+                  'g'
+                ),
+                '[\x{201C}\x{201D}]',      -- 1. Curly → straight double-quotes
                 '"',
                 'g'
               ),
-              '@[^\s@]+',              -- 2. Strip @handles
-              '',
+              '@([^\s@]+)',                -- 2. Strip @ symbol but keep name
+              '\1',
               'g'
             ),
-            '(?m)^"+|"+$',            -- 3. Strip leading/trailing " per line
+            '(?m)^"+|"+$',                -- 3. Strip leading/trailing " per line
             '',
             'g'
           ),
-          '\n{3,}',                    -- 4. Collapse excess blank lines
+          '\n{3,}',                        -- 4. Collapse excess blank lines to exactly one blank line (\n\n)
           E'\n\n',
           'g'
         ),
-        '\s+\)',                        -- 5. Remove spaces before closing parens
+        '\s+\)',                            -- 5. Remove spaces before closing parens
         ')',
         'g'
       ),
-      '  +',                           -- 6. Collapse 2+ spaces into one
+      '  +',                               -- 6. Collapse 2+ spaces into one
       ' ',
       'g'
     )
