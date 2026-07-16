@@ -22,9 +22,14 @@ SELECT
             REGEXP_REPLACE(
               REGEXP_REPLACE(
                 REGEXP_REPLACE(
-                  content,
-                  '\r\n',                  -- Normalize CRLF to LF
-                  '\n',
+                  REGEXP_REPLACE(
+                    content,
+                    '\r\n',                  -- Normalize CRLF to LF
+                    '\n',
+                    'g'
+                  ),
+                  'Seattle\s+Data\s+Guy\s*[\(/]?\s*Benjamin\s+Rogojan\s*\)?', -- Normalize specific attribution
+                  'Seattle Data Guy (Benjamin Rogojan)',
                   'g'
                 ),
                 '[\x{201C}\x{201D}]',      -- 1. Curly → straight double-quotes
