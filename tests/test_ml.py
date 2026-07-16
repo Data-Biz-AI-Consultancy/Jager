@@ -195,6 +195,13 @@ def test_linkedin_timeslot_train_validate():
     mock_df_personal = pd.DataFrame({
         'published_at_berlin': [pd.Timestamp('2026-06-01 10:00:00') + pd.Timedelta(days=i) for i in range(10)],
         'impressions': [1000]*10,
+        'likes': [10]*10,
+        'comments': [5]*10,
+        'shares': [2]*10,
+        'reposts': [1]*10,
+        'clicks': [20]*10,
+        'saves': [3]*10,
+        'sends': [4]*10,
         'total_interactions': [50]*10,
         'engagement_rate': [0.05]*10
     })
@@ -202,6 +209,13 @@ def test_linkedin_timeslot_train_validate():
     mock_df_company = pd.DataFrame({
         'published_at_berlin': [pd.Timestamp('2026-06-01 12:00:00') + pd.Timedelta(days=i) for i in range(10)],
         'impressions': [500]*10,
+        'likes': [5]*10,
+        'comments': [2]*10,
+        'shares': [1]*10,
+        'reposts': [0]*10,
+        'clicks': [10]*10,
+        'saves': [1]*10,
+        'sends': [2]*10,
         'total_interactions': [25]*10,
         'engagement_rate': [0.05]*10
     })

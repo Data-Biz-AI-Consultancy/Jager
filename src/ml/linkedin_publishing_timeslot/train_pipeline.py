@@ -19,6 +19,13 @@ def fetch_historical_data(conn):
         SELECT 
             published_at_berlin,
             COALESCE(impressions, 0) as impressions,
+            COALESCE(likes, 0) as likes,
+            COALESCE(comments, 0) as comments,
+            COALESCE(shares, 0) as shares,
+            COALESCE(reposts, 0) as reposts,
+            COALESCE(clicks, 0) as clicks,
+            COALESCE(saves, 0) as saves,
+            COALESCE(sends, 0) as sends,
             COALESCE(total_interactions, 0) as total_interactions,
             COALESCE(engagement_rate, 0.0) as engagement_rate
         FROM marts.fct_linkedin_personal_account_post_engagement
@@ -30,6 +37,13 @@ def fetch_historical_data(conn):
         SELECT 
             published_at_berlin,
             COALESCE(impressions, 0) as impressions,
+            COALESCE(likes, 0) as likes,
+            COALESCE(comments, 0) as comments,
+            COALESCE(shares, 0) as shares,
+            0 as reposts,
+            COALESCE(clicks, 0) as clicks,
+            COALESCE(saves, 0) as saves,
+            COALESCE(sends, 0) as sends,
             COALESCE(total_interactions, 0) as total_interactions,
             COALESCE(engagement_rate, 0.0) as engagement_rate
         FROM marts.fct_linkedin_company_page_post_engagement
@@ -43,7 +57,7 @@ def fetch_historical_data(conn):
         df_personal['source_table'] = 'marts.fct_linkedin_personal_account_post_engagement'
     except Exception as e:
         logger.warning(f"Could not read from marts.fct_linkedin_personal_account_post_engagement: {e}")
-        df_personal = pd.DataFrame(columns=['published_at_berlin', 'impressions', 'total_interactions', 'engagement_rate', 'channel_type', 'source_table'])
+        df_personal = pd.DataFrame(columns=['published_at_berlin', 'impressions', 'likes', 'comments', 'shares', 'reposts', 'clicks', 'saves', 'sends', 'total_interactions', 'engagement_rate', 'channel_type', 'source_table'])
         
     try:
         df_company = conn.execute(company_query).df()
@@ -52,7 +66,7 @@ def fetch_historical_data(conn):
         df_company['source_table'] = 'marts.fct_linkedin_company_page_post_engagement'
     except Exception as e:
         logger.warning(f"Could not read from marts.fct_linkedin_company_page_post_engagement: {e}")
-        df_company = pd.DataFrame(columns=['published_at_berlin', 'impressions', 'total_interactions', 'engagement_rate', 'channel_type', 'source_table'])
+        df_company = pd.DataFrame(columns=['published_at_berlin', 'impressions', 'likes', 'comments', 'shares', 'reposts', 'clicks', 'saves', 'sends', 'total_interactions', 'engagement_rate', 'channel_type', 'source_table'])
         
     df = pd.concat([df_personal, df_company], ignore_index=True)
     return df
@@ -121,6 +135,13 @@ def build_linkedin_post_engagement_features(df, df_holidays=None):
         'is_business_hour',
         'is_holiday_US',
         'is_holiday_DE',
+        'likes',
+        'comments',
+        'shares',
+        'reposts',
+        'clicks',
+        'saves',
+        'sends',
         'impressions',
         'total_interactions',
         'engagement_rate',
@@ -193,6 +214,69 @@ def save_feature_catalog(conn):
             'description': 'True when publishing date falls on a public holiday in Germany.',
             'owner': 'ml-service',
             'is_active': True
+        },
+        {
+            'feature_name': 'likes',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'DOUBLE',
+            'description': 'Number of likes received by the post.',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'comments',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'DOUBLE',
+            'description': 'Number of comments received by the post.',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'shares',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'DOUBLE',
+            'description': 'Number of shares received by the post.',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'reposts',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'DOUBLE',
+            'description': 'Number of reposts received by the post.',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'clicks',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'DOUBLE',
+            'description': 'Number of clicks received by the post.',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'saves',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'DOUBLE',
+            'description': 'Number of saves received by the post.',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'sends',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'DOUBLE',
+            'description': 'Number of sends received by the post.',
+            'owner': 'ml-service',
+            'is_active': True
         }
     ]
     df_catalog = pd.DataFrame(catalog_rows)
@@ -222,6 +306,13 @@ def save_linkedin_feature_store(conn, df, df_holidays=None):
             is_business_hour,
             is_holiday_US,
             is_holiday_DE,
+            likes,
+            comments,
+            shares,
+            reposts,
+            clicks,
+            saves,
+            sends,
             impressions,
             total_interactions,
             engagement_rate,
