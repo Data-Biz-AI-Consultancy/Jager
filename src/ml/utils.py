@@ -48,6 +48,7 @@ def initialize_schemas(conn):
             source_table VARCHAR(150),
             channel_type VARCHAR(50),
             published_at_berlin TIMESTAMP,
+            content VARCHAR,
             day_of_week INTEGER,
             day_name VARCHAR(20),
             hour_of_day INTEGER,
