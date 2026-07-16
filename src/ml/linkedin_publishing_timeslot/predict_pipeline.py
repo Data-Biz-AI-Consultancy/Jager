@@ -22,16 +22,24 @@ def generate_predictions():
                 res = conn.execute("SELECT model_data FROM ds_training.model_registry WHERE channel_type = ?;", [channel]).fetchone()
                 if res:
                     loaded = pickle.loads(res[0])
-                    if isinstance(loaded, dict):
+                    if isinstance(loaded, dict) and 'models' in loaded:
+                        # Current format: {'models': {...}, 'feature_cols': [...]}
+                        model_dict = loaded['models']
+                        stored_feature_cols = loaded.get('feature_cols')
+                    elif isinstance(loaded, dict):
+                        # Legacy format: dict of target -> model (no feature_cols stored)
                         model_dict = loaded
+                        stored_feature_cols = None
                     else:
                         # Legacy single model fallback
                         model_dict = {'engagement_rate': loaded, 'impressions': None, 'total_interactions': None}
+                        stored_feature_cols = None
             
             if model_dict is None:
                 logger.warning(f"No trained model found for channel {channel}. Generating heuristic predictions.")
                 generate_heuristic_for_channel(conn, channel)
                 results[channel] = {"prediction_type": "heuristic"}
+                stored_feature_cols = None
                 continue
                 
             # Create all candidate slots (168 * 4 combinations of holiday flags)
@@ -55,12 +63,17 @@ def generate_predictions():
             df_candidates['sentiment_score'] = 0.0
             df_candidates['topic_id'] = -1
 
-            feature_cols = [
+            # Use feature_cols stored alongside the model to guarantee match;
+            # fall back to the current default list for legacy models.
+            _default_feature_cols = [
                 'day_of_week', 'hour_of_day',
                 'is_holiday_US', 'is_holiday_DE',
                 'has_cta', 'has_question',
                 'sentiment_score', 'topic_id'
             ]
+            feature_cols = stored_feature_cols if stored_feature_cols is not None else _default_feature_cols
+            if stored_feature_cols is None:
+                logger.warning(f"No feature_cols stored for channel {channel}. Using default feature list — retrain to fix.")
             
             # Predict each target
             for target in ['impressions', 'total_interactions', 'engagement_rate']:

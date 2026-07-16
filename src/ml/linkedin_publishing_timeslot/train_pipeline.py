@@ -499,7 +499,7 @@ def train_and_validate():
             """)
             
             # Serialize model and save in ds_training model registry
-            model_bytes = pickle.dumps(models)
+            model_bytes = pickle.dumps({'models': models, 'feature_cols': feature_cols})
             conn.execute("CREATE TABLE IF NOT EXISTS ds_training.model_registry (channel_type VARCHAR(50) PRIMARY KEY, model_data BYTEA, trained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);")
             
             trained_at_val = utc_now_naive()
