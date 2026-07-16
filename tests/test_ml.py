@@ -273,9 +273,17 @@ def test_linkedin_timeslot_generate_predictions():
     dummy_model = mock.MagicMock()
     dummy_model.predict.side_effect = lambda x: np.zeros(len(x))
     dummy_dict = {
-        'impressions': dummy_model,
-        'total_interactions': dummy_model,
-        'engagement_rate': dummy_model
+        'models': {
+            'impressions': dummy_model,
+            'total_interactions': dummy_model,
+            'engagement_rate': dummy_model
+        },
+        'feature_cols': [
+            'day_of_week', 'hour_of_day',
+            'is_holiday_US', 'is_holiday_DE',
+            'has_cta', 'has_question',
+            'sentiment_score', 'topic_id'
+        ]
     }
     
     with mock.patch('linkedin_publishing_timeslot.predict_pipeline.get_motherduck_connection', return_value=mock_duckdb_conn), \
