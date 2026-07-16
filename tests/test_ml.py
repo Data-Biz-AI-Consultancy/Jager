@@ -206,8 +206,14 @@ def test_linkedin_timeslot_train_validate():
         'engagement_rate': [0.05]*10
     })
     
-    # Setup mock executes
-    mock_duckdb_conn.execute.return_value.df.side_effect = [mock_df_personal, mock_df_company]
+    # Mock public holidays
+    mock_df_holidays = pd.DataFrame({
+        'holiday_date': ['2026-06-01', '2026-06-05'],
+        'country_code': ['US', 'DE']
+    })
+    
+    # Setup mock executes: personal, company, public holidays
+    mock_duckdb_conn.execute.return_value.df.side_effect = [mock_df_personal, mock_df_company, mock_df_holidays]
     # For SHOW TABLES IN ds_training query
     mock_duckdb_conn.execute.return_value.fetchall.return_value = [('model_registry',)]
     
