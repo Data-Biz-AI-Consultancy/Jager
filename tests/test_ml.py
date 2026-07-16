@@ -251,7 +251,7 @@ def test_linkedin_timeslot_generate_predictions():
     
     # We mock pickle.loads to return a dummy dictionary of models
     dummy_model = mock.MagicMock()
-    dummy_model.predict.return_value = np.zeros(168)
+    dummy_model.predict.side_effect = lambda x: np.zeros(len(x))
     dummy_dict = {
         'impressions': dummy_model,
         'total_interactions': dummy_model,

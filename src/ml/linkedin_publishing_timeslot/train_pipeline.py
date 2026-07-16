@@ -461,20 +461,40 @@ def generate_heuristic_for_channel(conn, channel):
             elif hod in [8, 10, 11, 13, 15, 16]:
                 rate += 0.005
                 
-            candidate_slots.append({
-                'channel_type': channel,
-                'day_of_week': dow,
-                'hour_of_day': hod,
-                'predicted_impressions': 100.0,
-                'predicted_total_interactions': rate * 100.0,
-                'predicted_engagement_rate': rate
-            })
+            for hol_us in [False, True]:
+                for hol_de in [False, True]:
+                    candidate_slots.append({
+                        'channel_type': channel,
+                        'day_of_week': dow,
+                        'hour_of_day': hod,
+                        'is_holiday_US': hol_us,
+                        'is_holiday_DE': hol_de,
+                        'predicted_impressions': 100.0,
+                        'predicted_total_interactions': rate * 100.0,
+                        'predicted_engagement_rate': rate
+                    })
             
     df_heuristics = pd.DataFrame(candidate_slots)
-    df_heuristics = df_heuristics.sort_values(by='predicted_total_interactions', ascending=False)
-    df_heuristics['recommendation_rank'] = range(1, len(df_heuristics) + 1)
+    df_heuristics['recommendation_rank'] = df_heuristics.groupby(
+        ['is_holiday_US', 'is_holiday_DE']
+    )['predicted_total_interactions'].rank(
+        ascending=False, method='first'
+    ).astype(int)
     
-    conn.execute("INSERT INTO ds_prediction.timeslot_recommendations SELECT channel_type, day_of_week, hour_of_day, predicted_impressions, predicted_total_interactions, predicted_engagement_rate, recommendation_rank, CURRENT_TIMESTAMP FROM df_heuristics;")
+    conn.execute("""
+        INSERT INTO ds_prediction.timeslot_recommendations (
+            channel_type, day_of_week, hour_of_day, 
+            is_holiday_US, is_holiday_DE,
+            predicted_impressions, predicted_total_interactions, predicted_engagement_rate, 
+            recommendation_rank, created_at
+        )
+        SELECT 
+            channel_type, day_of_week, hour_of_day, 
+            is_holiday_US, is_holiday_DE,
+            predicted_impressions, predicted_total_interactions, predicted_engagement_rate, 
+            recommendation_rank, CURRENT_TIMESTAMP 
+        FROM df_heuristics;
+    """)
     
     conn.execute("""
         INSERT INTO ds_prediction.model_metadata (model_name, channel_type, trained_at, r2_score, val_mae, sample_size, hyperparameters)

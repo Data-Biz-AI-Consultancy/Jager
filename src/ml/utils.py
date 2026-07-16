@@ -75,12 +75,14 @@ def initialize_schemas(conn):
             channel_type VARCHAR(50),
             day_of_week INTEGER,
             hour_of_day INTEGER,
+            is_holiday_US BOOLEAN,
+            is_holiday_DE BOOLEAN,
             predicted_impressions DOUBLE,
             predicted_total_interactions DOUBLE,
             predicted_engagement_rate DOUBLE,
             recommendation_rank INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (channel_type, day_of_week, hour_of_day)
+            PRIMARY KEY (channel_type, day_of_week, hour_of_day, is_holiday_US, is_holiday_DE)
         );
     """)
     

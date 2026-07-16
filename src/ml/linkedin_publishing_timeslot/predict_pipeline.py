@@ -34,16 +34,18 @@ def generate_predictions():
                 results[channel] = {"prediction_type": "heuristic"}
                 continue
                 
-            # Create all 168 candidate slots
+            # Create all candidate slots (168 * 4 combinations of holiday flags)
             candidate_slots = []
             for dow in range(7):
                 for hod in range(24):
-                    candidate_slots.append({
-                        'day_of_week': dow,
-                        'hour_of_day': hod,
-                        'is_holiday_US': False,
-                        'is_holiday_DE': False
-                    })
+                    for hol_us in [False, True]:
+                        for hol_de in [False, True]:
+                            candidate_slots.append({
+                                'day_of_week': dow,
+                                'hour_of_day': hod,
+                                'is_holiday_US': hol_us,
+                                'is_holiday_DE': hol_de
+                            })
                     
             df_candidates = pd.DataFrame(candidate_slots)
             feature_cols = ['day_of_week', 'hour_of_day', 'is_holiday_US', 'is_holiday_DE']
@@ -58,20 +60,25 @@ def generate_predictions():
                     
             df_candidates['channel_type'] = channel
             
-            # Rank by predicted_total_interactions descending
-            df_candidates = df_candidates.sort_values(by='predicted_total_interactions', ascending=False)
-            df_candidates['recommendation_rank'] = range(1, len(df_candidates) + 1)
+            # Rank by predicted_total_interactions descending within each holiday scenario group
+            df_candidates['recommendation_rank'] = df_candidates.groupby(
+                ['is_holiday_US', 'is_holiday_DE']
+            )['predicted_total_interactions'].rank(
+                ascending=False, method='first'
+            ).astype(int)
             
             # Save predictions
             conn.execute("DELETE FROM ds_prediction.timeslot_recommendations WHERE channel_type = ?;", [channel])
             conn.execute("""
                 INSERT INTO ds_prediction.timeslot_recommendations (
                     channel_type, day_of_week, hour_of_day, 
+                    is_holiday_US, is_holiday_DE,
                     predicted_impressions, predicted_total_interactions, predicted_engagement_rate, 
                     recommendation_rank
                 )
                 SELECT 
                     channel_type, day_of_week, hour_of_day, 
+                    is_holiday_US, is_holiday_DE,
                     predicted_impressions, predicted_total_interactions, predicted_engagement_rate, 
                     recommendation_rank 
                 FROM df_candidates;
@@ -79,7 +86,7 @@ def generate_predictions():
             
             results[channel] = {
                 "prediction_type": "ml_model",
-                "top_slots": df_candidates.head(5)[['day_of_week', 'hour_of_day', 'predicted_impressions', 'predicted_total_interactions', 'predicted_engagement_rate']].to_dict(orient='records')
+                "top_slots": df_candidates.sort_values(by='predicted_total_interactions', ascending=False).head(5)[['day_of_week', 'hour_of_day', 'predicted_impressions', 'predicted_total_interactions', 'predicted_engagement_rate']].to_dict(orient='records')
             }
             
         return {"status": "success", "results": results}
