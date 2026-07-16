@@ -5,8 +5,10 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from utils import get_motherduck_connection, initialize_schemas
+from linkedin_publishing_timeslot.nlp_features import extract_text_features, extract_topic_features
 
 logger = logging.getLogger("ml-service.linkedin_timeslot.train")
+
 
 def utc_now_naive():
     return datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
@@ -18,6 +20,7 @@ def fetch_historical_data(conn):
     personal_query = """
         SELECT 
             published_at_berlin,
+            COALESCE(content, '') as content,
             COALESCE(impressions, 0) as impressions,
             COALESCE(likes, 0) as likes,
             COALESCE(comments, 0) as comments,
@@ -36,6 +39,7 @@ def fetch_historical_data(conn):
     company_query = """
         SELECT 
             published_at_berlin,
+            COALESCE(content, '') as content,
             COALESCE(impressions, 0) as impressions,
             COALESCE(likes, 0) as likes,
             COALESCE(comments, 0) as comments,
@@ -57,7 +61,7 @@ def fetch_historical_data(conn):
         df_personal['source_table'] = 'marts.fct_linkedin_personal_account_post_engagement'
     except Exception as e:
         logger.warning(f"Could not read from marts.fct_linkedin_personal_account_post_engagement: {e}")
-        df_personal = pd.DataFrame(columns=['published_at_berlin', 'impressions', 'likes', 'comments', 'shares', 'reposts', 'clicks', 'saves', 'sends', 'total_interactions', 'engagement_rate', 'channel_type', 'source_table'])
+        df_personal = pd.DataFrame(columns=['published_at_berlin', 'content', 'impressions', 'likes', 'comments', 'shares', 'reposts', 'clicks', 'saves', 'sends', 'total_interactions', 'engagement_rate', 'channel_type', 'source_table'])
         
     try:
         df_company = conn.execute(company_query).df()
@@ -66,7 +70,7 @@ def fetch_historical_data(conn):
         df_company['source_table'] = 'marts.fct_linkedin_company_page_post_engagement'
     except Exception as e:
         logger.warning(f"Could not read from marts.fct_linkedin_company_page_post_engagement: {e}")
-        df_company = pd.DataFrame(columns=['published_at_berlin', 'impressions', 'likes', 'comments', 'shares', 'reposts', 'clicks', 'saves', 'sends', 'total_interactions', 'engagement_rate', 'channel_type', 'source_table'])
+        df_company = pd.DataFrame(columns=['published_at_berlin', 'content', 'impressions', 'likes', 'comments', 'shares', 'reposts', 'clicks', 'saves', 'sends', 'total_interactions', 'engagement_rate', 'channel_type', 'source_table'])
         
     df = pd.concat([df_personal, df_company], ignore_index=True)
     return df
@@ -119,6 +123,11 @@ def build_linkedin_post_engagement_features(df, df_holidays=None):
             features[f'is_holiday_{country}'] = features['publish_date'].apply(lambda d: d in country_holidays)
             
     features = features.drop(columns=['publish_date'])
+
+    # NLP content features
+    features = extract_text_features(features)
+    features = extract_topic_features(features)
+
     features['feature_row_id'] = range(1, len(features) + 1)
     features['feature_created_at'] = utc_now_naive()
 
@@ -145,6 +154,12 @@ def build_linkedin_post_engagement_features(df, df_holidays=None):
         'impressions',
         'total_interactions',
         'engagement_rate',
+        'has_cta',
+        'has_question',
+        'sentiment_score',
+        'sentiment_label',
+        'topic_id',
+        'topic_label',
         'feature_created_at'
     ]
     return features[feature_columns]
@@ -277,6 +292,60 @@ def save_feature_catalog(conn):
             'description': 'Number of sends received by the post.',
             'owner': 'ml-service',
             'is_active': True
+        },
+        {
+            'feature_name': 'has_cta',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'BOOLEAN',
+            'description': 'True when post content contains a call-to-action phrase (e.g. let me know, comment below, share this).',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'has_question',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'BOOLEAN',
+            'description': 'True when post content contains a question mark or starts with a question word.',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'sentiment_score',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'DOUBLE',
+            'description': 'VADER compound sentiment score from -1.0 (very negative) to 1.0 (very positive).',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'sentiment_label',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'VARCHAR',
+            'description': 'Sentiment label derived from VADER compound score: positive (>=0.05), negative (<=-0.05), neutral.',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'topic_id',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'INTEGER',
+            'description': 'BERTopic cluster ID assigned to the post. -1 indicates outlier or insufficient data for modeling.',
+            'owner': 'ml-service',
+            'is_active': True
+        },
+        {
+            'feature_name': 'topic_label',
+            'feature_table': 'linkedin_post_engagement_features',
+            'entity_type': 'linkedin_post',
+            'data_type': 'VARCHAR',
+            'description': 'Top 3 keywords representing the BERTopic cluster assigned to the post.',
+            'owner': 'ml-service',
+            'is_active': True
         }
     ]
     df_catalog = pd.DataFrame(catalog_rows)
@@ -317,6 +386,12 @@ def save_linkedin_feature_store(conn, df, df_holidays=None):
             impressions,
             total_interactions,
             engagement_rate,
+            has_cta,
+            has_question,
+            sentiment_score,
+            sentiment_label,
+            topic_id,
+            topic_label,
             feature_created_at
         FROM df_features;
     """)
@@ -360,7 +435,12 @@ def train_and_validate():
             df_val = df_chan.iloc[split_idx:].copy()
             
             # Train model
-            feature_cols = ['day_of_week', 'hour_of_day', 'is_holiday_US', 'is_holiday_DE']
+            feature_cols = [
+                'day_of_week', 'hour_of_day',
+                'is_holiday_US', 'is_holiday_DE',
+                'has_cta', 'has_question',
+                'sentiment_score', 'topic_id'
+            ]
             X_train = df_train[feature_cols].values
             X_val = df_val[feature_cols].values
             

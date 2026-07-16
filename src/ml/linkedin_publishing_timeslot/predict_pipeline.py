@@ -48,7 +48,19 @@ def generate_predictions():
                             })
                     
             df_candidates = pd.DataFrame(candidate_slots)
-            feature_cols = ['day_of_week', 'hour_of_day', 'is_holiday_US', 'is_holiday_DE']
+
+            # NLP features default to neutral at inference time (no content is available for hypothetical future slots)
+            df_candidates['has_cta'] = False
+            df_candidates['has_question'] = False
+            df_candidates['sentiment_score'] = 0.0
+            df_candidates['topic_id'] = -1
+
+            feature_cols = [
+                'day_of_week', 'hour_of_day',
+                'is_holiday_US', 'is_holiday_DE',
+                'has_cta', 'has_question',
+                'sentiment_score', 'topic_id'
+            ]
             
             # Predict each target
             for target in ['impressions', 'total_interactions', 'engagement_rate']:

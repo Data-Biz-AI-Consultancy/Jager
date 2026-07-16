@@ -45,6 +45,12 @@ mock_dotenv = mock.MagicMock()
 mock_dotenv.load_dotenv = mock.MagicMock(return_value=True)
 sys.modules['dotenv'] = mock_dotenv
 
+# Global mocks for NLP libraries (heavy dependencies; not installed in the test environment)
+sys.modules['vaderSentiment'] = mock.MagicMock()
+sys.modules['vaderSentiment.vaderSentiment'] = mock.MagicMock()
+sys.modules['bertopic'] = mock.MagicMock()
+sys.modules['sentence_transformers'] = mock.MagicMock()
+
 # Mock pandas read_sql
 @pytest.fixture(autouse=True)
 def mock_pandas_read_sql():
@@ -194,6 +200,7 @@ def test_linkedin_timeslot_train_validate():
     # Simulating data for personal and company posts
     mock_df_personal = pd.DataFrame({
         'published_at_berlin': [pd.Timestamp('2026-06-01 10:00:00') + pd.Timedelta(days=i) for i in range(10)],
+        'content': ['Test post content'] * 10,
         'impressions': [1000]*10,
         'likes': [10]*10,
         'comments': [5]*10,
@@ -208,6 +215,7 @@ def test_linkedin_timeslot_train_validate():
     
     mock_df_company = pd.DataFrame({
         'published_at_berlin': [pd.Timestamp('2026-06-01 12:00:00') + pd.Timedelta(days=i) for i in range(10)],
+        'content': ['Company test post'] * 10,
         'impressions': [500]*10,
         'likes': [5]*10,
         'comments': [2]*10,
@@ -231,7 +239,21 @@ def test_linkedin_timeslot_train_validate():
     # For SHOW TABLES IN ds_training query
     mock_duckdb_conn.execute.return_value.fetchall.return_value = [('model_registry',)]
     
-    with mock.patch('linkedin_publishing_timeslot.train_pipeline.get_motherduck_connection', return_value=mock_duckdb_conn):
+    def _mock_extract_text(df):
+        df['has_cta'] = False
+        df['has_question'] = False
+        df['sentiment_score'] = 0.0
+        df['sentiment_label'] = 'neutral'
+        return df
+
+    def _mock_extract_topic(df, min_topic_size=5):
+        df['topic_id'] = -1
+        df['topic_label'] = 'unknown'
+        return df
+
+    with mock.patch('linkedin_publishing_timeslot.train_pipeline.get_motherduck_connection', return_value=mock_duckdb_conn), \
+         mock.patch('linkedin_publishing_timeslot.train_pipeline.extract_text_features', side_effect=_mock_extract_text), \
+         mock.patch('linkedin_publishing_timeslot.train_pipeline.extract_topic_features', side_effect=_mock_extract_topic):
         from linkedin_publishing_timeslot.train_pipeline import train_and_validate
         res = train_and_validate()
         
