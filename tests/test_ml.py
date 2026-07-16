@@ -249,12 +249,17 @@ def test_linkedin_timeslot_generate_predictions():
     mock_duckdb_conn = mock.MagicMock()
     mock_duckdb_conn.execute.return_value.fetchall.return_value = [('model_registry',)]
     
-    # We mock pickle.loads to return a dummy trained model
+    # We mock pickle.loads to return a dummy dictionary of models
     dummy_model = mock.MagicMock()
     dummy_model.predict.return_value = np.zeros(168)
+    dummy_dict = {
+        'impressions': dummy_model,
+        'total_interactions': dummy_model,
+        'engagement_rate': dummy_model
+    }
     
     with mock.patch('linkedin_publishing_timeslot.predict_pipeline.get_motherduck_connection', return_value=mock_duckdb_conn), \
-         mock.patch('pickle.loads', return_value=dummy_model):
+         mock.patch('pickle.loads', return_value=dummy_dict):
         from linkedin_publishing_timeslot.predict_pipeline import generate_predictions as generate_linkedin_predictions
         res = generate_linkedin_predictions()
 

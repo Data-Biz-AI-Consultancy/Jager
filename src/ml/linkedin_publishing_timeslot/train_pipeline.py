@@ -361,21 +361,29 @@ def train_and_validate():
             # Train model
             feature_cols = ['day_of_week', 'hour_of_day', 'is_holiday_US', 'is_holiday_DE']
             X_train = df_train[feature_cols].values
-            y_train = df_train['engagement_rate'].values
-            
-            model = RandomForestRegressor(n_estimators=50, random_state=42)
-            model.fit(X_train, y_train)
-            r2 = float(model.score(X_train, y_train))
-            
-            # Validate model
             X_val = df_val[feature_cols].values
-            y_val = df_val['engagement_rate'].values
-            preds_val = model.predict(X_val)
-            mae = float(np.mean(np.abs(preds_val - y_val)))
             
-            # Save validation predictions to validation_results table
-            df_val['predicted_engagement_rate'] = preds_val
-            df_val['absolute_error'] = np.abs(preds_val - y_val)
+            models = {}
+            r2_scores = {}
+            maes = {}
+            preds_val = {}
+            
+            targets = ['impressions', 'total_interactions', 'engagement_rate']
+            for target in targets:
+                y_train = df_train[target].values
+                y_val = df_val[target].values
+                
+                model = RandomForestRegressor(n_estimators=50, random_state=42)
+                model.fit(X_train, y_train)
+                r2 = float(model.score(X_train, y_train))
+                r2_scores[target] = r2
+                
+                pred_v = model.predict(X_val)
+                mae = float(np.mean(np.abs(pred_v - y_val)))
+                maes[target] = mae
+                
+                models[target] = model
+                preds_val[target] = pred_v
             
             # Prepare dataframe matching validation_results table structure
             df_val_insert = pd.DataFrame({
@@ -383,16 +391,32 @@ def train_and_validate():
                 'published_at_berlin': df_val['published_at_berlin'],
                 'day_of_week': df_val['day_of_week'].astype(int),
                 'hour_of_day': df_val['hour_of_day'].astype(int),
+                'actual_impressions': df_val['impressions'].astype(float),
+                'predicted_impressions': preds_val['impressions'].astype(float),
+                'actual_total_interactions': df_val['total_interactions'].astype(float),
+                'predicted_total_interactions': preds_val['total_interactions'].astype(float),
                 'actual_engagement_rate': df_val['engagement_rate'].astype(float),
-                'predicted_engagement_rate': df_val['predicted_engagement_rate'].astype(float),
-                'absolute_error': df_val['absolute_error'].astype(float)
+                'predicted_engagement_rate': preds_val['engagement_rate'].astype(float)
             })
             
             # Insert using DuckDB registered dataframe query
-            conn.execute("INSERT INTO ds_training.validation_results (channel_type, published_at_berlin, day_of_week, hour_of_day, actual_engagement_rate, predicted_engagement_rate, absolute_error) SELECT channel_type, published_at_berlin, day_of_week, hour_of_day, actual_engagement_rate, predicted_engagement_rate, absolute_error FROM df_val_insert;")
+            conn.execute("""
+                INSERT INTO ds_training.validation_results (
+                    channel_type, published_at_berlin, day_of_week, hour_of_day, 
+                    actual_impressions, predicted_impressions, 
+                    actual_total_interactions, predicted_total_interactions, 
+                    actual_engagement_rate, predicted_engagement_rate
+                ) 
+                SELECT 
+                    channel_type, published_at_berlin, day_of_week, hour_of_day, 
+                    actual_impressions, predicted_impressions, 
+                    actual_total_interactions, predicted_total_interactions, 
+                    actual_engagement_rate, predicted_engagement_rate 
+                FROM df_val_insert;
+            """)
             
             # Serialize model and save in ds_training model registry
-            model_bytes = pickle.dumps(model)
+            model_bytes = pickle.dumps(models)
             conn.execute("CREATE TABLE IF NOT EXISTS ds_training.model_registry (channel_type VARCHAR(50) PRIMARY KEY, model_data BYTEA, trained_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);")
             
             trained_at_val = utc_now_naive()
@@ -406,16 +430,17 @@ def train_and_validate():
             """, [channel, model_bytes, trained_at_val])
             
             # Save metadata
-            conn.execute("""
-                INSERT INTO ds_prediction.model_metadata (model_name, channel_type, trained_at, r2_score, val_mae, sample_size, hyperparameters)
-                VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?);
-            """, ["random_forest_timeslots", channel, r2, mae, len(df_chan), "n_estimators=50"])
+            for target in targets:
+                conn.execute("""
+                    INSERT INTO ds_prediction.model_metadata (model_name, channel_type, trained_at, r2_score, val_mae, sample_size, hyperparameters)
+                    VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?);
+                """, [f"rf_{target}", channel, r2_scores[target], maes[target], len(df_chan), "n_estimators=50"])
             
             results[channel] = {
                 "status": "trained",
                 "sample_size": len(df_chan),
-                "r2_score": r2,
-                "val_mae": mae
+                "r2_scores": r2_scores,
+                "val_maes": maes
             }
             
         return {"status": "success", "results": results}
@@ -440,6 +465,8 @@ def generate_heuristic_for_channel(conn, channel):
                 'channel_type': channel,
                 'day_of_week': dow,
                 'hour_of_day': hod,
+                'predicted_impressions': 0.0,
+                'predicted_total_interactions': 0.0,
                 'predicted_engagement_rate': rate
             })
             
@@ -447,7 +474,7 @@ def generate_heuristic_for_channel(conn, channel):
     df_heuristics = df_heuristics.sort_values(by='predicted_engagement_rate', ascending=False)
     df_heuristics['recommendation_rank'] = range(1, len(df_heuristics) + 1)
     
-    conn.execute("INSERT INTO ds_prediction.timeslot_recommendations SELECT channel_type, day_of_week, hour_of_day, predicted_engagement_rate, recommendation_rank, CURRENT_TIMESTAMP FROM df_heuristics;")
+    conn.execute("INSERT INTO ds_prediction.timeslot_recommendations SELECT channel_type, day_of_week, hour_of_day, predicted_impressions, predicted_total_interactions, predicted_engagement_rate, recommendation_rank, CURRENT_TIMESTAMP FROM df_heuristics;")
     
     conn.execute("""
         INSERT INTO ds_prediction.model_metadata (model_name, channel_type, trained_at, r2_score, val_mae, sample_size, hyperparameters)

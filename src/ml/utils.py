@@ -68,13 +68,15 @@ def initialize_schemas(conn):
             feature_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
-    
     # Create prediction recommendations table
+    conn.execute("DROP TABLE IF EXISTS ds_prediction.timeslot_recommendations;")
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS ds_prediction.timeslot_recommendations (
+        CREATE TABLE ds_prediction.timeslot_recommendations (
             channel_type VARCHAR(50),
             day_of_week INTEGER,
             hour_of_day INTEGER,
+            predicted_impressions DOUBLE,
+            predicted_total_interactions DOUBLE,
             predicted_engagement_rate DOUBLE,
             recommendation_rank INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -96,15 +98,19 @@ def initialize_schemas(conn):
     """)
     
     # Create validation results table to store actual vs predicted for audit/monitoring
+    conn.execute("DROP TABLE IF EXISTS ds_training.validation_results;")
     conn.execute("""
-        CREATE TABLE IF NOT EXISTS ds_training.validation_results (
+        CREATE TABLE ds_training.validation_results (
             channel_type VARCHAR(50),
             published_at_berlin TIMESTAMP,
             day_of_week INTEGER,
             hour_of_day INTEGER,
+            actual_impressions DOUBLE,
+            predicted_impressions DOUBLE,
+            actual_total_interactions DOUBLE,
+            predicted_total_interactions DOUBLE,
             actual_engagement_rate DOUBLE,
             predicted_engagement_rate DOUBLE,
-            absolute_error DOUBLE,
             evaluated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """)
