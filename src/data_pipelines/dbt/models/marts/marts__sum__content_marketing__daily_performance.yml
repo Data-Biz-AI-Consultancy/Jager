@@ -43,11 +43,5 @@ models:
       - name: total_interactions
         description: Sum of all engagement interactions (likes + comments + shares + clicks + saves + sends).
 
-      - name: avg_engagement_rate
-        description: Average engagement rate across posts published on this date (total_interactions / impressions per post, rounded to 4 decimal places).
-
-      - name: avg_impressions_per_post
-        description: Average number of impressions per post published on this date.
-
       - name: calculated_at_berlin
         description: Timestamp when the row was last computed, in Europe/Berlin timezone.

@@ -50,11 +50,6 @@ SELECT
     SUM(shares)                                                             AS total_shares,
     SUM(clicks)                                                             AS total_clicks,
     SUM(total_interactions)                                                 AS total_interactions,
-    ROUND(AVG(engagement_rate), 4)                                          AS avg_engagement_rate,
-    CASE
-        WHEN COUNT(*) > 0 THEN ROUND(SUM(impressions)::NUMERIC / COUNT(*), 2)
-        ELSE 0
-    END                                                                     AS avg_impressions_per_post,
     NOW() AT TIME ZONE 'Europe/Berlin'                                      AS calculated_at_berlin
 FROM all_posts
 GROUP BY published_date_berlin, account_type
