@@ -78,6 +78,13 @@ If you modify workflows in the N8N UI, or if you clone the production database a
 
 ---
 
+## Utility & Ingestion Scripts
+
+For database cloning, migrations, or manual spreadsheet ingestion to Motherduck (staging & production environments):
+*   Refer to the [Scripts Documentation](scripts/README.md) for usage instructions on `clone-db.js`, `migrate-db.js`, and `import_xlsx_motherduck.py`.
+
+---
+
 ## Release Pipeline
 
 We have established a manual trigger release CI pipeline via GitHub Actions.

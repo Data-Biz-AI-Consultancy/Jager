@@ -33,12 +33,19 @@
 
 ## Documentation Integrity
 - Always keep project README files (e.g. `README.md` at all levels) up to date when folders, scripts, configurations, or workflow files are added, moved, or deleted.
+- In markdown files (like READMEs), always use relative paths for file links instead of absolute paths (e.g., use `[Scripts](scripts/README.md)` instead of `[Scripts](file:///path/to/scripts/README.md)`).
 
 ## Machine Learning Service Conventions
 - In `src/ml`, organize ML scripts and pipelines inside subfolders based on use case (1 use case, 1 subfolder rule). Avoid placing use-case-specific files directly in the root of `src/ml`.
 
 ## Data Source Naming Conventions
 - Always use the specific data source application name to name files, directories, database schemas/datasets, and endpoints representing that data source (e.g., use `nager` instead of generic `holiday`).
+
+## Manual Data Ingestion to Motherduck
+- For manual data ingestion scripts targeting Motherduck (e.g., uploading local spreadsheets), scripts must support both staging and production target databases using an environment flag (like `--prod`).
+- By default, these scripts must target the staging database (`staging`) using `MOTHERDUCK_TOKEN` for safety.
+- When `--prod` is passed, the script must switch to the production credentials/tokens (`MOTHERDUCK_TOKEN_PROD`) and database (`production` or custom variable).
+
 
 
 
