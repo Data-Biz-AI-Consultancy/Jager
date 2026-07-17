@@ -6,7 +6,6 @@ Jager is an AI-native leads generator, simplified to use **N8N** as the primary 
 
 This repository has been streamlined to prioritize N8N workflows:
 - **`src/n8n/`**: Contains the primary N8N configuration, including the custom `Dockerfile` and the workflow JSON.
-- **`legacy/`**: Houses older backend, frontend, test files, and configurations kept for reference.
 
 ### Database Schema (ODS Namespaces)
 We organize database tables into dedicated schemas following the `s_{{application_name}}` naming convention (with table prefixes removed):
