@@ -128,3 +128,45 @@ def test_ingest_wordpress(mock_feedparser, mock_get, mock_dlt_utils):
         mock_pipeline_inst.run.assert_called_once()
 
 
+@patch('requests.get')
+def test_ingest_yahoo_finance(mock_get, mock_dlt_utils):
+    from oltp import ingest_yahoo_finance
+    
+    # Mock requests.get returning a mock response with Yahoo Finance JSON
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "chart": {
+            "result": [
+                {
+                    "meta": {"symbol": "^GSPC"},
+                    "timestamp": [1784279536],
+                    "indicators": {
+                        "quote": [
+                            {
+                                "open": [5000.0],
+                                "high": [5010.0],
+                                "low": [4990.0],
+                                "close": [5005.0],
+                                "volume": [1000000.0]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+    mock_get.return_value = mock_resp
+    
+    # Patch dlt.pipeline
+    with patch('dlt.pipeline') as mock_dlt_pipeline:
+        mock_pipeline_inst = MagicMock()
+        mock_dlt_pipeline.return_value = mock_pipeline_inst
+        
+        ingest_yahoo_finance.run_ingestion()
+        
+        mock_dlt_pipeline.assert_called_once()
+        mock_pipeline_inst.run.assert_called_once()
+
+
+
