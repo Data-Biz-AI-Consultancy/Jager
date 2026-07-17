@@ -907,17 +907,6 @@ async function run() {
   console.log('Connecting to jager application database for automated migrations...');
   await client.connect();
 
-  // Check if jager_olap database exists, and create it if it doesn't
-  try {
-    const dbCheck = await client.query("SELECT 1 FROM pg_database WHERE datname = 'jager_olap'");
-    if (dbCheck.rowCount === 0) {
-      console.log('Database jager_olap does not exist. Creating it...');
-      await client.query('CREATE DATABASE jager_olap');
-      console.log('Database jager_olap created successfully.');
-    }
-  } catch (err) {
-    console.warn('Warning: Could not check/create database jager_olap:', err.message);
-  }
 
   console.log('Running application database migrations...');
   try {
