@@ -14,8 +14,8 @@ sys.modules['dlt.destinations'] = MagicMock()
 # Mock the database engine creation and DLT pipeline creation
 @pytest.fixture
 def mock_dlt_utils():
-    with patch('olap.utils.get_db_engine') as mock_engine, \
-         patch('olap.utils.create_motherduck_pipeline') as mock_pipeline:
+    with patch('common.utils.get_db_engine') as mock_engine, \
+         patch('common.utils.create_motherduck_pipeline') as mock_pipeline:
         
         # Setup mock db connections
         mock_conn = MagicMock()

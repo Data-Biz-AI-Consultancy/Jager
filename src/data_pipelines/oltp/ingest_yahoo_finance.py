@@ -7,7 +7,7 @@ import dlt
 # Add parent directory to sys.path to resolve 'olap' or 'oltp' imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from olap.utils import setup_logging
+from common.utils import setup_logging, get_http_headers, create_postgres_pipeline
 
 # Set up logging
 logger = setup_logging("ingest-yahoo-finance")
@@ -21,9 +21,7 @@ def run_ingestion():
     interval = "1h"
     range_val = "5d"
     
-    headers = {
-        'User-Agent': 'Jager/1.0 (by /u/jager_developer)'
-    }
+    headers = get_http_headers()
     
     @dlt.resource(
         name="stock_prices",
@@ -84,17 +82,7 @@ def run_ingestion():
             except Exception as ex:
                 logger.error(f"Error processing symbol {sym_name}: {ex}")
 
-    logger.info("Setting DLT configuration")
-    os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
-    
-    # Configure pipeline destination as postgres using DATABASE_URL
-    from dlt.destinations import postgres
-    db_url = os.getenv("DATABASE_URL", "postgresql://jager:jager@db:5432/jager")
-    pipeline = dlt.pipeline(
-        pipeline_name="yahoo_finance_oltp_ingestion",
-        destination=postgres(credentials=db_url),
-        dataset_name="s_yahoo_finance"  # Target schema name
-    )
+    pipeline = create_postgres_pipeline("yahoo_finance_oltp_ingestion", "s_yahoo_finance")
     
     logger.info("Running pipeline")
     load_info = pipeline.run(fetch_stock_prices())

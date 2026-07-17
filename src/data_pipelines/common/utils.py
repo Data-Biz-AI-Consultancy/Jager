@@ -36,3 +36,18 @@ def create_motherduck_pipeline(pipeline_name: str, dataset_name: str):
         ),
         dataset_name=dataset_name,
     )
+
+def get_http_headers() -> dict:
+    return {
+        'User-Agent': 'Jager/1.0 (by /u/jager_developer)'
+    }
+
+def create_postgres_pipeline(pipeline_name: str, dataset_name: str) -> dlt.Pipeline:
+    os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
+    from dlt.destinations import postgres
+    db_url = os.getenv("DATABASE_URL", "postgresql://jager:jager@db:5432/jager")
+    return dlt.pipeline(
+        pipeline_name=pipeline_name,
+        destination=postgres(credentials=db_url),
+        dataset_name=dataset_name
+    )

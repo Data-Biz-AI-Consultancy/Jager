@@ -9,7 +9,7 @@ import urllib.error
 # Add parent directory of the script's directory to sys.path to resolve 'olap'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from olap.utils import setup_logging, create_motherduck_pipeline
+from common.utils import setup_logging, create_motherduck_pipeline
 
 # Set up logging
 logger = setup_logging("ingest-nager")
