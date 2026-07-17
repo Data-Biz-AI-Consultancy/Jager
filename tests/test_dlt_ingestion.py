@@ -86,3 +86,45 @@ def test_ingest_substack(mock_dlt_utils):
     )
     mock_dlt_utils['pipeline_inst'].run.assert_called_once()
 
+
+@patch('requests.get')
+@patch('feedparser.parse')
+def test_ingest_wordpress(mock_feedparser, mock_get, mock_dlt_utils):
+    from oltp import ingest_wordpress
+    
+    # Mock active feeds query response
+    mock_dlt_utils['connection'].execute.return_value = [
+        {"id": 1, "name": "Towards Data Science", "feed_url": "https://towardsdatascience.com/feed/"}
+    ]
+    
+    # Mock requests.get returning a dummy status
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.text = "<xml></xml>"
+    mock_get.return_value = mock_resp
+    
+    # Mock feedparser.parse returning some entries
+    mock_feed = MagicMock()
+    mock_entry = MagicMock()
+    mock_entry.get.side_effect = lambda key, default=None: {
+        "id": "https://towardsdatascience.com/?p=609803",
+        "link": "https://towardsdatascience.com/?p=609803",
+        "title": "Test Title",
+        "summary": "<p>Test Content</p>",
+        "author": "Omer Rosenbaum",
+        "published_parsed": (2026, 7, 17, 10, 0, 0, 4, 198, 0)
+    }.get(key, default)
+    mock_feed.entries = [mock_entry]
+    mock_feedparser.return_value = mock_feed
+    
+    # Patch dlt.pipeline to mock pipeline creation and return mock pipeline instance
+    with patch('dlt.pipeline') as mock_dlt_pipeline:
+        mock_pipeline_inst = MagicMock()
+        mock_dlt_pipeline.return_value = mock_pipeline_inst
+        
+        ingest_wordpress.run_ingestion()
+        
+        mock_dlt_pipeline.assert_called_once()
+        mock_pipeline_inst.run.assert_called_once()
+
+
