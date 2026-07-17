@@ -32,8 +32,13 @@ Access your local N8N instance at [http://localhost](http://localhost).
 
 ## Architecture
 
-This repository is streamlined to prioritize N8N workflows, supported by containerized databases and custom backends:
-- **`src/n8n/`**: Contains the primary N8N configuration, including the custom `Dockerfile` and the workflow JSON.
+Jager is structured around three core application components, supported by containerized databases:
+
+*   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to coordinate and schedule all automated workflows.
+*   **Data Pipelines App ([src/data_pipelines/](src/data_pipelines/README.md))**: A dedicated Python application handling all data ingestion (writing raw feeds to the operational PostgreSQL OLTP database, and loading analytical data to MotherDuck) and data transformations (using **dlt** and **dbt**).
+*   **ML App ([src/ml/](src/ml/README.md))**: A dedicated machine learning Python application responsible for model training, validation, and generation of publishing timeslot recommendations.
+
+
 
 ### Database & Storage Schemas
 
@@ -65,7 +70,11 @@ jager/
 Refer to the folder-level READMEs for detailed guides:
 - [scripts/README.md](scripts/README.md)
 - [src/data_pipelines/README.md](src/data_pipelines/README.md)
+- [src/data_pipelines/oltp/README.md](src/data_pipelines/oltp/README.md)
+- [src/data_pipelines/olap/README.md](src/data_pipelines/olap/README.md)
+- [src/ml/README.md](src/ml/README.md)
 - [tests/README.md](tests/README.md)
+
 
 ### Important Root Files
 
