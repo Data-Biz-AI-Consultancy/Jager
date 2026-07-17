@@ -35,20 +35,12 @@ Access your local N8N instance at [http://localhost](http://localhost).
 This repository is streamlined to prioritize N8N workflows, supported by containerized databases and custom backends:
 - **`src/n8n/`**: Contains the primary N8N configuration, including the custom `Dockerfile` and the workflow JSON.
 
-### Database Schema (ODS Namespaces)
-We organize database tables into dedicated schemas following the `s_{{application_name}}` naming convention (with table prefixes removed):
-- `s_reddit`: subreddits monitored, posts, and comments.
-- `s_slack`: workspaces monitored, channels monitored, and messages.
-- `s_substack`: feeds monitored and posts.
-- `s_euro_stat`: regional GDP, crime rates, inflation, quarterly GDP, unemployment, HPI, and FX rates.
-- `s_yahoo_finance`: stock index prices.
-- `prediction` & `training`: prediction outputs and ML trained models.
+### Database & Storage Schemas
 
-### MotherDuck ML Schemas
-The ML service also initializes lightweight MotherDuck schemas for analytics and model workflows:
-- `ds_features`: reusable feature tables and a small `feature_catalog` for discoverability. The first table is `linkedin_post_engagement_features`, which stores LinkedIn post time features such as `day_of_week`, `hour_of_day`, `is_weekend`, `is_business_hour`, and `hour_bucket`.
-- `ds_training`: training snapshots, validation results, and serialized model registry entries.
-- `ds_prediction`: model metadata and generated prediction outputs such as LinkedIn timeslot recommendations.
+We organize our databases into clear schemas for operational (OLTP) and analytical (OLAP) processing:
+- **OLTP Schema (PostgreSQL)**: Stores operational data (e.g. Reddit, Slack, Substack feeds) inside schema-scoped ODS namespaces. Refer to the [OLTP Database Documentation](src/data_pipelines/oltp/README.md) for table schemas.
+- **OLAP Schema (MotherDuck)**: Stores features, validation snapshots, and serialized model metrics for ML workflows. Refer to the [OLAP Database Documentation](src/data_pipelines/olap/README.md) for details.
+
 
 ---
 
