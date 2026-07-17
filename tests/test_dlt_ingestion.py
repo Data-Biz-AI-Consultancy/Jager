@@ -169,4 +169,44 @@ def test_ingest_yahoo_finance(mock_get, mock_dlt_utils):
         mock_pipeline_inst.run.assert_called_once()
 
 
+@patch('requests.get')
+def test_ingest_eurostat_fx(mock_get, mock_dlt_utils):
+    from oltp import ingest_eurostat_fx
+    
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "size": [1, 1, 1, 2, 2],
+        "value": {
+            "0": 1.08,  # USD currency=0, time=0
+            "1": 1.09,  # USD currency=0, time=1
+            "2": 8.42,  # HKD currency=1, time=0
+            "3": 8.45   # HKD currency=1, time=1
+        },
+        "dimension": {
+            "currency": {
+                "category": {
+                    "index": {"USD": 0, "HKD": 1}
+                }
+            },
+            "time": {
+                "category": {
+                    "index": {"2026-07-16": 0, "2026-07-17": 1}
+                }
+            }
+        }
+    }
+    mock_get.return_value = mock_resp
+    
+    with patch('dlt.pipeline') as mock_dlt_pipeline:
+        mock_pipeline_inst = MagicMock()
+        mock_dlt_pipeline.return_value = mock_pipeline_inst
+        
+        ingest_eurostat_fx.run_ingestion()
+        
+        mock_dlt_pipeline.assert_called_once()
+        mock_pipeline_inst.run.assert_called_once()
+
+
+
 
