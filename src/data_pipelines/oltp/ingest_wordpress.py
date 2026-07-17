@@ -11,7 +11,7 @@ from sqlalchemy import text
 # Add parent directory to sys.path to resolve 'olap' or 'oltp' imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from olap.utils import setup_logging, get_db_engine
+from common.utils import setup_logging, get_db_engine, get_http_headers, create_postgres_pipeline
 
 # Set up logging
 logger = setup_logging("ingest-wordpress")
@@ -48,9 +48,7 @@ def run_ingestion():
     engine = get_db_engine()
     feeds = get_active_feeds(engine)
     
-    headers = {
-        'User-Agent': 'Jager/1.0 (by /u/jager_developer)'
-    }
+    headers = get_http_headers()
     
     # Ingestion date range: last 30 days
     now = datetime.now(timezone.utc)
@@ -124,18 +122,7 @@ def run_ingestion():
             except Exception as ex:
                 logger.error(f"Error processing feed {feed_name}: {ex}")
 
-    logger.info("Setting DLT configuration")
-    # Set max table nesting to 0 to prevent sub-table creation
-    os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
-    
-    # Configure pipeline destination as postgres using DATABASE_URL
-    from dlt.destinations import postgres
-    db_url = os.getenv("DATABASE_URL", "postgresql://jager:jager@db:5432/jager")
-    pipeline = dlt.pipeline(
-        pipeline_name="wordpress_oltp_ingestion",
-        destination=postgres(credentials=db_url),
-        dataset_name="s_wordpress"  # Target schema name
-    )
+    pipeline = create_postgres_pipeline("wordpress_oltp_ingestion", "s_wordpress")
     
     logger.info("Running pipeline")
     load_info = pipeline.run(fetch_wordpress_posts())

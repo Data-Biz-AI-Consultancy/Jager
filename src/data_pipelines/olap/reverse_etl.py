@@ -6,7 +6,7 @@ import duckdb
 # Add parent directory of the script's directory to sys.path to resolve 'olap'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from olap.utils import setup_logging
+from common.utils import setup_logging
 
 # Set up logging
 logger = setup_logging("reverse-etl")

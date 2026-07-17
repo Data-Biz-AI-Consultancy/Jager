@@ -6,7 +6,7 @@ import dlt
 # Add parent directory to sys.path to resolve 'olap' or 'oltp' imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from olap.utils import setup_logging
+from common.utils import setup_logging, get_http_headers, create_postgres_pipeline
 
 # Set up logging
 logger = setup_logging("ingest-eurostat-fx")
@@ -14,9 +14,7 @@ logger = setup_logging("ingest-eurostat-fx")
 def run_ingestion():
     url = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/ert_bil_eur_d?format=json&lang=en&currency=USD&currency=HKD&lastTimePeriod=10"
     
-    headers = {
-        'User-Agent': 'Jager/1.0 (by /u/jager_developer)'
-    }
+    headers = get_http_headers()
     
     @dlt.resource(
         name="fx_rates",
@@ -85,17 +83,7 @@ def run_ingestion():
         except Exception as ex:
             logger.error(f"Error processing Eurostat FX API: {ex}")
 
-    logger.info("Setting DLT configuration")
-    os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
-    
-    # Configure pipeline destination as postgres using DATABASE_URL
-    from dlt.destinations import postgres
-    db_url = os.getenv("DATABASE_URL", "postgresql://jager:jager@db:5432/jager")
-    pipeline = dlt.pipeline(
-        pipeline_name="eurostat_fx_oltp_ingestion",
-        destination=postgres(credentials=db_url),
-        dataset_name="s_euro_stat"  # Target schema name
-    )
+    pipeline = create_postgres_pipeline("eurostat_fx_oltp_ingestion", "s_euro_stat")
     
     logger.info("Running pipeline")
     load_info = pipeline.run(fetch_fx_rates())
