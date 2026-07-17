@@ -45,11 +45,11 @@ SELECT
     account_type,
     COUNT(*)                                                                AS posts_published,
     SUM(impressions)                                                        AS total_impressions,
+    SUM(likes) + SUM(comments) + SUM(shares)                                AS total_interactions,
     SUM(likes)                                                              AS total_likes,
     SUM(comments)                                                           AS total_comments,
     SUM(shares)                                                             AS total_shares,
     SUM(clicks)                                                             AS total_clicks,
-    SUM(total_interactions)                                                 AS total_interactions,
     NOW() AT TIME ZONE 'Europe/Berlin'                                      AS calculated_at_berlin
 FROM all_posts
 GROUP BY published_date_berlin, account_type

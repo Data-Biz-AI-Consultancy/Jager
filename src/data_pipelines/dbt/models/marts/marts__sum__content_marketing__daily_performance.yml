@@ -28,6 +28,9 @@ models:
       - name: total_impressions
         description: Total impressions across all posts published on this date.
 
+      - name: total_interactions
+        description: Total interactions defined as the sum of likes, comments, and shares (total_likes + total_comments + total_shares).
+
       - name: total_likes
         description: Total likes across all posts published on this date.
 
@@ -39,9 +42,6 @@ models:
 
       - name: total_clicks
         description: Total clicks across all posts published on this date.
-
-      - name: total_interactions
-        description: Sum of all engagement interactions (likes + comments + shares + clicks + saves + sends).
 
       - name: calculated_at_berlin
         description: Timestamp when the row was last computed, in Europe/Berlin timezone.
