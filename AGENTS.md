@@ -61,6 +61,50 @@
 - Python tests should be added to the `tests/` directory and run using `pytest` via `uv run pytest tests/`.
 - Ensure tests verify key functionalities like database connections, data transformations, API query formats, and model predictions using mocks/patches where appropriate.
 
+## dlt Pipeline Conventions
+- All data ingestion pipelines use **dlt** (data load tool) to move data from PostgreSQL (ODS) into Motherduck (OLAP) or from Motherduck back into PostgreSQL (Reverse ETL).
+- Always use `create_motherduck_pipeline()` from `src/data_pipelines/common/utils.py` when creating a Motherduck-destination pipeline. Do NOT inline the pipeline creation logic.
+- The `dataset_name` passed to `create_motherduck_pipeline()` must match the source schema name in PostgreSQL (e.g., `s_linkedin`, `s_buffer`). This controls the target schema in Motherduck.
+- Always set `os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"` before creating any dlt pipeline to prevent nested table generation.
+- Use `write_disposition="merge"` with an explicit `primary_key` for all OLAP ingestion resources. Use `write_disposition="replace"` only for Reverse ETL resources.
+- Each ingestion pipeline script must be self-contained with `if __name__ == "__main__": run_ingestion()` and must import from `common.utils` (not duplicate the utility logic).
+
+## Reverse ETL Conventions
+- The Reverse ETL pipeline (`src/data_pipelines/olap/reverse_etl.py`) reads from the `t_jager` schema in Motherduck and loads data back into PostgreSQL under the `s_motherduck` schema.
+- Always use `dataset_name="s_motherduck"` for the Reverse ETL dlt pipeline destination.
+- The Reverse ETL pipeline must always close the DuckDB connection in a `finally` block after the pipeline run.
+- Reverse ETL resources expose the curated `t_jager` tables (e.g., `fct_linkedin_personal_account_post_engagement`, `timeslot_recommendations`) that n8n workflows consume via PostgreSQL.
+
+## dbt `t_jager` Layer Conventions
+- The `t_jager` layer (`dbt/models/t_jager/`) is a **presentation/application layer** that serves as the single source of truth for the n8n application. It mirrors selected marts and ML prediction tables into one schema.
+- File names in this layer follow the pattern `t_jager__<domain>__<model_name>.sql` (e.g., `t_jager__ds_prediction__timeslot_recommends.sql`).
+- Models in `t_jager` typically use `SELECT * FROM <source_schema>.<table>` — they are thin pass-through views/tables exposing marts or ML output.
+- The `alias` in the config block for `t_jager` models does NOT use a `fct_` or `stg_` prefix; it uses a descriptive name directly (e.g., `alias='timeslot_recommendations'`).
+
+## Data Pipeline FastAPI Service Conventions
+- The data pipeline service (`src/data_pipelines/main.py`) exposes HTTP POST endpoints for triggering pipeline scripts via subprocess.
+- Endpoint naming convention: `/run/<pipeline_name>` for OLAP pipelines (e.g., `/run/ingest_linkedin`) and `/run/oltp/<pipeline_name>` for OLTP pipelines (e.g., `/run/oltp/ingest_wordpress`).
+- Every new ingestion script added under `olap/` or `oltp/` must have a corresponding FastAPI endpoint added to `main.py`.
+- The service is deployed as the `data-pipeline` Docker service and accessed by n8n via `DATA_PIPELINE_URL`.
+
+## Docker Compose & Environment Conventions
+- The `MOTHERDUCK_DATABASE` environment variable defaults to `staging` in both `docker-compose.yml` and pipeline code. Never hardcode `production` as the default.
+- The `n8n` service must declare all environment variables needed by n8n workflows. When adding a new external API or integration, add its credentials to the `n8n` service's `environment` block in `docker-compose.yml`.
+- The `ml` and `data-pipeline` services share `DATABASE_URL`, `MOTHERDUCK_TOKEN`, and `MOTHERDUCK_DATABASE` environment variables. Keep these in sync across all service definitions.
+
+## n8n Agent Persona Conventions
+- All n8n AI agent persona definitions live in `src/n8n/agents/` as Markdown files (one file per agent).
+- Each agent file must define: `Role`, `LLM` (model used), and a `Personality & Grounding` section.
+- All agents must communicate **entirely in English** — the only Italian allowed is a single greeting word at the start and a single sign-off at the end.
+- All agents must use actual Unicode emojis (e.g., 💡, 📊) rather than text-based emoji codes (e.g., `:sparkles:`).
+- All agents must embed reference URLs as Slack hyperlinks using the `<url|Anchor Text>` format — never as plain-text URLs on separate lines.
+- When adding or modifying agent personas, keep the agent file in `src/n8n/agents/` in sync with the corresponding system prompt used inside the n8n workflow JSON.
+
+## Prompt File Conventions
+- Standalone LLM prompts used by n8n workflows live in `prompts/` as Markdown files, named by their functional purpose (e.g., `intent_detection.md`, `draft_response.md`).
+- Prompts must use `{{VARIABLE_NAME}}` (double curly braces) for all dynamic input placeholders — consistent with n8n's expression syntax.
+- Prompts must specify their output format explicitly (e.g., "Output only the JSON block", "Do not wrap in JSON"). Never leave output format ambiguous.
+
 
 
 
