@@ -153,3 +153,4 @@ We have established a manual trigger release CI pipeline via GitHub Actions.
    - Validate that `src/n8n/workflows/workflow.json` is a valid JSON file.
    - Build the custom N8N Docker image to ensure compile-time correctness.
    - Create a GitHub Release with the specified tag and upload `workflow.json` as a release asset.
+
