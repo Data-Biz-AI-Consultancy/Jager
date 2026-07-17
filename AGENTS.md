@@ -56,6 +56,11 @@
 - By default, these scripts must target the staging database (`staging`) using `MOTHERDUCK_TOKEN` for safety.
 - When `--prod` is passed, the script must switch to the production credentials/tokens (`MOTHERDUCK_TOKEN_PROD`) and database (`production` or custom variable).
 
+## Python Testing Conventions
+- All Python scripts in the codebase, including data pipelines (`src/data_pipelines/`) and machine learning components (`src/ml/`), must have corresponding automated unit tests.
+- Python tests should be added to the `tests/` directory and run using `pytest` via `uv run pytest tests/`.
+- Ensure tests verify key functionalities like database connections, data transformations, API query formats, and model predictions using mocks/patches where appropriate.
+
 
 
 
