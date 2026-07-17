@@ -53,7 +53,7 @@ jobs:
           enable-cache: true
 
       - name: Run Python Backend Tests
-        run: uv run --with pytest --with scikit-learn --with pandas --with fastapi --with httpx --with numpy --with sqlalchemy --with dlt pytest tests/
+        run: uv run --with pytest --with scikit-learn --with pandas --with fastapi --with httpx --with numpy --with sqlalchemy --with dlt --with feedparser --with beautifulsoup4 pytest tests/
 
   dbt-compile:
     runs-on: ubuntu-latest
