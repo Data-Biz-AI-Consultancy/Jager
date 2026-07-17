@@ -40,6 +40,22 @@ def run_reverse_etl():
         for row in res.fetchall():
             yield dict(zip(cols, row))
 
+    @dlt.resource(name="timeslot_recommendations", write_disposition="replace")
+    def get_timeslot_recommendations():
+        logger.info("Fetching timeslot_recommendations from Motherduck")
+        res = conn.execute("SELECT * FROM t_jager.timeslot_recommendations")
+        cols = [desc[0] for desc in res.description]
+        for row in res.fetchall():
+            yield dict(zip(cols, row))
+
+    @dlt.resource(name="public_holidays", write_disposition="replace")
+    def get_public_holidays():
+        logger.info("Fetching public_holidays from Motherduck")
+        res = conn.execute("SELECT * FROM t_jager.public_holidays")
+        cols = [desc[0] for desc in res.description]
+        for row in res.fetchall():
+            yield dict(zip(cols, row))
+
     # Set up DLT pipeline with PostgreSQL destination
     logger.info("Starting DLT pipeline with postgres destination")
     os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
@@ -54,7 +70,12 @@ def run_reverse_etl():
 
     # Run the pipeline
     try:
-        load_info = pipeline.run([get_personal_engagement, get_company_page_engagement])
+        load_info = pipeline.run([
+            get_personal_engagement, 
+            get_company_page_engagement,
+            get_timeslot_recommendations,
+            get_public_holidays
+        ])
         logger.info(f"Reverse ETL completed successfully:\n{load_info}")
     finally:
         conn.close()
