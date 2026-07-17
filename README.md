@@ -28,26 +28,6 @@ docker-compose up --build -d
 
 Access your local N8N instance at [http://localhost](http://localhost).
 
-### Cloning Production Database
-
-To clone the production database to your local dev environment, ensure you have `PROD_DATABASE_URL` set in your `.env` file, then run:
-
-```bash
-node scripts/clone-db.js
-```
-
-Alternatively, you can pass the connection URL explicitly:
-
-```bash
-node scripts/clone-db.js "postgresql://YOUR_PROD_USER:YOUR_PROD_PASSWORD@YOUR_PROD_HOST:5432/jager"
-```
-
-> [!NOTE]
-> After cloning the database, you should rebuild and restart the Docker containers so that N8N and other services hook onto the new databases properly:
-> ```bash
-> docker-compose up --build -d
-> ```
-
 ---
 
 ## Architecture
@@ -105,9 +85,36 @@ Refer to the folder-level READMEs for detailed guides:
 
 ---
 
-## Workflow Syncing & Management
+## SDLC & Utility Scripts
 
-If you modify workflows in the N8N UI, or if you clone the production database and want to make sure your local JSON files are in sync with the database workflows (while preserving custom prompt integrations like reading markdown files), use the following utility scripts:
+These utility scripts support the full software development lifecycle (SDLC), keeping your local environment synchronized with production schemas, data, and workflows. For more details on scripts, refer to the [Scripts Documentation](scripts/README.md).
+
+### 1. Database Cloning & Migrations
+
+*   **Cloning Production Database**:
+    To clone the production database to your local dev environment, ensure you have `PROD_DATABASE_URL` set in your `.env` file, then run:
+    ```bash
+    node scripts/clone-db.js
+    ```
+    Alternatively, you can pass the connection URL explicitly:
+    ```bash
+    node scripts/clone-db.js "postgresql://YOUR_PROD_USER:YOUR_PROD_PASSWORD@YOUR_PROD_HOST:5432/jager"
+    ```
+    > [!NOTE]
+    > After cloning the database, you should rebuild and restart the Docker containers so that N8N and other services hook onto the new databases properly:
+    > ```bash
+    > docker-compose up --build -d
+    > ```
+
+*   **Running Migrations**:
+    To run database schema creations, legacy migrations, or configuration seeding locally:
+    ```bash
+    node scripts/migrate-db.js
+    ```
+
+### 2. Workflow Syncing & Management
+
+If you modify workflows in the N8N UI, or if you clone the production database and want to make sure your local JSON files are in sync with the database workflows (while preserving custom prompt integrations like reading markdown files), use:
 
 *   **Check for differences between database workflows and local JSON files:**
     ```bash
@@ -118,12 +125,18 @@ If you modify workflows in the N8N UI, or if you clone the production database a
     node scripts/sync-workflows.js
     ```
 
----
+### 3. MotherDuck Manual Data Ingestion
 
-## Utility & Ingestion Scripts
+To import manual LinkedIn spreadsheet exports (XLSX) from `data/linkedin/` into MotherDuck under the `s_manual` schema:
 
-For database cloning, migrations, or manual spreadsheet ingestion to Motherduck (staging & production environments):
-*   Refer to the [Scripts Documentation](scripts/README.md) for usage instructions on `clone-db.js`, `migrate-db.js`, and `import_xlsx_motherduck.py`.
+*   **Staging (Default)**:
+    ```bash
+    .venv/bin/python scripts/import_xlsx_motherduck.py
+    ```
+*   **Production**:
+    ```bash
+    .venv/bin/python scripts/import_xlsx_motherduck.py --prod
+    ```
 
 ---
 
