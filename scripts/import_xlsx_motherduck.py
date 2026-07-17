@@ -35,13 +35,25 @@ base_name = os.path.splitext(os.path.basename(file_path))[0]
 clean_prefix = re.sub(r'[^a-zA-Z0-9_]', '_', base_name)
 clean_prefix = re.sub(r'_+', '_', clean_prefix).strip('_')
 
-# Get Motherduck credentials
-motherduck_token = os.environ.get("MOTHERDUCK_TOKEN") or env_vars.get("MOTHERDUCK_TOKEN")
-motherduck_database = os.environ.get("MOTHERDUCK_DATABASE") or env_vars.get("MOTHERDUCK_DATABASE") or "staging"
+# Get Motherduck credentials based on environment
+is_prod = "--prod" in sys.argv
 
-if not motherduck_token:
-    print("Error: MOTHERDUCK_TOKEN not found in environment or .env file.")
-    sys.exit(1)
+if is_prod:
+    print("Running in PRODUCTION mode...")
+    motherduck_token = os.environ.get("MOTHERDUCK_TOKEN_PROD") or env_vars.get("MOTHERDUCK_TOKEN_PROD")
+    motherduck_database = os.environ.get("MOTHERDUCK_DATABASE_PROD") or env_vars.get("MOTHERDUCK_DATABASE_PROD") or "production"
+    
+    if not motherduck_token:
+        print("Error: MOTHERDUCK_TOKEN_PROD not found in environment or .env file.")
+        sys.exit(1)
+else:
+    print("Running in STAGING mode (default)...")
+    motherduck_token = os.environ.get("MOTHERDUCK_TOKEN") or env_vars.get("MOTHERDUCK_TOKEN")
+    motherduck_database = os.environ.get("MOTHERDUCK_DATABASE") or env_vars.get("MOTHERDUCK_DATABASE") or "staging"
+    
+    if not motherduck_token:
+        print("Error: MOTHERDUCK_TOKEN not found in environment or .env file.")
+        sys.exit(1)
 
 print(f"Connecting to Motherduck database: {motherduck_database}")
 conn = duckdb.connect(f"md:{motherduck_database}?token={motherduck_token}")

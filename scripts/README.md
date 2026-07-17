@@ -106,8 +106,18 @@ This script imports manual LinkedIn data export spreadsheets (XLSX format) into 
 
 ### Usage
 Place your LinkedIn export files (e.g. `AggregateAnalytics_*.xlsx`) inside `data/linkedin/` and run:
-```bash
-.venv/bin/python scripts/import_xlsx_motherduck.py
-```
-This script automatically scans `data/linkedin/` for the latest file, parses it, connects to Motherduck, and creates/replaces the corresponding tables under the `s_manual` schema.
+
+* **Staging (Default):**
+  ```bash
+  .venv/bin/python scripts/import_xlsx_motherduck.py
+  ```
+  This runs in staging mode and connects to the staging database using `MOTHERDUCK_TOKEN`.
+
+* **Production:**
+  ```bash
+  .venv/bin/python scripts/import_xlsx_motherduck.py --prod
+  ```
+  This runs in production mode, swapping to `MOTHERDUCK_TOKEN_PROD` and uploading files directly to your production Motherduck database.
+
+Both commands automatically scan `data/linkedin/` for the latest file, parse it, connect to the chosen Motherduck database, and create/replace the corresponding tables under the `s_manual` schema.
 
