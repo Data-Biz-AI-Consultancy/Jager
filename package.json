@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "clone-db": "node scripts/clone-db.js",
-    "migrate-db": "node scripts/migrate-db.js"
+    "migrate-db": "node scripts/migrate-db.js",
+    "import-xlsx-motherduck": "python scripts/import_xlsx_motherduck.py"
   },
   "dependencies": {
     "pg": "^8.12.0"

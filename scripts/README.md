@@ -93,3 +93,21 @@ Make sure environment variables in your `.env` file are set up, then run:
 ```bash
 node scripts/migrate-db.js
 ```
+
+---
+
+## 3. Motherduck Manual Data Import Script (`import_xlsx_motherduck.py`)
+
+This script imports manual LinkedIn data export spreadsheets (XLSX format) into the `s_manual` schema inside Motherduck. It handles custom spreadsheet cleaning and structuring, such as split tables on the `TOP POSTS` sheet.
+
+### Prerequisites
+- Python 3 with `pandas`, `openpyxl`, and `duckdb` installed in your virtual environment.
+- `MOTHERDUCK_TOKEN` must be defined in your `.env` file or environment.
+
+### Usage
+Place your LinkedIn export files (e.g. `AggregateAnalytics_*.xlsx`) inside `data/linkedin/` and run:
+```bash
+.venv/bin/python scripts/import_xlsx_motherduck.py
+```
+This script automatically scans `data/linkedin/` for the latest file, parses it, connects to Motherduck, and creates/replaces the corresponding tables under the `s_manual` schema.
+
