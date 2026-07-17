@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: marts__sum__content_marketing__daily_performance
+    description: >
+      Daily Content Marketing performance summary for LinkedIn, unified across
+      Company Page and Personal Account posts. One row per (published_date_berlin, account_type).
+      Uses Europe/Berlin timezone for all date columns.
+    columns:
+      - name: published_date_berlin
+        description: The publication date of the posts, in Europe/Berlin timezone.
+        tests:
+          - not_null
+
+      - name: account_type
+        description: Distinguishes between 'company' (LinkedIn Company Page) and 'personal' (LinkedIn Personal Account) posts.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['company', 'personal']
+
+      - name: posts_published
+        description: Number of posts published on this date for the given account type.
+        tests:
+          - not_null
+
+      - name: total_impressions
+        description: Total impressions across all posts published on this date.
+
+      - name: total_likes
+        description: Total likes across all posts published on this date.
+
+      - name: total_comments
+        description: Total comments across all posts published on this date.
+
+      - name: total_shares
+        description: Total shares across all posts published on this date.
+
+      - name: total_clicks
+        description: Total clicks across all posts published on this date.
+
+      - name: total_interactions
+        description: Sum of all engagement interactions (likes + comments + shares + clicks + saves + sends).
+
+      - name: avg_engagement_rate
+        description: Average engagement rate across posts published on this date (total_interactions / impressions per post, rounded to 4 decimal places).
+
+      - name: avg_impressions_per_post
+        description: Average number of impressions per post published on this date.
+
+      - name: calculated_at_berlin
+        description: Timestamp when the row was last computed, in Europe/Berlin timezone.

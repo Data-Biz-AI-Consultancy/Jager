@@ -27,4 +27,7 @@ models:
     t_jager:
       +materialized: table
       +schema: t_jager
+    t_reporting:
+      +materialized: table
+      +schema: t_reporting
 
