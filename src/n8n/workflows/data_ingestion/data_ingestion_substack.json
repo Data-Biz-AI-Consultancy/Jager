@@ -23,126 +23,18 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "start-date-uuid",
-              "name": "start_date",
-              "type": "string",
-              "value": "={{ $now.minus({ days: 999 }).toFormat('yyyy-MM-dd') }}"
-            },
-            {
-              "id": "end-date-uuid",
-              "name": "end_date",
-              "type": "string",
-              "value": "={{ $now.plus({ days: 1 }).toFormat('yyyy-MM-dd') }}"
-            }
-          ]
-        },
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/oltp/ingest_substack",
         "options": {}
       },
-      "id": "workflow-parameters",
-      "name": "Ingestion Date Range Parameters",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "id": "trigger-substack-ingestion",
+      "name": "Trigger Substack Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         336,
         256
       ]
-    },
-    {
-      "parameters": {
-        "jsCode": "return [{\n  json: {\n    feeds: [\n      {\n        \"id\": 1,\n        \"name\": \"SeattleDataGuy\",\n        \"feed_url\": \"https://seattledataguy.substack.com/feed\"\n      },\n      {\n        \"id\": 2,\n        \"name\": \"Decision\",\n        \"feed_url\": \"https://decision.substack.com/feed\"\n      },\n      {\n        \"id\": 3,\n        \"name\": \"EngLeadership\",\n        \"feed_url\": \"https://newsletter.eng-leadership.com/feed\"\n      },\n      {\n        \"id\": 4,\n        \"name\": \"ThrivingInEngineering\",\n        \"feed_url\": \"https://thrivinginengineering.substack.com/feed\"\n      },\n      {\n        \"id\": 5,\n        \"name\": \"CodeLikeAGirl\",\n        \"feed_url\": \"https://codelikeagirl.substack.com/feed\"\n      },\n      {\n        \"id\": 6,\n        \"name\": \"Data Biz\",\n        \"feed_url\": \"https://jimmypang.substack.com/feed\"\n      },\n      {\n        \"id\": 7,\n        \"name\": \"Benn\",\n        \"feed_url\": \"https://benn.substack.com/feed\"\n      },\n      {\n        \"id\": 8,\n        \"name\": \"nilukakavanagh\",\n        \"feed_url\": \"https://nilukakavanagh.substack.com/feed\"\n      },\n      {\n        \"id\": 9,\n        \"name\": \"Datapreneur\",\n        \"feed_url\": \"https://nickvaliotti.substack.com/feed\"\n      }\n    ]\n  }\n}];"
-      },
-      "id": "get-active-feeds",
-      "name": "Get Active Feeds",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        560,
-        256
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const https = require('https');\n\nfunction fetchRSS(url, retries = 1) {\n  return new Promise((resolve, reject) => {\n    const options = {\n      headers: {\n        'User-Agent': 'Jager/1.0 (by /u/jager_developer)'\n      },\n      timeout: 5000\n    };\n    const req = https.get(url, options, (res) => {\n      let data = '';\n      res.on('data', (chunk) => { data += chunk; });\n      res.on('end', () => {\n        if (res.statusCode === 200) {\n          resolve(data);\n        } else {\n          if (retries > 0) {\n            console.log(`Retrying fetch for ${url} (status ${res.statusCode})...`);\n            setTimeout(() => {\n              fetchRSS(url, retries - 1).then(resolve).catch(reject);\n            }, 1000);\n          } else {\n            reject(new Error(`Status ${res.statusCode}`));\n          }\n        }\n      });\n    });\n    req.on('error', (err) => {\n      if (retries > 0) {\n        console.log(`Retrying fetch for ${url} due to error: ${err.message}...`);\n        setTimeout(() => {\n          fetchRSS(url, retries - 1).then(resolve).catch(reject);\n        }, 1000);\n      } else {\n        reject(err);\n      }\n    });\n    req.on('timeout', () => {\n      req.destroy();\n      if (retries > 0) {\n        console.log(`Retrying fetch for ${url} due to timeout...`);\n        setTimeout(() => {\n          fetchRSS(url, retries - 1).then(resolve).catch(reject);\n        }, 1000);\n      } else {\n        reject(new Error('Request Timeout'));\n      }\n    });\n  });\n}\n\nconst results = [];\nconst items = $input.first().json.feeds || [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const feedName = item.name;\n  const feedUrl = item.feed_url;\n  const feedId = item.id;\n\n  if (i > 0) {\n    await new Promise(resolve => setTimeout(resolve, 1000));\n  }\n\n  try {\n    const xml = await fetchRSS(feedUrl);\n    results.push({\n      feed_id: feedId,\n      feed_name: feedName,\n      feed_url: feedUrl,\n      xml: xml\n    });\n  } catch (error) {\n    console.error(`Error fetching feed ${feedName} (${feedUrl}):`, error.message);\n  }\n}\nreturn results;"
-      },
-      "id": "fetch-posts-rss",
-      "name": "Fetch Posts RSS",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        784,
-        352
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nlet startDateStr, endDateStr;\ntry {\n  startDateStr = $('Ingestion Date Range Parameters').first().json.start_date;\n  endDateStr = $('Ingestion Date Range Parameters').first().json.end_date;\n} catch (e) {\n  console.log('[Parse Posts] Could not read date range from Ingestion Date Range Parameters:', e.message);\n}\n\nconst yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst today = new Date();\n\nlet startDate = startDateStr ? new Date(startDateStr + 'T00:00:00Z') : yesterday;\nlet endDate = endDateStr ? new Date(endDateStr + 'T00:00:00Z') : today;\n\nif (isNaN(startDate.getTime())) {\n  startDate = yesterday;\n}\nif (isNaN(endDate.getTime())) {\n  endDate = today;\n}\n\nfor (const item of items) {\n  const { feed_id, feed_name, xml } = item.json;\n  if (!xml) continue;\n\n  const itemMatches = xml.match(/<item>[\\s\\S]*?<\\/item>/g) || [];\n  let matchesInFeed = 0;\n  \n  for (const entry of itemMatches) {\n    const guidMatch = entry.match(/<guid[^>]*>([\\s\\S]*?)<\\/guid>/);\n    const linkMatch = entry.match(/<link>([\\s\\S]*?)<\\/link>/);\n    const creatorMatch = entry.match(/<dc:creator><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/dc:creator>/) || entry.match(/<dc:creator>([\\s\\S]*?)<\\/dc:creator>/);\n    const titleMatch = entry.match(/<title><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/title>/) || entry.match(/<title>([\\s\\S]*?)<\\/title>/);\n    const contentMatch = entry.match(/<content:encoded><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/content:encoded>/) || entry.match(/<content:encoded>([\\s\\S]*?)<\\/content:encoded>/) || entry.match(/<description><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/description>/) || entry.match(/<description>([\\s\\S]*?)<\\/description>/);\n    const pubDateMatch = entry.match(/<pubDate>([\\s\\S]*?)<\\/pubDate>/);\n\n    if (guidMatch || linkMatch) {\n      const id = guidMatch ? guidMatch[1].replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/, '$1').trim() : linkMatch[1].trim();\n      const url = linkMatch ? linkMatch[1].trim() : '';\n      const author = creatorMatch ? creatorMatch[1].trim() : feed_name;\n      const title = titleMatch ? titleMatch[1].trim() : '';\n      let content = contentMatch ? contentMatch[1].trim() : '';\n      \n      content = content.replace(/<[^>]*>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');\n      if (!content) content = title;\n\n      const published_at_raw = pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString();\n      const published_at = new Date(published_at_raw);\n\n      if (published_at >= startDate && published_at < endDate) {\n        matchesInFeed++;\n        results.push({\n          id,\n          feed_id,\n          feed_name,\n          author,\n          title,\n          content: content.substring(0, 5000),\n          url,\n          published_at: published_at.toISOString(),\n          processed: 0\n        });\n      }\n    }\n  }\n  console.log(`[Parse Posts] Feed: ${feed_name}, matches in date range: ${matchesInFeed}`);\n}\nreturn results;"
-      },
-      "id": "parse-posts-xml",
-      "name": "Parse Posts XML",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1008,
-        352
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const https = require('https');\n\nfunction fetchJson(url) {\n  return new Promise((resolve, reject) => {\n    const options = {\n      headers: {\n        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',\n        'Accept': 'application/json'\n      },\n      timeout: 5000\n    };\n    const req = https.get(url, options, (res) => {\n      let data = '';\n      res.on('data', (chunk) => { data += chunk; });\n      res.on('end', () => {\n        if (res.statusCode === 200) {\n          try {\n            resolve(JSON.parse(data));\n          } catch (e) {\n            reject(new Error('Invalid JSON'));\n          }\n        } else {\n          reject(new Error(`Status ${res.statusCode}`));\n        }\n      });\n    });\n    req.on('error', (err) => reject(err));\n    req.on('timeout', () => {\n      req.destroy();\n      reject(new Error('Timeout'));\n    });\n  });\n}\n\nconst results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i].json;\n  const url = item.url;\n  \n  let comment_count = 0;\n  let child_comment_count = 0;\n  let restacks = 0;\n  let reactions = {};\n  let reaction_count = 0;\n  let subtitle = '';\n  let slug = '';\n  let canonical_url = '';\n  let audience = '';\n  let is_published = false;\n  let type = '';\n  let meter_type = '';\n  let teaser_post_eligible = false;\n  let wordcount = 0;\n  let language = '';\n  let post_date = null;\n  let updated_at = null;\n  let cover_image = '';\n  let cover_image_is_square = false;\n  let cover_image_is_explicit = false;\n  let body_html = '';\n  let truncated_body_text = '';\n  let section_id = null;\n  let audio_items = [];\n  let podcast_fields = {};\n  let theme_variables = {};\n  let comments = [];\n  let inbox_item = {};\n\n  if (url && url.includes('/p/')) {\n    const apiUrl = url.split('?')[0].replace('/p/', '/api/v1/posts/');\n    try {\n      if (i > 0) {\n        await new Promise(r => setTimeout(r, 500));\n      }\n      const data = await fetchJson(apiUrl);\n      comment_count = data.comment_count || 0;\n      child_comment_count = data.child_comment_count || 0;\n      restacks = data.restacks || 0;\n      reactions = data.reactions || {};\n      reaction_count = data.reaction_count || 0;\n      subtitle = data.subtitle || '';\n      slug = data.slug || '';\n      canonical_url = data.canonical_url || '';\n      audience = data.audience || '';\n      is_published = data.is_published !== undefined ? data.is_published : false;\n      type = data.type || '';\n      meter_type = data.meter_type || '';\n      teaser_post_eligible = data.teaser_post_eligible !== undefined ? data.teaser_post_eligible : false;\n      wordcount = data.wordcount || 0;\n      language = data.language || '';\n      post_date = data.post_date || null;\n      updated_at = data.updated_at || null;\n      cover_image = data.cover_image || '';\n      cover_image_is_square = data.cover_image_is_square || false;\n      cover_image_is_explicit = data.cover_image_is_explicit || false;\n      body_html = data.body_html || '';\n      truncated_body_text = data.truncated_body_text || '';\n      section_id = data.section_id || null;\n      audio_items = data.audio_items || [];\n      podcast_fields = data.podcastFields || {};\n      theme_variables = data.themeVariables || {};\n      comments = data.comments || [];\n      inbox_item = data.inboxItem || {};\n    } catch (error) {\n      console.error(`Error fetching analytics for ${url}:`, error.message);\n    }\n  }\n\n  results.push({\n    ...item,\n    comment_count,\n    child_comment_count,\n    restacks,\n    reactions,\n    reaction_count,\n    subtitle,\n    slug,\n    canonical_url,\n    audience,\n    is_published,\n    type,\n    meter_type,\n    teaser_post_eligible,\n    wordcount,\n    language,\n    post_date,\n    updated_at,\n    cover_image,\n    cover_image_is_square,\n    cover_image_is_explicit,\n    body_html,\n    truncated_body_text,\n    section_id,\n    audio_items,\n    podcast_fields,\n    theme_variables,\n    comments,\n    inbox_item\n  });\n}\nreturn results;"
-      },
-      "id": "fetch-post-analytics",
-      "name": "Fetch Post Analytics",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1232,
-        352
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "INSERT INTO s_substack.posts (id, feed_id, feed_name, author, title, content, url, published_at, processed, subtitle, slug, canonical_url, audience, is_published, type, meter_type, teaser_post_eligible, wordcount, language, post_date, updated_at, cover_image, cover_image_is_square, cover_image_is_explicit, body_html, truncated_body_text, section_id, audio_items, podcast_fields, theme_variables, comments, inbox_item, reaction_count, reactions, comment_count, child_comment_count, restacks)\nVALUES (\n  '{{ $json.id }}',\n  (SELECT id FROM s_substack.feeds_monitored WHERE name = '{{ $json.feed_name }}' LIMIT 1),\n  '{{ $json.feed_name }}',\n  '{{ ($json.author || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  '{{ ($json.title || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  '{{ ($json.content || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.published_at }}',\n  0,\n  '{{ ($json.subtitle || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  '{{ $json.slug }}',\n  '{{ $json.canonical_url }}',\n  '{{ $json.audience }}',\n  {{ $json.is_published }},\n  '{{ $json.type }}',\n  '{{ $json.meter_type }}',\n  {{ $json.teaser_post_eligible }},\n  {{ $json.wordcount }},\n  '{{ $json.language }}',\n  {{ $json.post_date ? \"'\" + $json.post_date + \"'\" : \"NULL\" }},\n  {{ $json.updated_at ? \"'\" + $json.updated_at + \"'\" : \"NULL\" }},\n  '{{ $json.cover_image }}',\n  {{ $json.cover_image_is_square }},\n  {{ $json.cover_image_is_explicit }},\n  '{{ ($json.body_html || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  '{{ ($json.truncated_body_text || \"\").replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}',\n  {{ $json.section_id !== null ? $json.section_id : \"NULL\" }},\n  '{{ JSON.stringify($json.audio_items || []).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.podcast_fields || {}).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.theme_variables || {}).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.comments || []).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  '{{ JSON.stringify($json.inbox_item || {}).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  {{ $json.reaction_count || 0 }},\n  '{{ JSON.stringify($json.reactions || {}).replace(new RegExp(String.fromCharCode(39), \"g\"), \"''\") }}'::jsonb,\n  {{ $json.comment_count || 0 }},\n  {{ $json.child_comment_count || 0 }},\n  {{ $json.restacks || 0 }}\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  subtitle = EXCLUDED.subtitle,\n  slug = EXCLUDED.slug,\n  canonical_url = EXCLUDED.canonical_url,\n  audience = EXCLUDED.audience,\n  is_published = EXCLUDED.is_published,\n  type = EXCLUDED.type,\n  meter_type = EXCLUDED.meter_type,\n  teaser_post_eligible = EXCLUDED.teaser_post_eligible,\n  wordcount = EXCLUDED.wordcount,\n  language = EXCLUDED.language,\n  post_date = EXCLUDED.post_date,\n  updated_at = EXCLUDED.updated_at,\n  cover_image = EXCLUDED.cover_image,\n  cover_image_is_square = EXCLUDED.cover_image_is_square,\n  cover_image_is_explicit = EXCLUDED.cover_image_is_explicit,\n  body_html = EXCLUDED.body_html,\n  truncated_body_text = EXCLUDED.truncated_body_text,\n  section_id = EXCLUDED.section_id,\n  audio_items = EXCLUDED.audio_items,\n  podcast_fields = EXCLUDED.podcast_fields,\n  theme_variables = EXCLUDED.theme_variables,\n  comments = EXCLUDED.comments,\n  inbox_item = EXCLUDED.inbox_item,\n  reaction_count = EXCLUDED.reaction_count,\n  reactions = EXCLUDED.reactions,\n  comment_count = EXCLUDED.comment_count,\n  child_comment_count = EXCLUDED.child_comment_count,\n  restacks = EXCLUDED.restacks\nRETURNING id, feed_id;",
-        "options": {}
-      },
-      "id": "insert-posts",
-      "name": "Insert/Upsert Posts",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        1456,
-        352
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "UPDATE s_substack.posts SET feed_id = NULL;\nDELETE FROM s_substack.feeds_monitored;\nINSERT INTO s_substack.feeds_monitored (id, name, feed_url, active)\nSELECT (val->>'id')::integer, val->>'name', val->>'feed_url', true\nFROM json_array_elements('{{ JSON.stringify($json.feeds) }}'::json) AS val;\nUPDATE s_substack.posts p SET feed_id = f.id FROM s_substack.feeds_monitored f WHERE p.feed_name = f.name;",
-        "options": {}
-      },
-      "id": "update-monitored-feeds",
-      "name": "Update Monitored Feeds",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        784,
-        160
-      ],
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
     }
   ],
   "connections": {
@@ -150,67 +42,7 @@
       "main": [
         [
           {
-            "node": "Ingestion Date Range Parameters",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ingestion Date Range Parameters": {
-      "main": [
-        [
-          {
-            "node": "Get Active Feeds",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Active Feeds": {
-      "main": [
-        [
-          {
-            "node": "Fetch Posts RSS",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Update Monitored Feeds",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Posts RSS": {
-      "main": [
-        [
-          {
-            "node": "Parse Posts XML",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Posts XML": {
-      "main": [
-        [
-          {
-            "node": "Fetch Post Analytics",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Post Analytics": {
-      "main": [
-        [
-          {
-            "node": "Insert/Upsert Posts",
+            "node": "Trigger Substack Ingestion",
             "type": "main",
             "index": 0
           }

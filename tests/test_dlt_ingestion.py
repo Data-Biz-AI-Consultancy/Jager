@@ -129,6 +129,57 @@ def test_ingest_wordpress(mock_feedparser, mock_get, mock_dlt_utils):
 
 
 @patch('requests.get')
+@patch('feedparser.parse')
+def test_ingest_substack_oltp(mock_feedparser, mock_get, mock_dlt_utils):
+    from oltp import ingest_substack
+    
+    # Mock active feeds query response
+    mock_dlt_utils['connection'].execute.return_value = [
+        {"id": 1, "name": "SeattleDataGuy", "feed_url": "https://seattledataguy.substack.com/feed"}
+    ]
+    
+    # Mock requests.get returning RSS text followed by analytics JSON
+    mock_rss_resp = MagicMock()
+    mock_rss_resp.status_code = 200
+    mock_rss_resp.text = "<xml></xml>"
+    
+    mock_api_resp = MagicMock()
+    mock_api_resp.status_code = 200
+    mock_api_resp.json.return_value = {
+        "comment_count": 10,
+        "reactions": {"like": 5},
+        "type": "newsletter"
+    }
+    
+    mock_get.side_effect = [mock_rss_resp, mock_api_resp]
+    
+    # Mock feedparser.parse returning some entries
+    mock_feed = MagicMock()
+    mock_entry = MagicMock()
+    mock_entry.get.side_effect = lambda key, default=None: {
+        "id": "https://seattledataguy.substack.com/p/test-post",
+        "link": "https://seattledataguy.substack.com/p/test-post",
+        "title": "Test Substack Title",
+        "summary": "<p>Test Substack Content</p>",
+        "author": "SeattleDataGuy",
+        "published_parsed": (2026, 7, 17, 10, 0, 0, 4, 198, 0)
+    }.get(key, default)
+    mock_feed.entries = [mock_entry]
+    mock_feedparser.return_value = mock_feed
+    
+    # Patch dlt.pipeline
+    with patch('dlt.pipeline') as mock_dlt_pipeline:
+        mock_pipeline_inst = MagicMock()
+        mock_dlt_pipeline.return_value = mock_pipeline_inst
+        
+        ingest_substack.run_ingestion()
+        
+        mock_dlt_pipeline.assert_called_once()
+        mock_pipeline_inst.run.assert_called_once()
+
+
+
+@patch('requests.get')
 def test_ingest_yahoo_finance(mock_get, mock_dlt_utils):
     from oltp import ingest_yahoo_finance
     
