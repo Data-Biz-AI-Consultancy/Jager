@@ -19,7 +19,11 @@
 
 ### Marts Models
 - For all marts models in the dbt project (located under `dbt/models/marts/`), the SQL file name must always be prefixed with `marts__` followed by the domain and a double underscore (e.g., `marts__linkedin__company_page_post_engagement.sql`).
-- The `alias` in the config block uses the `fct_` (or `dim_`) prefix (e.g., `alias='fct_linkedin_company_page_post_engagement'`), while the file name uses the `marts__` prefix.
+- The `alias` in the config block uses the `fct_` (or `dim_`) prefix for fact/dimension tables (e.g., `alias='fct_linkedin_company_page_post_engagement'`), while the file name uses the `marts__` prefix.
+- **Summary/rollup marts** (aggregate tables that are neither raw facts nor dimensions) must encode the table type in both the file name and the alias:
+  - File name: `marts__sum__<domain>__<name>.sql` (e.g., `marts__sum__content_marketing__daily_performance.sql`)
+  - Alias: `sum_<domain>_<name>` (e.g., `alias='sum_content_marketing_daily_performance'`)
+  - This ensures the file name is always visually "in line" with the alias — a reader can immediately identify a summary mart from its file name alone.
 - Marts models representing core business concepts or shared dimensions should be named in an application-agnostic manner without the application name prefix (e.g., use `marts__countries.sql` with alias `dim_countries` instead of `marts__nager__countries.sql` with alias `dim_nager__countries`).
 
 
@@ -92,6 +96,17 @@
 - The `n8n` service must declare all environment variables needed by n8n workflows. When adding a new external API or integration, add its credentials to the `n8n` service's `environment` block in `docker-compose.yml`.
 - The `ml` and `data-pipeline` services share `DATABASE_URL`, `MOTHERDUCK_TOKEN`, and `MOTHERDUCK_DATABASE` environment variables. Keep these in sync across all service definitions.
 
+## MotherDuck Authentication Conventions
+- **Never** trigger an interactive browser SSO prompt or wait for manual token input when accessing MotherDuck.
+- Always read `MOTHERDUCK_TOKEN` and `MOTHERDUCK_DATABASE` directly from the project's `.env` file (located at the workspace root).
+- When running `dbt` commands that target MotherDuck, always prefix the command with the token and database exported from `.env`, for example:
+  ```bash
+  motherduck_token=$(grep -E '^MOTHERDUCK_TOKEN=' .env | head -1 | cut -d= -f2-) \
+  MOTHERDUCK_DATABASE=$(grep -E '^MOTHERDUCK_DATABASE=' .env | head -1 | cut -d= -f2-) \
+  .venv/bin/dbt run ...
+  ```
+- When writing Python scripts that connect to MotherDuck, always use `python-dotenv` to load `.env` and read `os.environ['MOTHERDUCK_TOKEN']` and `os.environ['MOTHERDUCK_DATABASE']`.
+
 ## n8n Agent Persona Conventions
 - All n8n AI agent persona definitions live in `src/n8n/agents/` as Markdown files (one file per agent).
 - Each agent file must define: `Role`, `LLM` (model used), and a `Personality & Grounding` section.
@@ -105,8 +120,15 @@
 - Prompts must use `{{VARIABLE_NAME}}` (double curly braces) for all dynamic input placeholders — consistent with n8n's expression syntax.
 - Prompts must specify their output format explicitly (e.g., "Output only the JSON block", "Do not wrap in JSON"). Never leave output format ambiguous.
 
+## dbt `t_reporting` Layer Conventions
+- The `t_reporting` layer (`dbt/models/t_reporting/`) is the **presentation layer for reporting consumers** (dashboards, Slack digests). It is separate from `t_jager`, which serves n8n application workflows.
+- File names follow the pattern `t_reporting__<domain>__<model_name>.sql` (e.g., `t_reporting__content_marketing__daily_performance.sql`).
+- Models in `t_reporting` are thin pass-through `SELECT * FROM <mart>` views/tables exposing summary marts to consumers.
+- The `alias` does NOT use a `fct_`, `dim_`, or `sum_` prefix; it uses a descriptive name directly (e.g., `alias='content_marketing_daily_performance'`).
+- Always use **daily granularity** as the standard time dimension for all reporting models.
+- Always use **Europe/Berlin** (local) timezone for all date and timestamp columns in reporting models.
 
-
-
-
-
+## dbt YAML Documentation Conventions
+- Always create **1 YAML file per dbt model**, co-located alongside the `.sql` file in the same directory.
+- The YAML filename must exactly match the model filename, with a `.yml` extension (e.g., `marts__content_marketing__daily_performance.yml` for `marts__content_marketing__daily_performance.sql`).
+- Do NOT use a shared `_models.yml` or `_sources.yml`-style file to document multiple models in a single file. Sources (raw tables) may still use `_sources.yml` per folder.

@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: t_reporting__content_marketing__daily_performance
+    description: >
+      Presentation-layer pass-through of the daily Content Marketing performance summary
+      (marts__content_marketing__daily_performance). Exposed to reporting consumers
+      such as dashboards and Slack digests via the t_reporting schema.
+    columns:
+      - name: published_date_berlin
+        description: The publication date of the posts, in Europe/Berlin timezone.
+        tests:
+          - not_null
+
+      - name: account_type
+        description: Distinguishes between 'company' (LinkedIn Company Page) and 'personal' (LinkedIn Personal Account) posts.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['company', 'personal']
+
+      - name: posts_published
+        description: Number of posts published on this date for the given account type.
+        tests:
+          - not_null
+
+      - name: total_impressions
+        description: Total impressions across all posts published on this date.
+
+      - name: total_interactions
+        description: Total interactions defined as the sum of likes, comments, and shares (total_likes + total_comments + total_shares).
+
+      - name: total_likes
+        description: Total likes across all posts published on this date.
+
+      - name: total_comments
+        description: Total comments across all posts published on this date.
+
+      - name: total_shares
+        description: Total shares across all posts published on this date.
+
+      - name: total_clicks
+        description: Total clicks across all posts published on this date.
+
+      - name: calculated_at_berlin
+        description: Timestamp when the row was last computed, in Europe/Berlin timezone.
