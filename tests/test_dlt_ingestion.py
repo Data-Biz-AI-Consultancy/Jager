@@ -208,5 +208,67 @@ def test_ingest_eurostat_fx(mock_get, mock_dlt_utils):
         mock_pipeline_inst.run.assert_called_once()
 
 
+def test_reverse_etl_missing_token():
+    from olap import reverse_etl
+    
+    with patch.dict(os.environ, {}, clear=True):
+        with pytest.raises(SystemExit) as exc_info:
+            reverse_etl.run_reverse_etl()
+        assert exc_info.value.code == 1
+
+
+@patch('duckdb.connect')
+def test_reverse_etl_success(mock_duckdb_connect):
+    from olap import reverse_etl
+    
+    mock_conn = MagicMock()
+    mock_res = MagicMock()
+    mock_res.description = [('id',), ('name',)]
+    mock_res.fetchall.return_value = [(1, 'test_item')]
+    mock_conn.execute.return_value = mock_res
+    mock_duckdb_connect.return_value = mock_conn
+    
+    # Mock dlt.resource decorator to pass through the function and set metadata
+    def mock_resource_decorator(name=None, write_disposition=None):
+        def decorator(func):
+            func.name = name
+            func.write_disposition = write_disposition
+            return func
+        return decorator
+
+    with patch.dict(os.environ, {"MOTHERDUCK_TOKEN": "test_token", "MOTHERDUCK_DATABASE": "staging"}), \
+         patch('dlt.resource', side_effect=mock_resource_decorator), \
+         patch('dlt.pipeline') as mock_dlt_pipeline:
+        
+        mock_pipeline_inst = MagicMock()
+        mock_dlt_pipeline.return_value = mock_pipeline_inst
+        
+        reverse_etl.run_reverse_etl()
+        
+        # Verify duckdb connected with expected parameters
+        mock_duckdb_connect.assert_called_once_with("md:staging?token=test_token")
+        
+        # Verify pipeline initialized with s_motherduck destination dataset
+        mock_dlt_pipeline.assert_called_once()
+        _, kwargs = mock_dlt_pipeline.call_args
+        assert kwargs.get('pipeline_name') == "reverse_etl_motherduck"
+        assert kwargs.get('dataset_name') == "s_motherduck"
+        
+        # Verify pipeline.run was called with 5 resources
+        mock_pipeline_inst.run.assert_called_once()
+        resources_arg = mock_pipeline_inst.run.call_args[0][0]
+        assert len(resources_arg) == 5
+        
+        # Test resource generators yield correct dictionary data
+        for resource_func in resources_arg:
+            generator = resource_func()
+            yielded_item = next(generator)
+            assert yielded_item == {'id': 1, 'name': 'test_item'}
+            
+        # Verify connection close was executed in finally block
+        mock_conn.close.assert_called_once()
+
+
+
 
 
