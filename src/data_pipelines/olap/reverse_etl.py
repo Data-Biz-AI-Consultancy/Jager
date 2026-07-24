@@ -56,6 +56,14 @@ def run_reverse_etl():
         for row in res.fetchall():
             yield dict(zip(cols, row))
 
+    @dlt.resource(name="sum_content_marketing_daily_performance", write_disposition="replace")
+    def get_sum_content_marketing_daily_performance():
+        logger.info("Fetching sum_content_marketing_daily_performance from Motherduck")
+        res = conn.execute("SELECT * FROM t_jager.sum_content_marketing_daily_performance")
+        cols = [desc[0] for desc in res.description]
+        for row in res.fetchall():
+            yield dict(zip(cols, row))
+
     # Set up DLT pipeline with PostgreSQL destination
     logger.info("Starting DLT pipeline with postgres destination")
     os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
@@ -74,7 +82,8 @@ def run_reverse_etl():
             get_personal_engagement, 
             get_company_page_engagement,
             get_timeslot_recommendations,
-            get_public_holidays
+            get_public_holidays,
+            get_sum_content_marketing_daily_performance
         ])
         logger.info(f"Reverse ETL completed successfully:\n{load_info}")
     finally:
