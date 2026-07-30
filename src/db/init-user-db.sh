@@ -22,7 +22,23 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE SCHEMA IF NOT EXISTS s_zernio;
 	CREATE SCHEMA IF NOT EXISTS s_buffer;
 	CREATE SCHEMA IF NOT EXISTS s_motherduck;
+	CREATE SCHEMA IF NOT EXISTS s_google_drive;
 	CREATE SCHEMA IF NOT EXISTS cdp;
+
+	CREATE TABLE IF NOT EXISTS s_google_drive.substack_subscribers (
+		id VARCHAR(255) PRIMARY KEY,
+		email VARCHAR(255),
+		first_name VARCHAR(255),
+		last_name VARCHAR(255),
+		subscribed_at TIMESTAMP WITH TIME ZONE,
+		subscription_type VARCHAR(100),
+		company VARCHAR(255),
+		job_title VARCHAR(255),
+		phone VARCHAR(100),
+		linkedin_url VARCHAR(2048),
+		processed BIGINT DEFAULT 0,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
 
 	CREATE TABLE IF NOT EXISTS cdp.client_accounts (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

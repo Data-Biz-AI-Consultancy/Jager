@@ -24,14 +24,29 @@
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "http://data-pipeline:8000/run/oltp/ingest_google_drive",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        180,
+        0
+      ],
+      "id": "trigger-gdrive-ingest",
+      "name": "Trigger Google Drive Ingestion Pipeline"
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, first_name, last_name, profile_url, email_address, company, position, connected_at FROM s_linkedin.connections WHERE processed = 0 LIMIT 100;"
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        220,
-        0
+        380,
+        -100
       ],
       "id": "2",
       "name": "Fetch Unprocessed LinkedIn Connections",
@@ -44,26 +59,46 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst results = [];\n\nconst sqlEscape = (str) => {\n  if (!str) return null;\n  return String(str).replace(/'/g, \"''\");\n};\n\nfor (const item of items) {\n  const data = item.json;\n  if (!data.id) continue;\n  \n  const rawEmail = data.email_address ? data.email_address.trim() : null;\n  const email = (rawEmail && !rawEmail.includes('@linkedin.user')) ? rawEmail : null;\n  const company = data.company ? data.company.trim() : '';\n  const domain = company ? company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com' : null;\n  \n  results.push({\n    json: {\n      connection_id: data.id,\n      first_name: data.first_name || '',\n      last_name: data.last_name || '',\n      email: email,\n      company: company,\n      domain: domain,\n      position: data.position || '',\n      profile_url: data.profile_url || '',\n      source: 'linkedin_connection',\n      sql_connection_id: sqlEscape(data.id),\n      sql_first_name: sqlEscape(data.first_name || ''),\n      sql_last_name: sqlEscape(data.last_name || ''),\n      sql_email: email ? sqlEscape(email) : null,\n      sql_company: company ? sqlEscape(company) : null,\n      sql_domain: domain ? sqlEscape(domain) : null,\n      sql_position: sqlEscape(data.position || ''),\n      sql_profile_url: sqlEscape(data.profile_url || '')\n    }\n  });\n}\n\nreturn results;"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        0
-      ],
-      "id": "3",
-      "name": "Normalize LinkedIn Connection Leads"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "WITH inserted_acc AS (\n  INSERT INTO cdp.client_accounts (company_name, domain, status)\n  SELECT {{ $json.sql_company ? \"'\" + $json.sql_company + \"'\" : 'NULL' }}, {{ $json.sql_domain ? \"'\" + $json.sql_domain + \"'\" : 'NULL' }}, 'prospect'\n  WHERE {{ $json.sql_company ? 'TRUE' : 'FALSE' }}\n  ON CONFLICT (domain) DO UPDATE SET company_name = EXCLUDED.company_name\n  RETURNING id\n),\ninserted_person AS (\n  INSERT INTO cdp.persons (first_name, last_name, primary_email, linkedin_url, status)\n  VALUES (\n    {{ $json.sql_first_name ? \"'\" + $json.sql_first_name + \"'\" : 'NULL' }},\n    {{ $json.sql_last_name ? \"'\" + $json.sql_last_name + \"'\" : 'NULL' }},\n    {{ $json.sql_email ? \"'\" + $json.sql_email + \"'\" : 'NULL' }},\n    {{ $json.sql_profile_url ? \"'\" + $json.sql_profile_url + \"'\" : 'NULL' }},\n    'active'\n  )\n  ON CONFLICT (primary_email) WHERE primary_email IS NOT NULL DO UPDATE SET\n    first_name = COALESCE(EXCLUDED.first_name, cdp.persons.first_name),\n    last_name = COALESCE(EXCLUDED.last_name, cdp.persons.last_name),\n    linkedin_url = COALESCE(EXCLUDED.linkedin_url, cdp.persons.linkedin_url)\n  RETURNING id\n)\nINSERT INTO cdp.leads (source, source_lead_id, first_name, last_name, email, company_name, job_title, linkedin_url, person_id, status)\nSELECT\n  '{{ $json.source }}',\n  {{ $json.sql_connection_id ? \"'\" + $json.sql_connection_id + \"'\" : 'NULL' }},\n  {{ $json.sql_first_name ? \"'\" + $json.sql_first_name + \"'\" : 'NULL' }},\n  {{ $json.sql_last_name ? \"'\" + $json.sql_last_name + \"'\" : 'NULL' }},\n  {{ $json.sql_email ? \"'\" + $json.sql_email + \"'\" : 'NULL' }},\n  {{ $json.sql_company ? \"'\" + $json.sql_company + \"'\" : 'NULL' }},\n  {{ $json.sql_position ? \"'\" + $json.sql_position + \"'\" : 'NULL' }},\n  {{ $json.sql_profile_url ? \"'\" + $json.sql_profile_url + \"'\" : 'NULL' }},\n  COALESCE((SELECT id FROM inserted_person), (SELECT id FROM cdp.persons WHERE linkedin_url = '{{ $json.sql_profile_url }}' LIMIT 1)),\n  'processed';\n\nUPDATE s_linkedin.connections SET processed = 1 WHERE id = {{ $json.sql_connection_id ? \"'\" + $json.sql_connection_id + \"'\" : 'NULL' }};"
+        "query": "SELECT id, email, first_name, last_name, subscribed_at, subscription_type, company, job_title, phone, linkedin_url FROM s_google_drive.substack_subscribers WHERE processed = 0 LIMIT 100;"
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        660,
+        380,
+        100
+      ],
+      "id": "fetch-gdrive-leads",
+      "name": "Fetch Unprocessed Google Drive Substack Subscribers",
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nconst sqlEscape = (str) => {\n  if (!str) return null;\n  return String(str).replace(/'/g, \"''\");\n};\n\nfor (const item of items) {\n  const data = item.json;\n  if (!data.id) continue;\n  \n  const isGDrive = !data.profile_url && (data.email || data.job_title || data.phone || data.subscription_type);\n  const rawEmail = isGDrive ? data.email : data.email_address;\n  const email = (rawEmail && !rawEmail.includes('@linkedin.user')) ? rawEmail.trim() : null;\n  const company = data.company ? data.company.trim() : '';\n  const domain = company ? company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com' : null;\n  const source = isGDrive ? 'google_drive_substack_subscriber' : 'linkedin_connection';\n  \n  results.push({\n    json: {\n      connection_id: data.id,\n      source_lead_id: data.id,\n      first_name: data.first_name || '',\n      last_name: data.last_name || '',\n      email: email,\n      company: company,\n      domain: domain,\n      position: data.position || data.job_title || '',\n      profile_url: data.profile_url || data.linkedin_url || '',\n      phone: data.phone || null,\n      source: source,\n      sql_connection_id: sqlEscape(data.id),\n      sql_first_name: sqlEscape(data.first_name || ''),\n      sql_last_name: sqlEscape(data.last_name || ''),\n      sql_email: email ? sqlEscape(email) : null,\n      sql_company: company ? sqlEscape(company) : null,\n      sql_domain: domain ? sqlEscape(domain) : null,\n      sql_position: sqlEscape(data.position || data.job_title || ''),\n      sql_profile_url: sqlEscape(data.profile_url || data.linkedin_url || ''),\n      sql_phone: data.phone ? sqlEscape(data.phone) : null\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        620,
+        0
+      ],
+      "id": "3",
+      "name": "Normalize Lead Items"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inserted_acc AS (\n  INSERT INTO cdp.client_accounts (company_name, domain, status)\n  SELECT {{ $json.sql_company ? \"'\" + $json.sql_company + \"'\" : 'NULL' }}, {{ $json.sql_domain ? \"'\" + $json.sql_domain + \"'\" : 'NULL' }}, 'prospect'\n  WHERE {{ $json.sql_company ? 'TRUE' : 'FALSE' }}\n  ON CONFLICT (domain) DO UPDATE SET company_name = EXCLUDED.company_name\n  RETURNING id\n),\ninserted_person AS (\n  INSERT INTO cdp.persons (first_name, last_name, primary_email, primary_phone, linkedin_url, status)\n  VALUES (\n    {{ $json.sql_first_name ? \"'\" + $json.sql_first_name + \"'\" : 'NULL' }},\n    {{ $json.sql_last_name ? \"'\" + $json.sql_last_name + \"'\" : 'NULL' }},\n    {{ $json.sql_email ? \"'\" + $json.sql_email + \"'\" : 'NULL' }},\n    {{ $json.sql_phone ? \"'\" + $json.sql_phone + \"'\" : 'NULL' }},\n    {{ $json.sql_profile_url ? \"'\" + $json.sql_profile_url + \"'\" : 'NULL' }},\n    'active'\n  )\n  ON CONFLICT (primary_email) WHERE primary_email IS NOT NULL DO UPDATE SET\n    first_name = COALESCE(EXCLUDED.first_name, cdp.persons.first_name),\n    last_name = COALESCE(EXCLUDED.last_name, cdp.persons.last_name),\n    linkedin_url = COALESCE(EXCLUDED.linkedin_url, cdp.persons.linkedin_url)\n  RETURNING id\n)\nINSERT INTO cdp.leads (source, source_lead_id, first_name, last_name, email, phone, company_name, job_title, linkedin_url, person_id, status)\nSELECT\n  '{{ $json.source }}',\n  {{ $json.sql_connection_id ? \"'\" + $json.sql_connection_id + \"'\" : 'NULL' }},\n  {{ $json.sql_first_name ? \"'\" + $json.sql_first_name + \"'\" : 'NULL' }},\n  {{ $json.sql_last_name ? \"'\" + $json.sql_last_name + \"'\" : 'NULL' }},\n  {{ $json.sql_email ? \"'\" + $json.sql_email + \"'\" : 'NULL' }},\n  {{ $json.sql_phone ? \"'\" + $json.sql_phone + \"'\" : 'NULL' }},\n  {{ $json.sql_company ? \"'\" + $json.sql_company + \"'\" : 'NULL' }},\n  {{ $json.sql_position ? \"'\" + $json.sql_position + \"'\" : 'NULL' }},\n  {{ $json.sql_profile_url ? \"'\" + $json.sql_profile_url + \"'\" : 'NULL' }},\n  COALESCE((SELECT id FROM inserted_person), (SELECT id FROM cdp.persons WHERE primary_email = '{{ $json.sql_email }}' OR linkedin_url = '{{ $json.sql_profile_url }}' LIMIT 1)),\n  'processed';\n\nDO $$\nBEGIN\n  IF '{{ $json.source }}' = 'linkedin_connection' THEN\n    UPDATE s_linkedin.connections SET processed = 1 WHERE id = {{ $json.sql_connection_id ? \"'\" + $json.sql_connection_id + \"'\" : 'NULL' }};\n  ELSIF '{{ $json.source }}' = 'google_drive_substack_subscriber' THEN\n    UPDATE s_google_drive.substack_subscribers SET processed = 1 WHERE id = {{ $json.sql_connection_id ? \"'\" + $json.sql_connection_id + \"'\" : 'NULL' }};\n  END IF;\nEND $$;"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        860,
         0
       ],
       "id": "4",
@@ -81,7 +116,23 @@
       "main": [
         [
           {
+            "node": "Trigger Google Drive Ingestion Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Google Drive Ingestion Pipeline": {
+      "main": [
+        [
+          {
             "node": "Fetch Unprocessed LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Unprocessed Google Drive Leads",
             "type": "main",
             "index": 0
           }
@@ -92,14 +143,25 @@
       "main": [
         [
           {
-            "node": "Normalize LinkedIn Connection Leads",
+            "node": "Normalize Lead Items",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize LinkedIn Connection Leads": {
+    "Fetch Unprocessed Google Drive Leads": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Lead Items": {
       "main": [
         [
           {
@@ -120,5 +182,3 @@
     }
   ]
 }
-
-

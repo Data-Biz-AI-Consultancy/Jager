@@ -11,6 +11,7 @@ We organize database tables into dedicated ODS schemas following the `s_{{applic
 *   **`s_substack`**: Monitored feeds and posts.
 *   **`s_euro_stat`**: Regional GDP, crime rates, inflation, quarterly GDP, unemployment, HPI, and FX rates.
 *   **`s_yahoo_finance`**: Stock index prices.
+*   **`s_google_drive`**: Google Drive leads and contact files.
 *   **`prediction` & `training`**: Prediction outputs and machine learning trained models.
 
 > [!WARNING]
@@ -23,5 +24,7 @@ We organize database tables into dedicated ODS schemas following the `s_{{applic
 *   **`ingest_eurostat_fx.py`**: Ingests foreign exchange rates and economic indicators from Eurostat.
 *   **`ingest_wordpress.py`**: Ingests posts and content from monitored WordPress sites.
 *   **`ingest_yahoo_finance.py`**: Ingests historical stock index price data from Yahoo Finance.
+*   **`ingest_google_drive.py`**: Ingests Google Drive leads and contact files into PostgreSQL via dlt.
 *   **`ingest_seeds.py`**: Ingests repository seed files (`data/seed/`) into schema tables (e.g. Substack subscribers, CDP leads & profiles).
+
 

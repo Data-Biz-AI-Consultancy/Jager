@@ -1,9 +1,8 @@
 import os
 import sys
 import pytest
-from sqlalchemy import text
-
-from sqlalchemy import create_engine, text
+from unittest.mock import patch, MagicMock
+from sqlalchemy import text, create_engine
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/data_pipelines')))
 
@@ -17,8 +16,13 @@ def db_engine():
     return create_engine(db_url)
 
 
-def test_cdp_seed_ingestion(db_engine):
-    # Run seed ingestion pipeline
+@patch("oltp.ingest_seeds.get_db_engine")
+def test_cdp_seed_ingestion(mock_get_engine, db_engine):
+    mock_engine = MagicMock()
+    mock_get_engine.return_value = mock_engine
+    mock_conn = MagicMock()
+    mock_engine.begin.return_value.__enter__.return_value = mock_conn
+
     res = run_ingestion()
     assert res["status"] == "success"
     assert res["records_processed"] >= 0
