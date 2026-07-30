@@ -11,6 +11,7 @@ We organize database tables into dedicated ODS schemas following the `s_{{applic
 *   **`s_substack`**: Monitored feeds and posts.
 *   **`s_euro_stat`**: Regional GDP, crime rates, inflation, quarterly GDP, unemployment, HPI, and FX rates.
 *   **`s_yahoo_finance`**: Stock index prices.
+*   **`s_manual`**: Manual data ingestion tables and pages from Notion databases.
 *   **`prediction` & `training`**: Prediction outputs and machine learning trained models.
 
 > [!WARNING]
@@ -24,6 +25,7 @@ We organize database tables into dedicated ODS schemas following the `s_{{applic
 *   **`ingest_wordpress.py`**: Ingests posts and content from monitored WordPress sites.
 *   **`ingest_yahoo_finance.py`**: Ingests historical stock index price data from Yahoo Finance.
 *   **`ingest_seeds.py`**: Ingests repository seed files (`data/seed/`) into schema tables (e.g. Substack subscribers, CDP leads & profiles).
-*   **`ingest_notion_manual.py`**: Ingests manual databases and pages under Notion page `_manual_data_ingestion` into `s_notion.pages`.
+*   **`ingest_notion_manual.py`**: Ingests manual databases and pages under Notion page `_manual_data_ingestion` into `s_manual` tables.
+
 
 

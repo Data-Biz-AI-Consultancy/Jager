@@ -1,6 +1,6 @@
 {
-  "id": "notion-manual-ingestion-workflow",
-  "name": "Data Ingestion - Notion Manual",
+  "id": "cdp-manual-data-ingestion-workflow",
+  "name": "cdp_manual_data_ingestion",
   "nodes": [
     {
       "parameters": {
@@ -52,5 +52,10 @@
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
-  }
+  },
+  "tags": [
+    {
+      "name": "cdp"
+    }
+  ]
 }

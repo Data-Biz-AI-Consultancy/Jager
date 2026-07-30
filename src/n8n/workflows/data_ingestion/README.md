@@ -29,10 +29,5 @@ This directory contains N8N workflows responsible for ingesting external data (S
   * **GraphQL Schema Design Constraint:** The Buffer API is designed such that posts are nested under individual channels (`Channel.posts`). There is no global endpoint to query all posts across all channels at once.
   * **Implementation:** Consequently, the workflow must loop through each retrieved channel one-by-one, initiating pagination using a cursor-based approach for each channel to retrieve and ingest its associated posts.
 
----
-
-## 4. Notion Manual Data Ingestion
-* **File:** [data_ingestion_notion_manual.json](data_ingestion_notion_manual.json)
-* **Description:** Periodically triggers the Python dlt pipeline (`ingest_notion_manual.py`) via FastAPI (`POST /run/oltp/ingest_notion_manual`) to ingest databases and pages under Notion parent page `_manual_data_ingestion` (`3ad6e98d4ef8808e90e5d12894842709`) into `s_notion.pages`.
 
 

@@ -314,7 +314,10 @@ def test_ingest_notion_manual(mock_post, mock_get, mock_dlt_utils):
 
         ingest_notion_manual.run_ingestion()
 
-        mock_dlt_pipeline.assert_called_once()
+        mock_dlt_pipeline.assert_called_once_with(
+            pipeline_name="ingest_notion_manual",
+            dataset_name="s_manual"
+        )
         mock_pipeline_inst.run.assert_called_once()
 
 

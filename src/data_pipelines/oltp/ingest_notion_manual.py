@@ -262,7 +262,7 @@ def run_ingestion():
 
     pipeline = create_postgres_pipeline(
         pipeline_name="ingest_notion_manual",
-        dataset_name="s_notion"
+        dataset_name="s_manual"
     )
 
     info = pipeline.run(fetch_manual_notion_pages())
