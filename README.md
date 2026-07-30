@@ -69,6 +69,7 @@ jager/
 
 Refer to the folder-level READMEs for detailed guides:
 - [scripts/README.md](scripts/README.md)
+- [src/db/README.md](src/db/README.md)
 - [src/data_pipelines/README.md](src/data_pipelines/README.md)
 - [src/data_pipelines/oltp/README.md](src/data_pipelines/oltp/README.md)
 - [src/data_pipelines/olap/README.md](src/data_pipelines/olap/README.md)

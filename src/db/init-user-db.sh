@@ -24,38 +24,6 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE SCHEMA IF NOT EXISTS s_motherduck;
 	CREATE SCHEMA IF NOT EXISTS cdp;
 
-	CREATE TABLE IF NOT EXISTS cdp.leads (
-		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-		source VARCHAR(100) NOT NULL,
-		source_lead_id VARCHAR(255),
-		first_name VARCHAR(255),
-		last_name VARCHAR(255),
-		email VARCHAR(255),
-		phone VARCHAR(100),
-		company_name VARCHAR(255),
-		job_title VARCHAR(255),
-		linkedin_url VARCHAR(2048),
-		raw_payload JSONB DEFAULT '{}'::jsonb,
-		status VARCHAR(50) DEFAULT 'new',
-		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-	);
-
-	CREATE TABLE IF NOT EXISTS cdp.persons (
-		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-		first_name VARCHAR(255),
-		last_name VARCHAR(255),
-		primary_email VARCHAR(255) UNIQUE,
-		primary_phone VARCHAR(100),
-		linkedin_url VARCHAR(2048),
-		city VARCHAR(100),
-		country VARCHAR(100),
-		status VARCHAR(50) DEFAULT 'active',
-		attributes JSONB DEFAULT '{}'::jsonb,
-		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-	);
-
 	CREATE TABLE IF NOT EXISTS cdp.client_accounts (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		company_name VARCHAR(255) NOT NULL,
@@ -69,6 +37,43 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
+
+	CREATE TABLE IF NOT EXISTS cdp.persons (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		first_name VARCHAR(255),
+		last_name VARCHAR(255),
+		primary_email VARCHAR(255) UNIQUE,
+		primary_phone VARCHAR(100),
+		linkedin_url VARCHAR(2048),
+		city VARCHAR(100),
+		country VARCHAR(100),
+		primary_client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+		status VARCHAR(50) DEFAULT 'active',
+		attributes JSONB DEFAULT '{}'::jsonb,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+
+	CREATE TABLE IF NOT EXISTS cdp.leads (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		source VARCHAR(100) NOT NULL,
+		source_lead_id VARCHAR(255),
+		first_name VARCHAR(255),
+		last_name VARCHAR(255),
+		email VARCHAR(255),
+		phone VARCHAR(100),
+		company_name VARCHAR(255),
+		job_title VARCHAR(255),
+		linkedin_url VARCHAR(2048),
+		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+		client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+		raw_payload JSONB DEFAULT '{}'::jsonb,
+		status VARCHAR(50) DEFAULT 'new',
+		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
 
 	CREATE TABLE IF NOT EXISTS cdp.person_account_relationships (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
