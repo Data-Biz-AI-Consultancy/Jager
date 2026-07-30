@@ -93,9 +93,9 @@ def test_ingest_wordpress(mock_feedparser, mock_get, mock_dlt_utils):
     from oltp import ingest_wordpress
     
     # Mock active feeds query response
-    mock_dlt_utils['connection'].execute.return_value = [
-        {"id": 1, "name": "Towards Data Science", "feed_url": "https://towardsdatascience.com/feed/"}
-    ]
+    mock_row = MagicMock()
+    mock_row._mapping = {"id": 1, "name": "Towards Data Science", "feed_url": "https://towardsdatascience.com/feed/"}
+    mock_dlt_utils['connection'].execute.return_value = [mock_row]
     
     # Mock requests.get returning a dummy status
     mock_resp = MagicMock()
@@ -117,8 +117,8 @@ def test_ingest_wordpress(mock_feedparser, mock_get, mock_dlt_utils):
     mock_feed.entries = [mock_entry]
     mock_feedparser.return_value = mock_feed
     
-    # Patch dlt.pipeline to mock pipeline creation and return mock pipeline instance
-    with patch('dlt.pipeline') as mock_dlt_pipeline:
+    # Patch create_postgres_pipeline to mock pipeline creation and return mock pipeline instance
+    with patch('oltp.ingest_wordpress.create_postgres_pipeline') as mock_dlt_pipeline:
         mock_pipeline_inst = MagicMock()
         mock_dlt_pipeline.return_value = mock_pipeline_inst
         
@@ -158,8 +158,7 @@ def test_ingest_yahoo_finance(mock_get, mock_dlt_utils):
     }
     mock_get.return_value = mock_resp
     
-    # Patch dlt.pipeline
-    with patch('dlt.pipeline') as mock_dlt_pipeline:
+    with patch('oltp.ingest_yahoo_finance.create_postgres_pipeline') as mock_dlt_pipeline:
         mock_pipeline_inst = MagicMock()
         mock_dlt_pipeline.return_value = mock_pipeline_inst
         
@@ -198,7 +197,7 @@ def test_ingest_eurostat_fx(mock_get, mock_dlt_utils):
     }
     mock_get.return_value = mock_resp
     
-    with patch('dlt.pipeline') as mock_dlt_pipeline:
+    with patch('oltp.ingest_eurostat_fx.create_postgres_pipeline') as mock_dlt_pipeline:
         mock_pipeline_inst = MagicMock()
         mock_dlt_pipeline.return_value = mock_pipeline_inst
         
