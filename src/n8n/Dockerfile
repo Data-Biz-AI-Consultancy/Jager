@@ -14,7 +14,7 @@ COPY src/n8n/credentials.json /etc/n8n/credentials.json
 COPY src/n8n/import-credentials.js /etc/n8n/import-credentials.js
 COPY src/n8n/agents/ /etc/n8n/agents/
 COPY src/n8n/import-workflows.js /etc/n8n/import-workflows.js
-COPY scripts/migrate-db.js /etc/n8n/migrate-db.js
+COPY src/db/migrate-db.js /etc/n8n/migrate-db.js
 
 
 # Give node user ownership

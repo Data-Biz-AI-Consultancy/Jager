@@ -29,13 +29,13 @@ def test_get_http_headers():
     assert "User-Agent" in headers
     assert "Jager" in headers["User-Agent"]
 
-@patch('dlt.pipeline')
+@patch('common.utils.dlt.pipeline')
 def test_create_motherduck_pipeline(mock_pipeline):
     os.environ["MOTHERDUCK_TOKEN"] = "dummy_token"
     utils.create_motherduck_pipeline("test_pipe", "test_dataset")
     mock_pipeline.assert_called_once()
 
-@patch('dlt.pipeline')
+@patch('common.utils.dlt.pipeline')
 def test_create_postgres_pipeline(mock_pipeline):
     utils.create_postgres_pipeline("test_pipe", "test_dataset")
     mock_pipeline.assert_called_once()

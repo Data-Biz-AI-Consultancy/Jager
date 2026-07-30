@@ -107,3 +107,4 @@ erDiagram
 
 ## Files in `src/db/`
 - [init-user-db.sh](init-user-db.sh): PostgreSQL initialization script run automatically on Docker startup.
+- [migrate-db.js](migrate-db.js): Database migration and DDL synchronization script.
