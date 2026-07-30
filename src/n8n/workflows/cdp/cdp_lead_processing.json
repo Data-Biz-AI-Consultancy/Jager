@@ -132,7 +132,7 @@
             "index": 0
           },
           {
-            "node": "Fetch Unprocessed Google Drive Leads",
+            "node": "Fetch Unprocessed Google Drive Substack Subscribers",
             "type": "main",
             "index": 0
           }
@@ -150,7 +150,7 @@
         ]
       ]
     },
-    "Fetch Unprocessed Google Drive Leads": {
+    "Fetch Unprocessed Google Drive Substack Subscribers": {
       "main": [
         [
           {
