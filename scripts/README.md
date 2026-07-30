@@ -5,7 +5,7 @@ This directory contains utility scripts to manage database migration and product
 ## Scripts Overview
 
 - **[clone-db.js](file:///Users/jimmypang/AntigravityProjects/Jager/scripts/clone-db.js)**: Clones PostgreSQL databases from a production server to your local Docker-based development environment.
-- **[migrate-db.js](file:///Users/jimmypang/AntigravityProjects/Jager/scripts/migrate-db.js)**: Runs migrations (DDL), transfers legacy data from the `public` schema to new schema-scoped tables, and seeds initial configuration data.
+- **[src/db/migrate-db.js](file:///Users/jimmypang/AntigravityProjects/Jager/src/db/migrate-db.js)**: Runs migrations (DDL), transfers legacy data from the `public` schema to new schema-scoped tables, and seeds initial configuration data.
 
 ---
 
