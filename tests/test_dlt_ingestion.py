@@ -268,6 +268,79 @@ def test_reverse_etl_success(mock_duckdb_connect):
         mock_conn.close.assert_called_once()
 
 
+@patch('requests.get')
+@patch('requests.post')
+def test_ingest_notion_manual(mock_post, mock_get, mock_dlt_utils):
+    from oltp import ingest_notion_manual
+
+    # Mock block children GET response
+    mock_get_resp = MagicMock()
+    mock_get_resp.status_code = 200
+    mock_get_resp.json.return_value = {
+        "results": [
+            {
+                "id": "db-uuid-1",
+                "type": "child_database",
+                "child_database": {"title": "Manual Leads DB"}
+            }
+        ]
+    }
+    mock_get.return_value = mock_get_resp
+
+    # Mock database query POST response
+    mock_post_resp = MagicMock()
+    mock_post_resp.status_code = 200
+    mock_post_resp.json.return_value = {
+        "results": [
+            {
+                "id": "page-1",
+                "url": "https://notion.so/page-1",
+                "created_time": "2026-07-30T10:00:00Z",
+                "last_edited_time": "2026-07-30T12:00:00Z",
+                "properties": {
+                    "Name": {
+                        "type": "title",
+                        "title": [{"plain_text": "Manual Lead Record"}]
+                    }
+                }
+            }
+        ]
+    }
+    mock_post.return_value = mock_post_resp
+
+    with patch('oltp.ingest_notion_manual.create_postgres_pipeline') as mock_dlt_pipeline:
+        mock_pipeline_inst = MagicMock()
+        mock_dlt_pipeline.return_value = mock_pipeline_inst
+
+        ingest_notion_manual.run_ingestion()
+
+        mock_dlt_pipeline.assert_called_once_with(
+            pipeline_name="ingest_notion_manual",
+            dataset_name="s_manual"
+        )
+        mock_pipeline_inst.run.assert_called_once()
+
+
+def test_derive_table_name_notion_prefix():
+    """Table names for Notion manual ingestion must use notion__ tool prefix."""
+    from oltp.ingest_notion_manual import derive_table_name
+
+    # With child page prefix and database entity name
+    result = derive_table_name("substack", "subscriber-export-2026-07-30.csv", tool_name="notion")
+    assert result.startswith("notion__"), f"Expected notion__ prefix, got: {result}"
+    assert "substack_" in result, f"Expected substack_ prefix in entity, got: {result}"
+
+    # With no child prefix (top-level database)
+    result_no_prefix = derive_table_name("", "Leads DB", tool_name="notion")
+    assert result_no_prefix == "notion__leads_db", f"Got: {result_no_prefix}"
+
+    # With matching prefix already in entity name
+    result_no_dup = derive_table_name("substack", "substack_posts", tool_name="notion")
+    assert result_no_dup == "notion__substack_posts", f"Got: {result_no_dup}"
+
+
+
+
 
 
 

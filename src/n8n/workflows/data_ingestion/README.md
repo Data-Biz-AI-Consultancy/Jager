@@ -29,3 +29,5 @@ This directory contains N8N workflows responsible for ingesting external data (S
   * **GraphQL Schema Design Constraint:** The Buffer API is designed such that posts are nested under individual channels (`Channel.posts`). There is no global endpoint to query all posts across all channels at once.
   * **Implementation:** Consequently, the workflow must loop through each retrieved channel one-by-one, initiating pagination using a cursor-based approach for each channel to retrieve and ingest its associated posts.
 
+
+
