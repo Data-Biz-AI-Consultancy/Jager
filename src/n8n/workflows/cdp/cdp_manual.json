@@ -46,8 +46,8 @@
       "name": "Insert Manual Lead Into CDP",
       "credentials": {
         "postgres": {
-          "id": "1",
-          "name": "Postgres jager"
+          "id": "postgres-db",
+          "name": "postgres Credential"
         }
       }
     },
