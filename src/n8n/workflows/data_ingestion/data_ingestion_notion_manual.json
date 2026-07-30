@@ -1,0 +1,56 @@
+{
+  "id": "notion-manual-ingestion-workflow",
+  "name": "Data Ingestion - Notion Manual",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/oltp/ingest_notion_manual",
+        "options": {}
+      },
+      "id": "trigger-notion-manual-ingestion",
+      "name": "Trigger Notion Manual Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        336,
+        256
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Trigger Notion Manual Ingestion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
