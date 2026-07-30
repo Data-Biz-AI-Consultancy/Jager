@@ -24,6 +24,7 @@
     },
     {
       "parameters": {
+        "method": "POST",
         "url": "http://data-pipeline:8000/run/oltp/ingest_seeds",
         "options": {}
       },
