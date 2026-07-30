@@ -24,31 +24,16 @@
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "cdp-lead-intake",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [
-        0,
-        220
-      ],
-      "id": "2",
-      "name": "Webhook Lead Intake"
-    },
-    {
-      "parameters": {
         "url": "http://data-pipeline:8000/run/oltp/ingest_seeds",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        0,
-        440
+        220,
+        200
       ],
-      "id": "3",
+      "id": "2",
       "name": "Trigger Seed Files Ingestion API"
     },
     {
@@ -62,7 +47,7 @@
         220,
         0
       ],
-      "id": "4",
+      "id": "3",
       "name": "Fetch Unprocessed LinkedIn Connections",
       "credentials": {
         "postgres": {
@@ -81,21 +66,8 @@
         440,
         0
       ],
-      "id": "5",
+      "id": "4",
       "name": "Normalize LinkedIn Connection Leads"
-    },
-    {
-      "parameters": {
-        "jsCode": "const item = $input.item.json;\nconst body = item.body || item;\nconst firstName = body.first_name || (body.name ? body.name.split(' ')[0] : '');\nconst lastName = body.last_name || (body.name && body.name.split(' ').length > 1 ? body.name.split(' ').slice(1).join(' ') : '');\nconst email = body.email || null;\nconst company = body.company_name || body.company || '';\nconst jobTitle = body.job_title || body.title || '';\nconst linkedinUrl = body.linkedin_url || '';\nconst phone = body.phone || '';\nconst source = body.source || 'manual_webhook';\nconst domain = company ? company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com' : null;\n\nconst sqlEscape = (str) => {\n  if (!str) return null;\n  return String(str).replace(/'/g, \"''\");\n};\n\nreturn [{\n  json: {\n    connection_id: null,\n    first_name: firstName,\n    last_name: lastName,\n    email: email,\n    phone: phone,\n    company_name: company,\n    domain: domain,\n    job_title: jobTitle,\n    linkedin_url: linkedinUrl,\n    source: source,\n    raw_payload: body,\n    sql_connection_id: null,\n    sql_first_name: sqlEscape(firstName),\n    sql_last_name: sqlEscape(lastName),\n    sql_email: email ? sqlEscape(email) : null,\n    sql_company: company ? sqlEscape(company) : null,\n    sql_domain: domain ? sqlEscape(domain) : null,\n    sql_position: sqlEscape(jobTitle),\n    sql_profile_url: sqlEscape(linkedinUrl)\n  }\n}];"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        220
-      ],
-      "id": "6",
-      "name": "Normalize Webhook Manual Lead"
     },
     {
       "parameters": {
@@ -105,10 +77,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        680,
-        110
+        660,
+        0
       ],
-      "id": "7",
+      "id": "5",
       "name": "Canonical CDP Lead Upsert Processor",
       "credentials": {
         "postgres": {
@@ -116,20 +88,6 @@
           "name": "postgres Credential"
         }
       }
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "{\n  \"status\": \"success\",\n  \"message\": \"Lead successfully recorded into CDP\"\n}"
-      },
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [
-        900,
-        220
-      ],
-      "id": "8",
-      "name": "Respond to Webhook"
     }
   ],
   "connections": {
@@ -138,6 +96,11 @@
         [
           {
             "node": "Fetch Unprocessed LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Seed Files Ingestion API",
             "type": "main",
             "index": 0
           }
@@ -165,39 +128,6 @@
           }
         ]
       ]
-    },
-    "Webhook Lead Intake": {
-      "main": [
-        [
-          {
-            "node": "Normalize Webhook Manual Lead",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Normalize Webhook Manual Lead": {
-      "main": [
-        [
-          {
-            "node": "Canonical CDP Lead Upsert Processor",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Canonical CDP Lead Upsert Processor": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "settings": {
@@ -209,3 +139,4 @@
     }
   ]
 }
+
