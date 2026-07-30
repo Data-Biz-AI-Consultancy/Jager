@@ -42,8 +42,8 @@
   - Example: FX Rates data ingested from Eurostat must be saved in the `eurostat_fx_rates` table.
 
 ### Schema consistency & Migrations
-- Whenever `src/db/init-user-db.sh` is changed, the database migration script `scripts/migrate-db.js` must be updated to match the changes and keep schemas/tables in sync.
-- Ensure table names and schemas are kept consistent across `scripts/migrate-db.js`, `src/db/init-user-db.sh`, and within n8n database integration nodes.
+- Whenever `src/db/init-user-db.sh` is changed, the database migration script `src/db/migrate-db.js` must be updated to match the changes and keep schemas/tables in sync.
+- Ensure table names and schemas are kept consistent across `src/db/migrate-db.js`, `src/db/init-user-db.sh`, and within n8n database integration nodes.
 
 ## CDP (Customer Data Platform) Conventions
 - The `cdp` schema in PostgreSQL is the core processing/domain schema for customer data platform entities (`cdp.leads`, `cdp.persons`, `cdp.client_accounts`, `cdp.engagements`, `cdp.person_account_relationships`).
