@@ -24,20 +24,6 @@
     },
     {
       "parameters": {
-        "url": "http://data-pipeline:8000/run/oltp/ingest_seeds",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        220,
-        200
-      ],
-      "id": "2",
-      "name": "Trigger Seed Files Ingestion API"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
         "query": "SELECT id, first_name, last_name, profile_url, email_address, company, position, connected_at FROM s_linkedin.connections WHERE processed = 0 LIMIT 100;"
       },
@@ -47,7 +33,7 @@
         220,
         0
       ],
-      "id": "3",
+      "id": "2",
       "name": "Fetch Unprocessed LinkedIn Connections",
       "credentials": {
         "postgres": {
@@ -66,7 +52,7 @@
         440,
         0
       ],
-      "id": "4",
+      "id": "3",
       "name": "Normalize LinkedIn Connection Leads"
     },
     {
@@ -80,7 +66,7 @@
         660,
         0
       ],
-      "id": "5",
+      "id": "4",
       "name": "Canonical CDP Lead Upsert Processor",
       "credentials": {
         "postgres": {
@@ -96,11 +82,6 @@
         [
           {
             "node": "Fetch Unprocessed LinkedIn Connections",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Trigger Seed Files Ingestion API",
             "type": "main",
             "index": 0
           }
@@ -139,4 +120,5 @@
     }
   ]
 }
+
 
