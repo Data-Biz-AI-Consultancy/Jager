@@ -65,6 +65,15 @@
 - By default, these scripts must target the staging database (`staging`) using `MOTHERDUCK_TOKEN` for safety.
 - When `--prod` is passed, the script must switch to the production credentials/tokens (`MOTHERDUCK_TOKEN_PROD`) and database (`production` or custom variable).
 
+## Manual Ingestion Table Naming Conventions (`s_manual` schema)
+- Tables in the `s_manual` schema are dynamically created by the dlt pipeline — they are NOT pre-declared in `init-user-db.sh` or `migrate-db.js` (because manual data is always dynamic).
+- Table names must follow the pattern: `<tool>__<child_page_prefix>_<entity_name>` using **double underscores** between the tool name and the rest.
+  - `<tool>` is the source application (e.g., `notion`, `google_drive`).
+  - `<child_page_prefix>` is the direct child page under `_manual_data_ingestion` in snake_case (e.g., `substack`).
+  - `<entity_name>` is the database or subpage name in snake_case.
+  - Example: `notion__substack_subscriber_export_2026_07_30_11_46_53_csv`
+
+
 ## Python Testing Conventions
 - All Python scripts in the codebase, including data pipelines (`src/data_pipelines/`) and machine learning components (`src/ml/`), must have corresponding automated unit tests.
 - Python tests should be added to the `tests/` directory and run using `pytest` via `uv run pytest tests/`.

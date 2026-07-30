@@ -3,6 +3,7 @@ import sys
 import re
 import requests
 from datetime import datetime, timezone
+from collections import defaultdict
 from dotenv import load_dotenv
 import dlt
 
@@ -42,17 +43,23 @@ def to_snake_case(name: str) -> str:
     return s
 
 
-def derive_table_name(prefix: str, entity_name: str) -> str:
+def derive_table_name(prefix: str, entity_name: str, tool_name: str = "notion") -> str:
+    cleaned_tool = to_snake_case(tool_name) or "notion"
     cleaned_prefix = to_snake_case(prefix)
     cleaned_entity = to_snake_case(entity_name)
 
     if cleaned_prefix:
         if cleaned_entity:
             if cleaned_entity.startswith(cleaned_prefix + "_"):
-                return cleaned_entity
-            return f"{cleaned_prefix}_{cleaned_entity}"
-        return f"{cleaned_prefix}_pages"
-    return cleaned_entity or "pages"
+                target = cleaned_entity
+            else:
+                target = f"{cleaned_prefix}_{cleaned_entity}"
+        else:
+            target = f"{cleaned_prefix}_pages"
+    else:
+        target = cleaned_entity or "pages"
+
+    return f"{cleaned_tool}__{target}"
 
 
 def discover_child_sources(parent_id: str, current_prefix: str = "", is_root: bool = True, visited=None):
@@ -118,7 +125,7 @@ def create_database_resource(db: dict, headers: dict, now_iso: str):
     db_id = db.get("id") or db.get("database_id")
     db_name = db["name"]
     prefix = db.get("prefix", "")
-    table_name = derive_table_name(prefix, db_name)
+    table_name = derive_table_name(prefix, db_name, tool_name="notion")
 
     @dlt.resource(name=table_name, write_disposition="merge", primary_key="id")
     def fetch_database_pages():
@@ -191,15 +198,17 @@ def create_database_resource(db: dict, headers: dict, now_iso: str):
     return fetch_database_pages
 
 
-def create_subpages_resource(subpages: list, headers: dict, now_iso: str):
-    @dlt.resource(name="subpages", write_disposition="merge", primary_key="id")
+def create_subpages_resource(prefix: str, subpages: list, headers: dict, now_iso: str):
+    table_name = derive_table_name(prefix, "subpages", tool_name="notion")
+
+    @dlt.resource(name=table_name, write_disposition="merge", primary_key="id")
     def fetch_subpages():
         for sub in subpages:
             subpage_id = sub["id"]
             subpage_title = sub["title"]
             parent_id = sub["parent_id"]
 
-            logger.info(f"Ingesting subpage '{subpage_title}' ({subpage_id}) -> table 'subpages'")
+            logger.info(f"Ingesting subpage '{subpage_title}' ({subpage_id}) -> table '{table_name}'")
             text_content = ""
             try:
                 blocks_url = f"https://api.notion.com/v1/blocks/{subpage_id}/children"
@@ -261,7 +270,12 @@ def run_ingestion():
         resources.append(res_fn())
 
     if subpages:
-        resources.append(create_subpages_resource(subpages, headers, now_iso)())
+        grouped_subpages = defaultdict(list)
+        for sub in subpages:
+            grouped_subpages[sub.get("prefix", "")].append(sub)
+        for prefix, p_subpages in grouped_subpages.items():
+            res_fn = create_subpages_resource(prefix, p_subpages, headers, now_iso)
+            resources.append(res_fn())
 
     if not resources:
         logger.warning("No resources to ingest.")

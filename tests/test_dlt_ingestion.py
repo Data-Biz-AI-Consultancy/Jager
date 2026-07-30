@@ -321,6 +321,25 @@ def test_ingest_notion_manual(mock_post, mock_get, mock_dlt_utils):
         mock_pipeline_inst.run.assert_called_once()
 
 
+def test_derive_table_name_notion_prefix():
+    """Table names for Notion manual ingestion must use notion__ tool prefix."""
+    from oltp.ingest_notion_manual import derive_table_name
+
+    # With child page prefix and database entity name
+    result = derive_table_name("substack", "subscriber-export-2026-07-30.csv", tool_name="notion")
+    assert result.startswith("notion__"), f"Expected notion__ prefix, got: {result}"
+    assert "substack_" in result, f"Expected substack_ prefix in entity, got: {result}"
+
+    # With no child prefix (top-level database)
+    result_no_prefix = derive_table_name("", "Leads DB", tool_name="notion")
+    assert result_no_prefix == "notion__leads_db", f"Got: {result_no_prefix}"
+
+    # With matching prefix already in entity name
+    result_no_dup = derive_table_name("substack", "substack_posts", tool_name="notion")
+    assert result_no_dup == "notion__substack_posts", f"Got: {result_no_dup}"
+
+
+
 
 
 
