@@ -37,25 +37,35 @@ def run_ingestion():
                     with open(fpath, mode='r', encoding='utf-8') as f:
                         reader = csv.DictReader(f)
                         for row in reader:
-                            email = row.get('email', '').strip()
+                            # Substack exports use 'Email' and 'Name' headers (or lowercase fallback)
+                            email = (row.get('Email') or row.get('email') or '').strip()
                             if not email:
                                 continue
+                            full_name = (row.get('Name') or row.get('name') or '').strip()
                             first_name = row.get('first_name', '').strip()
                             last_name = row.get('last_name', '').strip()
+
+                            if full_name and not (first_name or last_name):
+                                parts = full_name.split(' ', 1)
+                                first_name = parts[0]
+                                last_name = parts[1] if len(parts) > 1 else ''
+
+                            country = (row.get('Country') or row.get('country') or '').strip()
 
                             # Upsert person
                             person_id = str(uuid.uuid4())
                             person_res = conn.execute(
                                 text("""
-                                    INSERT INTO cdp.persons (id, first_name, last_name, primary_email, status, created_at, updated_at)
-                                    VALUES (:id, :first_name, :last_name, :email, 'active', NOW(), NOW())
+                                    INSERT INTO cdp.persons (id, first_name, last_name, primary_email, country, status, created_at, updated_at)
+                                    VALUES (:id, :first_name, :last_name, :email, :country, 'active', NOW(), NOW())
                                     ON CONFLICT (primary_email) DO UPDATE SET
                                         first_name = COALESCE(EXCLUDED.first_name, cdp.persons.first_name),
                                         last_name = COALESCE(EXCLUDED.last_name, cdp.persons.last_name),
+                                        country = COALESCE(EXCLUDED.country, cdp.persons.country),
                                         updated_at = NOW()
                                     RETURNING id
                                 """),
-                                {"id": person_id, "first_name": first_name, "last_name": last_name, "email": email}
+                                {"id": person_id, "first_name": first_name, "last_name": last_name, "email": email, "country": country}
                             )
                             p_id = person_res.scalar()
 
