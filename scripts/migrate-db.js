@@ -53,6 +53,86 @@ CREATE SCHEMA IF NOT EXISTS s_notion;
 CREATE SCHEMA IF NOT EXISTS s_zernio;
 CREATE SCHEMA IF NOT EXISTS s_buffer;
 CREATE SCHEMA IF NOT EXISTS s_motherduck;
+CREATE SCHEMA IF NOT EXISTS cdp;
+
+CREATE TABLE IF NOT EXISTS cdp.leads (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source VARCHAR(100) NOT NULL,
+  source_lead_id VARCHAR(255),
+  first_name VARCHAR(255),
+  last_name VARCHAR(255),
+  email VARCHAR(255),
+  phone VARCHAR(100),
+  company_name VARCHAR(255),
+  job_title VARCHAR(255),
+  linkedin_url VARCHAR(2048),
+  raw_payload JSONB DEFAULT '{}'::jsonb,
+  status VARCHAR(50) DEFAULT 'new',
+  intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cdp.persons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  first_name VARCHAR(255),
+  last_name VARCHAR(255),
+  primary_email VARCHAR(255) UNIQUE,
+  primary_phone VARCHAR(100),
+  linkedin_url VARCHAR(2048),
+  city VARCHAR(100),
+  country VARCHAR(100),
+  status VARCHAR(50) DEFAULT 'active',
+  attributes JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cdp.client_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_name VARCHAR(255) NOT NULL,
+  domain VARCHAR(255) UNIQUE,
+  industry VARCHAR(100),
+  company_size VARCHAR(50),
+  website_url VARCHAR(2048),
+  linkedin_company_url VARCHAR(2048),
+  status VARCHAR(50) DEFAULT 'prospect',
+  attributes JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cdp.person_account_relationships (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  person_id UUID NOT NULL REFERENCES cdp.persons(id) ON DELETE CASCADE,
+  client_account_id UUID NOT NULL REFERENCES cdp.client_accounts(id) ON DELETE CASCADE,
+  job_title VARCHAR(255),
+  department VARCHAR(100),
+  role_type VARCHAR(50) DEFAULT 'decision_maker',
+  is_primary BOOLEAN DEFAULT TRUE,
+  start_date DATE,
+  end_date DATE,
+  status VARCHAR(50) DEFAULT 'active',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE (person_id, client_account_id, role_type)
+);
+
+CREATE TABLE IF NOT EXISTS cdp.engagements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+  client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+  engagement_type VARCHAR(50) NOT NULL,
+  direction VARCHAR(20) DEFAULT 'inbound',
+  subject VARCHAR(1024),
+  summary_or_content TEXT,
+  channel VARCHAR(100),
+  status VARCHAR(50) DEFAULT 'completed',
+  occurred_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 
 
 CREATE TABLE IF NOT EXISTS s_analytics.directives (
