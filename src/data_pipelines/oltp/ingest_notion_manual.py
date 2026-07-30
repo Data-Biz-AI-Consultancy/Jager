@@ -77,9 +77,24 @@ def discover_child_sources(parent_id: str, current_prefix: str = "", is_root: bo
     url = f"https://api.notion.com/v1/blocks/{formatted_id}/children"
 
     try:
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            blocks = res.json().get("results", [])
+        # Paginate through all blocks (Notion returns max 100 per request)
+        has_more = True
+        params = {"page_size": 100}
+        while has_more:
+            res = requests.get(url, headers=headers, params=params, timeout=10)
+            if res.status_code != 200:
+                logger.warning(f"Could not fetch children for block {formatted_id}: Status {res.status_code}")
+                break
+
+            data = res.json()
+            blocks = data.get("results", [])
+            has_more = data.get("has_more", False)
+            next_cursor = data.get("next_cursor")
+            if has_more and next_cursor:
+                params["start_cursor"] = next_cursor
+            else:
+                has_more = False
+
             for b in blocks:
                 btype = b.get("type")
                 if btype == "child_database":
@@ -104,7 +119,7 @@ def discover_child_sources(parent_id: str, current_prefix: str = "", is_root: bo
                         "prefix": child_prefix
                     })
 
-                    # Recursively discover child sources under this subpage
+                    # Recursively discover child sources under this subpage (any depth)
                     child_dbs, child_pages = discover_child_sources(
                         page_id,
                         current_prefix=child_prefix,
@@ -113,12 +128,12 @@ def discover_child_sources(parent_id: str, current_prefix: str = "", is_root: bo
                     )
                     databases.extend(child_dbs)
                     subpages.extend(child_pages)
-        else:
-            logger.warning(f"Could not fetch children for block {formatted_id}: Status {res.status_code}")
+
     except Exception as e:
         logger.error(f"Error fetching child blocks for page {formatted_id}: {e}")
 
     return databases, subpages
+
 
 
 def create_database_resource(db: dict, headers: dict, now_iso: str):
