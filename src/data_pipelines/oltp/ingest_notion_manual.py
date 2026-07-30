@@ -3,7 +3,10 @@ import sys
 import re
 import requests
 from datetime import datetime, timedelta, timezone
+from dotenv import load_dotenv
 import dlt
+
+load_dotenv()
 
 # Add parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -168,12 +171,6 @@ def run_ingestion():
 
             query_url = f"https://api.notion.com/v1/databases/{db_id}/query"
             query_body = {
-                "filter": {
-                    "timestamp": "last_edited_time",
-                    "last_edited_time": {
-                        "on_or_after": start_date
-                    }
-                },
                 "page_size": 100
             }
 
