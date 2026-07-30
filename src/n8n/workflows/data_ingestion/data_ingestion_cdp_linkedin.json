@@ -1,0 +1,126 @@
+{
+  "id": "cdp-linkedin-ingestion-workflow",
+  "name": "data_ingestion_cdp_linkedin",
+
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, first_name, last_name, profile_url, email_address, company, position, connected_at FROM s_linkedin.connections WHERE processed = 0 LIMIT 100;"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "id": "2",
+      "name": "Fetch Unprocessed LinkedIn Connections",
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres jager"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  if (!data.id) continue;\n  \n  const email = data.email_address || `${data.id.toLowerCase()}@linkedin.user`;\n  const company = data.company || '';\n  const domain = company ? company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com' : null;\n  \n  results.push({\n    json: {\n      connection_id: data.id,\n      first_name: data.first_name || '',\n      last_name: data.last_name || '',\n      email: email,\n      company: company,\n      domain: domain,\n      position: data.position || '',\n      profile_url: data.profile_url || '',\n      connected_at: data.connected_at || new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "3",
+      "name": "Transform Connections Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inserted_acc AS (\n  INSERT INTO cdp.client_accounts (company_name, domain, status)\n  SELECT {{ $json.company ? \"'\" + $json.company.replace(/'/g, \"''\") + \"'\" : 'NULL' }}, {{ $json.domain ? \"'\" + $json.domain + \"'\" : 'NULL' }}, 'prospect'\n  WHERE {{ $json.company ? 'TRUE' : 'FALSE' }}\n  ON CONFLICT (domain) DO UPDATE SET company_name = EXCLUDED.company_name\n  RETURNING id\n),\ninserted_person AS (\n  INSERT INTO cdp.persons (first_name, last_name, primary_email, linkedin_url, status)\n  VALUES ('{{ $json.first_name }}', '{{ $json.last_name }}', '{{ $json.email }}', '{{ $json.profile_url }}', 'active')\n  ON CONFLICT (primary_email) DO UPDATE SET\n    first_name = EXCLUDED.first_name,\n    last_name = EXCLUDED.last_name,\n    linkedin_url = EXCLUDED.linkedin_url\n  RETURNING id\n)\nINSERT INTO cdp.leads (source, source_lead_id, first_name, last_name, email, company_name, job_title, linkedin_url, person_id, status)\nSELECT 'linkedin_connection', '{{ $json.connection_id }}', '{{ $json.first_name }}', '{{ $json.last_name }}', '{{ $json.email }}', '{{ $json.company }}', '{{ $json.position }}', '{{ $json.profile_url }}', p.id, 'processed'\nFROM inserted_person p;\n\nUPDATE s_linkedin.connections SET processed = 1 WHERE id = '{{ $json.connection_id }}';"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        660,
+        0
+      ],
+      "id": "4",
+      "name": "Upsert Into CDP and Mark Processed",
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Postgres jager"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Unprocessed LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Unprocessed LinkedIn Connections": {
+      "main": [
+        [
+          {
+            "node": "Transform Connections Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Connections Data": {
+      "main": [
+        [
+          {
+            "node": "Upsert Into CDP and Mark Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "cdp"
+    },
+    {
+      "name": "ingestion"
+    }
+  ]
+}
