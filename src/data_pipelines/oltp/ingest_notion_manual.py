@@ -127,75 +127,81 @@ def create_database_resource(db: dict, headers: dict, now_iso: str):
     prefix = db.get("prefix", "")
     table_name = derive_table_name(prefix, db_name, tool_name="notion")
 
-    @dlt.resource(name=table_name, write_disposition="merge", primary_key="id")
+    @dlt.resource(name=table_name, write_disposition="merge", primary_key="notion_id")
     def fetch_database_pages():
         logger.info(f"Ingesting Notion database '{db_name}' ({db_id}) -> table '{table_name}'")
         query_url = f"https://api.notion.com/v1/databases/{db_id}/query"
+        has_more = True
         query_body = {"page_size": 100}
 
-        try:
-            res = requests.post(query_url, headers=headers, json=query_body, timeout=15)
-            if res.status_code != 200:
-                logger.error(f"Failed to query database {db_id}: Status {res.status_code}")
+        while has_more:
+            try:
+                res = requests.post(query_url, headers=headers, json=query_body, timeout=15)
+                if res.status_code != 200:
+                    logger.error(f"Failed to query database {db_id}: Status {res.status_code}")
+                    return
+
+                data = res.json()
+                pages = data.get("results", [])
+                has_more = data.get("has_more", False)
+                next_cursor = data.get("next_cursor")
+                if has_more and next_cursor:
+                    query_body["start_cursor"] = next_cursor
+                else:
+                    has_more = False
+
+                for page in pages:
+                    page_id = page.get("id")
+                    if not page_id:
+                        continue
+
+                    props = page.get("properties", {})
+
+                    # Extract each property as its own column using snake_case key
+                    row = {
+                        "notion_id": page_id,
+                        "notion_database_id": db_id,
+                        "notion_url": page.get("url", ""),
+                        "notion_created_time": page.get("created_time", now_iso),
+                        "notion_last_edited_time": page.get("last_edited_time", now_iso),
+                    }
+
+                    for prop_name, prop in props.items():
+                        col_name = to_snake_case(prop_name)
+                        if not col_name:
+                            continue
+                        vtype = prop.get("type")
+                        val = None
+                        if vtype == "title":
+                            val = "".join([t.get("plain_text", "") for t in prop.get("title", [])])
+                        elif vtype == "email":
+                            val = prop.get("email")
+                        elif vtype == "number":
+                            val = prop.get("number")
+                        elif vtype == "select":
+                            val = prop.get("select", {}).get("name") if prop.get("select") else None
+                        elif vtype == "multi_select":
+                            val = ", ".join([ms.get("name", "") for ms in prop.get("multi_select", [])])
+                        elif vtype == "rich_text":
+                            val = "".join([t.get("plain_text", "") for t in prop.get("rich_text", [])])
+                        elif vtype == "date":
+                            val = prop.get("date", {}).get("start") if prop.get("date") else None
+                        elif vtype == "checkbox":
+                            val = prop.get("checkbox")
+                        elif vtype == "url":
+                            val = prop.get("url")
+                        elif vtype == "phone_number":
+                            val = prop.get("phone_number")
+                        row[col_name] = val
+
+                    yield row
+
+            except Exception as db_err:
+                logger.error(f"Error querying database {db_id}: {db_err}")
                 return
 
-            pages = res.json().get("results", [])
-            for page in pages:
-                page_id = page.get("id")
-                if not page_id:
-                    continue
-
-                title = ""
-                props = page.get("properties", {})
-                for key, prop in props.items():
-                    if prop and prop.get("type") == "title":
-                        title_parts = prop.get("title", [])
-                        title = "".join([t.get("plain_text", "") for t in title_parts])
-                        break
-                if not title:
-                    title = page.get("url", "Untitled Page")
-
-                prop_summary = []
-                for k, v in props.items():
-                    vtype = v.get("type")
-                    val = None
-                    if vtype == "email": val = v.get("email")
-                    elif vtype == "number": val = v.get("number")
-                    elif vtype == "select": val = v.get("select", {}).get("name") if v.get("select") else None
-                    elif vtype == "multi_select": val = ", ".join([ms.get("name", "") for ms in v.get("multi_select", [])])
-                    elif vtype == "rich_text": val = "".join([t.get("plain_text", "") for t in v.get("rich_text", [])])
-                    elif vtype == "date": val = v.get("date", {}).get("start") if v.get("date") else None
-                    if val is not None and str(val).strip():
-                        prop_summary.append(f"{k}: {val}")
-
-                content_str = " | ".join(prop_summary)
-                if not content_str:
-                    try:
-                        blocks_url = f"https://api.notion.com/v1/blocks/{page_id}/children"
-                        blocks_res = requests.get(blocks_url, headers=headers, timeout=5)
-                        if blocks_res.status_code == 200:
-                            for b in blocks_res.json().get("results", []):
-                                btype = b.get("type")
-                                bcontent = b.get(btype, {})
-                                if bcontent and "rich_text" in bcontent:
-                                    content_str += "".join([t.get("plain_text", "") for t in bcontent["rich_text"]]) + "\n"
-                    except Exception as block_err:
-                        logger.warning(f"Error fetching page blocks for {page_id}: {block_err}")
-
-                yield {
-                    "id": page_id,
-                    "database_id": db_id,
-                    "title": title,
-                    "content": content_str.strip(),
-                    "url": page.get("url", ""),
-                    "created_time": page.get("created_time", now_iso),
-                    "last_edited_time": page.get("last_edited_time", now_iso),
-                    "processed": 0
-                }
-        except Exception as db_err:
-            logger.error(f"Error querying database {db_id}: {db_err}")
-
     return fetch_database_pages
+
 
 
 def create_subpages_resource(prefix: str, subpages: list, headers: dict, now_iso: str):
