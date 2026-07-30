@@ -1,0 +1,211 @@
+{
+  "id": "cdp-lead-processing-workflow",
+  "name": "cdp_lead_processing",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cdp-lead-intake",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        220
+      ],
+      "id": "2",
+      "name": "Webhook Lead Intake"
+    },
+    {
+      "parameters": {
+        "url": "http://data-pipeline:8000/run/oltp/ingest_seeds",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        440
+      ],
+      "id": "3",
+      "name": "Trigger Seed Files Ingestion API"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, first_name, last_name, profile_url, email_address, company, position, connected_at FROM s_linkedin.connections WHERE processed = 0 LIMIT 100;"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        220,
+        0
+      ],
+      "id": "4",
+      "name": "Fetch Unprocessed LinkedIn Connections",
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nconst sqlEscape = (str) => {\n  if (!str) return null;\n  return String(str).replace(/'/g, \"''\");\n};\n\nfor (const item of items) {\n  const data = item.json;\n  if (!data.id) continue;\n  \n  const rawEmail = data.email_address ? data.email_address.trim() : null;\n  const email = (rawEmail && !rawEmail.includes('@linkedin.user')) ? rawEmail : null;\n  const company = data.company ? data.company.trim() : '';\n  const domain = company ? company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com' : null;\n  \n  results.push({\n    json: {\n      connection_id: data.id,\n      first_name: data.first_name || '',\n      last_name: data.last_name || '',\n      email: email,\n      company: company,\n      domain: domain,\n      position: data.position || '',\n      profile_url: data.profile_url || '',\n      source: 'linkedin_connection',\n      sql_connection_id: sqlEscape(data.id),\n      sql_first_name: sqlEscape(data.first_name || ''),\n      sql_last_name: sqlEscape(data.last_name || ''),\n      sql_email: email ? sqlEscape(email) : null,\n      sql_company: company ? sqlEscape(company) : null,\n      sql_domain: domain ? sqlEscape(domain) : null,\n      sql_position: sqlEscape(data.position || ''),\n      sql_profile_url: sqlEscape(data.profile_url || '')\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "5",
+      "name": "Normalize LinkedIn Connection Leads"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nconst body = item.body || item;\nconst firstName = body.first_name || (body.name ? body.name.split(' ')[0] : '');\nconst lastName = body.last_name || (body.name && body.name.split(' ').length > 1 ? body.name.split(' ').slice(1).join(' ') : '');\nconst email = body.email || null;\nconst company = body.company_name || body.company || '';\nconst jobTitle = body.job_title || body.title || '';\nconst linkedinUrl = body.linkedin_url || '';\nconst phone = body.phone || '';\nconst source = body.source || 'manual_webhook';\nconst domain = company ? company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com' : null;\n\nconst sqlEscape = (str) => {\n  if (!str) return null;\n  return String(str).replace(/'/g, \"''\");\n};\n\nreturn [{\n  json: {\n    connection_id: null,\n    first_name: firstName,\n    last_name: lastName,\n    email: email,\n    phone: phone,\n    company_name: company,\n    domain: domain,\n    job_title: jobTitle,\n    linkedin_url: linkedinUrl,\n    source: source,\n    raw_payload: body,\n    sql_connection_id: null,\n    sql_first_name: sqlEscape(firstName),\n    sql_last_name: sqlEscape(lastName),\n    sql_email: email ? sqlEscape(email) : null,\n    sql_company: company ? sqlEscape(company) : null,\n    sql_domain: domain ? sqlEscape(domain) : null,\n    sql_position: sqlEscape(jobTitle),\n    sql_profile_url: sqlEscape(linkedinUrl)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        220
+      ],
+      "id": "6",
+      "name": "Normalize Webhook Manual Lead"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH inserted_acc AS (\n  INSERT INTO cdp.client_accounts (company_name, domain, status)\n  SELECT {{ $json.sql_company ? \"'\" + $json.sql_company + \"'\" : 'NULL' }}, {{ $json.sql_domain ? \"'\" + $json.sql_domain + \"'\" : 'NULL' }}, 'prospect'\n  WHERE {{ $json.sql_company ? 'TRUE' : 'FALSE' }}\n  ON CONFLICT (domain) DO UPDATE SET company_name = EXCLUDED.company_name\n  RETURNING id\n),\ninserted_person AS (\n  INSERT INTO cdp.persons (first_name, last_name, primary_email, linkedin_url, status)\n  VALUES (\n    {{ $json.sql_first_name ? \"'\" + $json.sql_first_name + \"'\" : 'NULL' }},\n    {{ $json.sql_last_name ? \"'\" + $json.sql_last_name + \"'\" : 'NULL' }},\n    {{ $json.sql_email ? \"'\" + $json.sql_email + \"'\" : 'NULL' }},\n    {{ $json.sql_profile_url ? \"'\" + $json.sql_profile_url + \"'\" : 'NULL' }},\n    'active'\n  )\n  ON CONFLICT (primary_email) WHERE primary_email IS NOT NULL DO UPDATE SET\n    first_name = COALESCE(EXCLUDED.first_name, cdp.persons.first_name),\n    last_name = COALESCE(EXCLUDED.last_name, cdp.persons.last_name),\n    linkedin_url = COALESCE(EXCLUDED.linkedin_url, cdp.persons.linkedin_url)\n  RETURNING id\n)\nINSERT INTO cdp.leads (source, source_lead_id, first_name, last_name, email, company_name, job_title, linkedin_url, person_id, status)\nSELECT\n  '{{ $json.source }}',\n  {{ $json.sql_connection_id ? \"'\" + $json.sql_connection_id + \"'\" : 'NULL' }},\n  {{ $json.sql_first_name ? \"'\" + $json.sql_first_name + \"'\" : 'NULL' }},\n  {{ $json.sql_last_name ? \"'\" + $json.sql_last_name + \"'\" : 'NULL' }},\n  {{ $json.sql_email ? \"'\" + $json.sql_email + \"'\" : 'NULL' }},\n  {{ $json.sql_company ? \"'\" + $json.sql_company + \"'\" : 'NULL' }},\n  {{ $json.sql_position ? \"'\" + $json.sql_position + \"'\" : 'NULL' }},\n  {{ $json.sql_profile_url ? \"'\" + $json.sql_profile_url + \"'\" : 'NULL' }},\n  COALESCE((SELECT id FROM inserted_person), (SELECT id FROM cdp.persons WHERE linkedin_url = '{{ $json.sql_profile_url }}' LIMIT 1)),\n  'processed';\n\nUPDATE s_linkedin.connections SET processed = 1 WHERE id = {{ $json.sql_connection_id ? \"'\" + $json.sql_connection_id + \"'\" : 'NULL' }};"
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        680,
+        110
+      ],
+      "id": "7",
+      "name": "Canonical CDP Lead Upsert Processor",
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"success\",\n  \"message\": \"Lead successfully recorded into CDP\"\n}"
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        220
+      ],
+      "id": "8",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Unprocessed LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Unprocessed LinkedIn Connections": {
+      "main": [
+        [
+          {
+            "node": "Normalize LinkedIn Connection Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize LinkedIn Connection Leads": {
+      "main": [
+        [
+          {
+            "node": "Canonical CDP Lead Upsert Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Lead Intake": {
+      "main": [
+        [
+          {
+            "node": "Normalize Webhook Manual Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Webhook Manual Lead": {
+      "main": [
+        [
+          {
+            "node": "Canonical CDP Lead Upsert Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Canonical CDP Lead Upsert Processor": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "cdp"
+    }
+  ]
+}
