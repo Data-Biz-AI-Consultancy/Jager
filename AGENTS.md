@@ -45,6 +45,11 @@
 - Whenever `src/db/init-user-db.sh` is changed, the database migration script `scripts/migrate-db.js` must be updated to match the changes and keep schemas/tables in sync.
 - Ensure table names and schemas are kept consistent across `scripts/migrate-db.js`, `src/db/init-user-db.sh`, and within n8n database integration nodes.
 
+## CDP (Customer Data Platform) Conventions
+- The `cdp` schema in PostgreSQL is the core processing/domain schema for customer data platform entities (`cdp.leads`, `cdp.persons`, `cdp.client_accounts`, `cdp.engagements`, `cdp.person_account_relationships`).
+- Entity intake tables in CDP use descriptive domain names (e.g. `cdp.leads` instead of generic `raw_leads`).
+
+
 ## Documentation Integrity
 - Always keep project README files (e.g. `README.md` at all levels) up to date when folders, scripts, configurations, or workflow files are added, moved, or deleted.
 - In markdown files (like READMEs), always use relative paths for file links instead of absolute paths (e.g., use `[Scripts](scripts/README.md)` instead of `[Scripts](file:///path/to/scripts/README.md)`).
