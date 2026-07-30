@@ -221,6 +221,8 @@ data/
 
 # N8N Credentials
 credentials.json
+*-*.json
+*.key.json
 
 scratch/
 node_modules/
