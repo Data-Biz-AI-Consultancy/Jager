@@ -1,6 +1,6 @@
 {
   "id": "cdp-lead-processing-workflow",
-  "name": "cdp_lead_processing",
+  "name": "CDP - Lead Processing",
   "nodes": [
     {
       "parameters": {
@@ -120,5 +120,3 @@
     }
   ]
 }
-
-

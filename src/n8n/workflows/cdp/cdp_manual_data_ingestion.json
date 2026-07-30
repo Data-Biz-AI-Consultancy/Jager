@@ -1,6 +1,6 @@
 {
   "id": "cdp-manual-data-ingestion-workflow",
-  "name": "cdp_manual_data_ingestion",
+  "name": "CDP - Manual Data Ingestion (Notion)",
   "nodes": [
     {
       "parameters": {
