@@ -86,8 +86,11 @@ services:
       - DATABASE_URL=postgresql://jager:jager@db:5432/jager
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
       - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - NOTION_MANUAL_INGESTION_PAGE_ID=${NOTION_MANUAL_INGESTION_PAGE_ID}
     depends_on:
       - db
+
 
   caddy:
     image: caddy:alpine
