@@ -22,8 +22,9 @@ if 'main' in sys.modules:
 
 
 def test_generate_company_domain():
-    assert generate_company_domain("Acme Inc!") == "acmeinc.com"
-    assert generate_company_domain("Delivery Hero SE") == "deliveryherose.com"
+    assert generate_company_domain("Acme Inc!") == "acme.com"
+    assert generate_company_domain("Delivery Hero SE") == "deliveryhero.com"
+    assert generate_company_domain("Fashion Digital GmbH & Co. KG") == "fashiondigital.com"
     assert generate_company_domain("") == ""
     assert generate_company_domain(None) == ""
 
