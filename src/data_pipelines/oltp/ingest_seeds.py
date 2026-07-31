@@ -61,17 +61,17 @@ def run_ingestion():
 
                             # Insert lead intake record
                             lead_id = str(uuid.uuid4())
+                            full_name = f"{first_name} {last_name}".strip() or None
                             conn.execute(
                                 text("""
-                                    INSERT INTO cdp.leads (id, source, source_lead_id, first_name, last_name, email, person_id, raw_payload, status, intake_at, updated_at)
-                                    VALUES (:id, 'substack_seed', :email, :first_name, :last_name, :email, :person_id, :raw_payload, 'processed', NOW(), NOW())
+                                    INSERT INTO cdp.leads (id, source, source_lead_id, person_id, full_name, raw_payload, status, intake_at, updated_at)
+                                    VALUES (:id, 'substack_seed', :email, :person_id, :full_name, :raw_payload, 'processed', NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
-                                    "first_name": first_name,
-                                    "last_name": last_name,
                                     "email": email,
                                     "person_id": p_id,
+                                    "full_name": full_name,
                                     "raw_payload": json.dumps(row)
                                 }
                             )
@@ -148,23 +148,18 @@ def run_ingestion():
 
                             # Insert lead intake record
                             lead_id = str(uuid.uuid4())
+                            full_name = f"{first_name} {last_name}".strip() or None
                             conn.execute(
                                 text("""
-                                    INSERT INTO cdp.leads (id, source, source_lead_id, first_name, last_name, email, phone, company_name, job_title, linkedin_url, person_id, client_account_id, raw_payload, status, intake_at, updated_at)
-                                    VALUES (:id, :source, :email, :first_name, :last_name, :email, :phone, :company_name, :job_title, :linkedin_url, :person_id, :client_account_id, :raw_payload, 'processed', NOW(), NOW())
+                                    INSERT INTO cdp.leads (id, source, source_lead_id, person_id, full_name, raw_payload, status, intake_at, updated_at)
+                                    VALUES (:id, :source, :email, :person_id, :full_name, :raw_payload, 'processed', NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
                                     "source": source,
                                     "email": email,
-                                    "first_name": first_name,
-                                    "last_name": last_name,
-                                    "phone": phone,
-                                    "company_name": company_name,
-                                    "job_title": job_title,
-                                    "linkedin_url": linkedin_url,
                                     "person_id": p_id,
-                                    "client_account_id": client_account_id,
+                                    "full_name": full_name,
                                     "raw_payload": json.dumps(row)
                                 }
                             )

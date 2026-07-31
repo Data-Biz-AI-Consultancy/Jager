@@ -42,15 +42,8 @@ erDiagram
         uuid id PK
         string source
         string source_lead_id
-        string first_name
-        string last_name
-        string email
-        string phone
-        string company_name
-        string job_title
-        string linkedin_url
         uuid person_id FK
-        uuid client_account_id FK
+        string full_name
         jsonb raw_payload
         string status
         timestamp_tz intake_at
