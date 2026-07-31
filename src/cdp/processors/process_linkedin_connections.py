@@ -17,10 +17,28 @@ except ImportError:
 logger = setup_logging("cdp-linkedin-processor")
 
 
-def generate_company_domain(company_name: str) -> str:
-    if not company_name:
+LEGAL_SUFFIX_REGEX = re.compile(
+    r'\b(gmbh\s*&\s*co\.?\s*kg|gmbh|co\.?\s*kg|se|inc\.?|corp\.?|corporation|llc|ltd\.?|limited|ag|pty\s*ltd\.?|s\.?a\.?|plc|b\.?v\.?)\b',
+    re.IGNORECASE
+)
+
+
+def clean_company_name(raw_name: str) -> str:
+    if not raw_name:
         return ""
-    cleaned = re.sub(r'[^a-zA-Z0-9]+', '', company_name).lower()
+    name = raw_name.strip()
+    # Strip legal entity suffixes
+    name = LEGAL_SUFFIX_REGEX.sub('', name)
+    # Strip trailing punctuation, spaces, dashes
+    name = re.sub(r'[\s,\.-]+$', '', name).strip()
+    return name or raw_name.strip()
+
+
+def generate_company_domain(company_name: str) -> str:
+    cleaned_name = clean_company_name(company_name)
+    if not cleaned_name:
+        return ""
+    cleaned = re.sub(r'[^a-zA-Z0-9]+', '', cleaned_name).lower()
     return f"{cleaned}.com" if cleaned else ""
 
 
@@ -116,13 +134,14 @@ def process_linkedin_connections():
             # 2. Process company into cdp.client_accounts if present
             client_account_id = None
             if company:
+                cleaned_company = clean_company_name(company)
                 domain = generate_company_domain(company)
                 account_res = conn.execute(
                     text("""
                         WITH existing_account AS (
                           SELECT id FROM cdp.client_accounts
                           WHERE (domain IS NOT NULL AND domain = :domain)
-                             OR company_name = :company
+                             OR LOWER(company_name) = LOWER(:company)
                           LIMIT 1
                         ),
                         upserted_account AS (
@@ -142,7 +161,7 @@ def process_linkedin_connections():
                         )
                         SELECT id FROM upserted_account UNION ALL SELECT id FROM updated_account;
                     """),
-                    {"company": company, "domain": domain}
+                    {"company": cleaned_company, "domain": domain}
                 )
                 client_account_id = account_res.scalar()
                 if client_account_id:
