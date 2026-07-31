@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
-cdp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src', 'cdp'))
+cdp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..', 'src', 'cdp'))
 if cdp_dir not in sys.path:
     sys.path.insert(0, cdp_dir)
 

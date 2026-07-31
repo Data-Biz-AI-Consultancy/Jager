@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const dockerfilePath = path.join(__dirname, '../src/n8n/Dockerfile');
+const dockerfilePath = path.join(__dirname, '../../src/n8n/Dockerfile');
 
 function runTest() {
   console.log(`Parsing Dockerfile at: ${dockerfilePath}`);
@@ -27,8 +27,8 @@ function runTest() {
       }
       
       const source = parts[0];
-      // Resolve path relative to project root (one level up from tests/)
-      const fullSourcePath = path.resolve(__dirname, '..', source);
+      // Resolve path relative to project root (two levels up from tests/integration/)
+      const fullSourcePath = path.resolve(__dirname, '../..', source);
       
       if (!fs.existsSync(fullSourcePath)) {
         console.error(`Line ${i + 1}: COPY source path "${source}" does not exist at "${fullSourcePath}"`);

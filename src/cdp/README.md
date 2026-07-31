@@ -123,5 +123,5 @@ docker compose up --build cdp
 ### Automated Unit Tests
 Run unit tests via `pytest`:
 ```bash
-uv run pytest tests/test_cdp_processor.py
+uv run pytest tests/cdp/
 ```
