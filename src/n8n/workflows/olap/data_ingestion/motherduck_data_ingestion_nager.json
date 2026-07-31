@@ -22,7 +22,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_nager",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_nager",
         "options": {}
       },
       "id": "trigger-nager-ingestion",

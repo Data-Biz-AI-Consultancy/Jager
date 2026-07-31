@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ML_SERVICE_URL || 'http://ml:8000' }}/linkedin-timeslot/predict",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://dapp:8000' }}/linkedin-timeslot/predict",
         "options": {}
       },
       "id": "call-linkedin-timeslot-predict",

@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/dbt_transform",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/dbt_transform",
         "options": {}
       },
       "id": "trigger-dbt-transform",

@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_buffer",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_buffer",
         "options": {}
       },
       "id": "trigger-buffer-ingestion",
@@ -39,7 +39,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_zernio",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_zernio",
         "options": {}
       },
       "id": "trigger-zernio-ingestion",
@@ -54,7 +54,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_linkedin",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_linkedin",
         "options": {}
       },
       "id": "trigger-linkedin-ingestion",
@@ -69,7 +69,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/ingest_substack",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_substack",
         "options": {}
       },
       "id": "trigger-substack-ingestion",
