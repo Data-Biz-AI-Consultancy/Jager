@@ -2,8 +2,7 @@ import os
 import logging
 import sys
 from sqlalchemy import create_engine
-import dlt
-from dlt.destinations import motherduck
+
 
 def setup_logging(name: str) -> logging.Logger:
     """Sets up standardized logging across services."""
@@ -25,6 +24,8 @@ def get_db_engine(default_url: str = "postgresql://jager:jager@db:5432/jager"):
 
 def create_motherduck_pipeline(pipeline_name: str, dataset_name: str):
     """Creates a dlt pipeline configured for MotherDuck destination."""
+    import dlt
+    from dlt.destinations import motherduck
     motherduck_token = os.getenv("MOTHERDUCK_TOKEN")
     motherduck_database = os.getenv("MOTHERDUCK_DATABASE", "staging")
 
@@ -46,10 +47,11 @@ def create_motherduck_pipeline(pipeline_name: str, dataset_name: str):
         dataset_name=dataset_name,
     )
 
-def create_postgres_pipeline(pipeline_name: str, dataset_name: str) -> dlt.Pipeline:
+def create_postgres_pipeline(pipeline_name: str, dataset_name: str):
     """Creates a dlt pipeline configured for PostgreSQL destination."""
-    os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
+    import dlt
     from dlt.destinations import postgres
+    os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
     db_url = os.getenv("DATABASE_URL", "postgresql://jager:jager@db:5432/jager")
     return dlt.pipeline(
         pipeline_name=pipeline_name,
