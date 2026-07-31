@@ -1,12 +1,32 @@
+import os
+import sys
 import logging
 import subprocess
 from fastapi import FastAPI, HTTPException
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("data-pipeline-service")
+logger = logging.getLogger("dapp-service")
 
-app = FastAPI(title="Jager Data Pipeline Service")
+app = FastAPI(title="Jager Data App (DAPP) Service")
+
+# Include ML routes from ml module
+ml_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "ml"))
+if os.path.exists(ml_dir) and ml_dir not in sys.path:
+    sys.path.insert(0, ml_dir)
+
+try:
+    from ml.main import app as ml_app
+    app.include_router(ml_app.router)
+    logger.info("Successfully mounted ML routes into DAPP service")
+except Exception as e:
+    try:
+        from main import app as ml_app
+        app.include_router(ml_app.router)
+        logger.info("Successfully mounted ML routes from main into DAPP service")
+    except Exception as err:
+        logger.warning(f"Could not mount ML router: {err}")
+
 
 @app.post("/run/ingest_buffer")
 def run_ingest_buffer():

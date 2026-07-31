@@ -8,5 +8,13 @@ dbt-core>=1.7.0
 dbt-duckdb>=1.7.0
 feedparser==6.0.11
 beautifulsoup4==4.12.3
+pandas==2.2.2
+numpy==1.26.4
+scikit-learn==1.5.0
+duckdb==1.5.4
+python-dotenv==1.0.1
+vaderSentiment==3.3.2
+pytest==8.2.2
+
 
 

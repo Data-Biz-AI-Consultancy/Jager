@@ -22,7 +22,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/oltp/ingest_wordpress",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_wordpress",
         "options": {}
       },
       "id": "trigger-wordpress-ingestion",

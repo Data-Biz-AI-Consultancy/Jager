@@ -4,16 +4,17 @@ RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
-# Install system dependencies if any
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY src/ml/requirements.txt .
+COPY src/dapp/requirements.txt .
 RUN uv pip install --system --no-cache -r requirements.txt
 
-COPY src/ml/ .
+COPY src/dapp/ .
+
+ENV PYTHONPATH=/app:/app/ml
 
 EXPOSE 8000
 

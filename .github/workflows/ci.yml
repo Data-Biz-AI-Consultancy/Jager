@@ -70,6 +70,6 @@ jobs:
         run: pip install dbt-duckdb
 
       - name: dbt compile (CI target - local DuckDB)
-        working-directory: src/data_pipelines/dbt
+        working-directory: src/dapp/dbt
         run: dbt compile --target ci --profiles-dir .
 

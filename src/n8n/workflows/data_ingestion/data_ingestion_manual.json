@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/oltp/ingest_notion_manual",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion_manual",
         "options": {}
       },
       "id": "trigger-notion-manual-ingestion",

@@ -26,7 +26,7 @@ We use **Docker Compose Profiles** to allow spinning up only the services you ne
     ```bash
     docker-compose --profile app up --build -d
     ```
-*   **Data Stack** (ML Service, Data Pipelines Service, Postgres):
+*   **Data Stack** (DAPP Data App Service [ETL & ML], Postgres):
     ```bash
     docker-compose --profile data up --build -d
     ```
@@ -48,16 +48,15 @@ Access your local N8N instance at [http://localhost](http://localhost).
 
 ## Architecture & Microservice Interactions
 
-Jager is structured around four core application components:
+Jager is structured around three core application components:
 
 ```mermaid
 flowchart TD
     N8N["N8N Orchestration (src/n8n/)<br/>Workflow Scheduler & Orchestrator"]
     
-    subgraph DataServices["Python Microservices & Pipelines"]
-        DP["Data Pipelines App (src/data_pipelines/)<br/>dlt & dbt OLTP/OLAP Ingestion"]
+    subgraph DataServices["Python Microservices & Services"]
         CDP["CDP App (src/cdp/)<br/>Customer Data Platform Domain Service"]
-        ML["ML App (src/ml/)<br/>Timeslot Training & Prediction"]
+        DAPP["DAPP App (src/data_pipelines/ & src/ml/)<br/>Data Pipelines & ML Prediction Service"]
     end
     
     subgraph Storage["Storage Layer"]
@@ -65,26 +64,23 @@ flowchart TD
         MD[("MotherDuck<br/>OLAP Data & ds_* Datasets")]
     end
     
-    N8N -->|"HTTP POST /run/*"| DP
     N8N -->|"HTTP POST /process/*"| CDP
-    N8N -->|"HTTP POST /predict"| ML
+    N8N -->|"HTTP POST /run/* & /predict"| DAPP
     
-    DP -->|"Ingest / Transform"| PG
-    DP -->|"Sync OLAP / Reverse ETL"| MD
     CDP -->|"Normalize Persons, Accounts & Relationships"| PG
-    ML -->|"Features & Predictions"| MD
+    DAPP -->|"Ingest / Transform"| PG
+    DAPP -->|"Sync OLAP / ML Predictions"| MD
 ```
 
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
 *   **CDP App ([src/cdp/](src/cdp/README.md))**: A dedicated FastAPI domain microservice responsible for Customer Data Platform logic (managing `cdp.persons`, `cdp.client_accounts`, `cdp.leads`, `cdp.person_account_relationships`, and `cdp.engagements`). N8N triggers CDP processing via HTTP requests (`CDP_SERVICE_URL`).
-*   **Data Pipelines App ([src/data_pipelines/](src/data_pipelines/README.md))**: A dedicated Python application handling data ingestion (writing raw feeds into PostgreSQL ODS schemas) and loading analytics data to MotherDuck via **dlt** and **dbt**. N8N triggers ingestion via `DATA_PIPELINE_URL`.
-*   **ML App ([src/ml/](src/ml/README.md))**: A dedicated machine learning Python microservice responsible for model training, validation, and publishing timeslot predictions. N8N triggers ML inference via `ML_SERVICE_URL`.
+*   **DAPP App ([src/dapp/](src/dapp/README.md))**: A consolidated Data App service combining data ingestion (**dlt**), transformations (**dbt**), and machine learning training/predictions (**ml**). N8N triggers pipelines (`DATA_PIPELINE_URL`) and ML inference (`ML_SERVICE_URL`) on this service.
 
 ### Database & Storage Schemas
 
 We organize our databases into clear operational (OLTP) and analytical (OLAP) processing schemas:
-- **OLTP Schema (PostgreSQL)**: Stores operational source data (`s_*` schemas) and core CDP domain entities (`cdp.*` schema). Refer to the [CDP Documentation](src/cdp/README.md) and [OLTP Database Documentation](src/data_pipelines/oltp/README.md) for details.
-- **OLAP Schema (MotherDuck)**: Stores curated presentation data (`t_jager`), features, validation snapshots, and serialized model metrics for ML workflows. Refer to the [OLAP Database Documentation](src/data_pipelines/olap/README.md) for details.
+- **OLTP Schema (PostgreSQL)**: Stores operational source data (`s_*` schemas) and core CDP domain entities (`cdp.*` schema). Refer to the [CDP Documentation](src/cdp/README.md) and [OLTP Database Documentation](src/dapp/oltp/README.md) for details.
+- **OLAP Schema (MotherDuck)**: Stores curated presentation data (`t_jager`), features, validation snapshots, and serialized model metrics for ML workflows. Refer to the [OLAP Database Documentation](src/dapp/olap/README.md) for details.
 
 
 ---
@@ -100,20 +96,21 @@ jager/
 ├── prompts/                 # Markdown prompt templates (intent detection, lead enrichment)
 ├── scripts/                 # Utility scripts for database cloning, schema migrations, and data import
 ├── src/                     # Core application source code
-│   ├── data_pipelines/      # Ingestion & transformation pipelines (dlt & dbt)
+│   ├── cdp/                 # Customer Data Platform domain microservice
+│   ├── dapp/                # Data App (Ingestion, dbt transformations, and ML microservice)
 │   ├── db/                  # Database initialization scripts
-│   ├── ml/                  # Machine learning backend (training & prediction pipelines)
 │   └── n8n/                 # N8N configuration, workflow files, and sync scripts
 └── tests/                   # Automated Node.js and Python unit test suites
 ```
 
 Refer to the folder-level READMEs for detailed guides:
 - [scripts/README.md](scripts/README.md)
+- [src/cdp/README.md](src/cdp/README.md)
 - [src/db/README.md](src/db/README.md)
-- [src/data_pipelines/README.md](src/data_pipelines/README.md)
-- [src/data_pipelines/oltp/README.md](src/data_pipelines/oltp/README.md)
-- [src/data_pipelines/olap/README.md](src/data_pipelines/olap/README.md)
-- [src/ml/README.md](src/ml/README.md)
+- [src/dapp/README.md](src/dapp/README.md)
+- [src/dapp/oltp/README.md](src/dapp/oltp/README.md)
+- [src/dapp/olap/README.md](src/dapp/olap/README.md)
+- [src/dapp/ml/README.md](src/dapp/ml/README.md)
 - [tests/README.md](tests/README.md)
 
 

@@ -24,7 +24,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/reverse_etl",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/reverse_etl",
         "options": {}
       },
       "id": "trigger-reverse-etl",

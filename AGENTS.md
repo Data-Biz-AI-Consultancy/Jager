@@ -110,12 +110,12 @@
 - The data pipeline service (`src/data_pipelines/main.py`) exposes HTTP POST endpoints for triggering pipeline scripts via subprocess.
 - Endpoint naming convention: `/run/<pipeline_name>` for OLAP pipelines (e.g., `/run/ingest_linkedin`) and `/run/oltp/<pipeline_name>` for OLTP pipelines (e.g., `/run/oltp/ingest_wordpress`).
 - Every new ingestion script added under `olap/` or `oltp/` must have a corresponding FastAPI endpoint added to `main.py`.
-- The service is deployed as the `data-pipeline` Docker service and accessed by n8n via `DATA_PIPELINE_URL`.
+- The service is deployed as the `dapp` (Data App) Docker service and accessed by n8n via `DATA_PIPELINE_URL` and `ML_SERVICE_URL`.
 
 ## Docker Compose & Environment Conventions
 - The `MOTHERDUCK_DATABASE` environment variable defaults to `staging` in both `docker-compose.yml` and pipeline code. Never hardcode `production` as the default.
 - The `n8n` service must declare all environment variables needed by n8n workflows. When adding a new external API or integration, add its credentials to the `n8n` service's `environment` block in `docker-compose.yml`.
-- The `ml` and `data-pipeline` services share `DATABASE_URL`, `MOTHERDUCK_TOKEN`, and `MOTHERDUCK_DATABASE` environment variables. Keep these in sync across all service definitions.
+- The `dapp` service uses `DATABASE_URL`, `MOTHERDUCK_TOKEN`, and `MOTHERDUCK_DATABASE` environment variables. Keep these in sync across all service definitions.
 
 ## MotherDuck Authentication Conventions
 - **Never** trigger an interactive browser SSO prompt or wait for manual token input when accessing MotherDuck.
