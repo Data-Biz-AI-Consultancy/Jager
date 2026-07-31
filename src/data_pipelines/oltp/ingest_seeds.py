@@ -150,17 +150,19 @@ def run_ingestion():
                             lead_id = str(uuid.uuid4())
                             full_name = f"{first_name} {last_name}".strip() or None
                             lead_status = 'account_linked' if client_account_id else 'person_linked'
-                            description = f"Role: {job_title}" if job_title else None
+                            description = row.get('description', f"Role: {job_title}" if job_title else None)
+                            rate = row.get('rate')
                             conn.execute(
                                 text("""
-                                    INSERT INTO cdp.leads (id, person_id, full_name, description, status, source, source_lead_id, raw_payload, intake_at, updated_at)
-                                    VALUES (:id, :person_id, :full_name, :description, :status, :source, :email, :raw_payload, NOW(), NOW())
+                                    INSERT INTO cdp.leads (id, person_id, full_name, description, rate, status, source, source_lead_id, raw_payload, intake_at, updated_at)
+                                    VALUES (:id, :person_id, :full_name, :description, :rate, :status, :source, :email, :raw_payload, NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
                                     "person_id": p_id,
                                     "full_name": full_name,
                                     "description": description,
+                                    "rate": rate,
                                     "status": lead_status,
                                     "source": source,
                                     "email": email,

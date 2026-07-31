@@ -62,9 +62,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
 		full_name VARCHAR(255),
 		description TEXT,
+		rate VARCHAR(100),
 		status VARCHAR(50) DEFAULT 'new',
 		source VARCHAR(100) NOT NULL DEFAULT 'manual',
-		source_lead_id VARCHAR(255),
 		raw_payload JSONB DEFAULT '{}'::jsonb,
 		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

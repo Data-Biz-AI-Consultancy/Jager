@@ -43,6 +43,7 @@ erDiagram
         uuid person_id FK
         string full_name
         text description
+        string rate
         string status "new | person_linked | account_linked | qualified | converted | rejected"
         string source
         string source_lead_id
