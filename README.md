@@ -20,11 +20,27 @@ Jager is an AI-native leads generator, simplified to use **N8N** as the primary 
 
 ### Run Locally
 
-Spin up the N8N instance along with the Postgres database:
+We use **Docker Compose Profiles** to allow spinning up only the services you need, saving RAM, CPU, and battery:
 
-```bash
-docker-compose up --build -d
-```
+*   **App Stack** (n8n, CDP, Postgres, Caddy, Cloudflare Tunnel):
+    ```bash
+    docker-compose --profile app up --build -d
+    ```
+*   **Data Stack** (ML Service, Data Pipelines Service, Postgres):
+    ```bash
+    docker-compose --profile data up --build -d
+    ```
+*   **Core Stack** (Postgres DB, Caddy, Tunnel):
+    ```bash
+    docker-compose --profile core up --build -d
+    ```
+*   **All Services**:
+    ```bash
+    docker-compose --profile all up --build -d
+    ```
+
+> [!TIP]
+> You can also set `COMPOSE_PROFILES=app` (or `all`, `data`, `core`) in your `.env` file to default to a specific profile when running `docker-compose up`.
 
 Access your local N8N instance at [http://localhost](http://localhost).
 
@@ -129,7 +145,7 @@ These utility scripts support the full software development lifecycle (SDLC), ke
     > [!NOTE]
     > After cloning the database, you should rebuild and restart the Docker containers so that N8N and other services hook onto the new databases properly:
     > ```bash
-    > docker-compose up --build -d
+    > docker-compose --profile app up --build -d
     > ```
 
 *   **Running Migrations**:

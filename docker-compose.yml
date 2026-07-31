@@ -4,6 +4,11 @@ services:
   db:
     image: pgvector/pgvector:pg15
     restart: always
+    profiles:
+      - core
+      - app
+      - data
+      - all
     environment:
       POSTGRES_DB: jager
       POSTGRES_USER: jager
@@ -19,6 +24,9 @@ services:
       context: ./
       dockerfile: src/n8n/Dockerfile
     restart: always
+    profiles:
+      - app
+      - all
     expose:
       - "5678"
     environment:
@@ -70,6 +78,9 @@ services:
       context: ./
       dockerfile: src/ml/Dockerfile
     restart: always
+    profiles:
+      - data
+      - all
     environment:
       - DATABASE_URL=postgresql://jager:jager@db:5432/jager
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
@@ -83,6 +94,9 @@ services:
       context: ./
       dockerfile: src/data_pipelines/Dockerfile
     restart: always
+    profiles:
+      - data
+      - all
     environment:
       - DATABASE_URL=postgresql://jager:jager@db:5432/jager
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
@@ -98,6 +112,9 @@ services:
       context: ./
       dockerfile: src/cdp/Dockerfile
     restart: always
+    profiles:
+      - app
+      - all
     environment:
       - DATABASE_URL=postgresql://jager:jager@db:5432/jager
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
@@ -113,6 +130,10 @@ services:
   caddy:
     image: caddy:alpine
     restart: unless-stopped
+    profiles:
+      - core
+      - app
+      - all
     ports:
       - "80:80"
       - "443:443"
@@ -127,6 +148,10 @@ services:
   tunnel:
     image: cloudflare/cloudflared:latest
     restart: always
+    profiles:
+      - core
+      - app
+      - all
     command: tunnel --no-autoupdate run
     environment:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN}
