@@ -134,34 +134,36 @@ def process_linkedin_connections():
             # 2. Process company into cdp.client_accounts if present
             client_account_id = None
             if company:
-                cleaned_company = clean_company_name(company)
-                domain = generate_company_domain(company)
+                company_clean = company.strip()
+                domain = generate_company_domain(company_clean)
                 account_res = conn.execute(
                     text("""
                         WITH existing_account AS (
                           SELECT id FROM cdp.client_accounts
-                          WHERE (domain IS NOT NULL AND domain = :domain)
-                             OR LOWER(company_name) = LOWER(:company)
+                          WHERE company_name = :company
                           LIMIT 1
                         ),
                         upserted_account AS (
                           INSERT INTO cdp.client_accounts (company_name, domain, status, created_at, updated_at)
-                          SELECT :company, :domain, 'prospect', NOW(), NOW()
+                          SELECT
+                            :company,
+                            CASE WHEN EXISTS (SELECT 1 FROM cdp.client_accounts WHERE domain = :domain) THEN NULL ELSE :domain END,
+                            'prospect',
+                            NOW(),
+                            NOW()
                           WHERE NOT EXISTS (SELECT 1 FROM existing_account)
                           RETURNING id
                         ),
                         updated_account AS (
                           UPDATE cdp.client_accounts
                           SET
-                            company_name = COALESCE(:company, cdp.client_accounts.company_name),
-                            domain = COALESCE(:domain, cdp.client_accounts.domain),
                             updated_at = NOW()
                           WHERE id = (SELECT id FROM existing_account)
                           RETURNING id
                         )
                         SELECT id FROM upserted_account UNION ALL SELECT id FROM updated_account;
                     """),
-                    {"company": cleaned_company, "domain": domain}
+                    {"company": company_clean, "domain": domain}
                 )
                 client_account_id = account_res.scalar()
                 if client_account_id:
