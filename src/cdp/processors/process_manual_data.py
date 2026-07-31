@@ -11,11 +11,11 @@ for path in (cdp_dir, root_dir):
         sys.path.insert(0, path)
 
 try:
-    from utils import setup_logging, get_db_engine
+    from shared.db import setup_logging, get_db_engine
     from processors.process_linkedin_connections import generate_company_domain
 except ImportError:
-    from src.cdp.utils import setup_logging, get_db_engine
-    from src.cdp.processors.process_linkedin_connections import generate_company_domain
+    from utils import setup_logging, get_db_engine
+    from processors.process_linkedin_connections import generate_company_domain
 
 logger = setup_logging("cdp-manual-data-processor")
 
@@ -36,7 +36,7 @@ def process_manual_data():
     with engine.begin() as conn:
         # 1. Discover user data tables in s_manual schema (excluding dlt metadata tables)
         tables_res = conn.execute(
-            text("""
+            text(r"""
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 's_manual'
