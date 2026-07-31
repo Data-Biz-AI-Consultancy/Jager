@@ -1,5 +1,12 @@
 import os
+import sys
 from sqlalchemy import text
+cdp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+for path in (cdp_dir, root_dir):
+    if path not in sys.path:
+        sys.path.insert(0, path)
+
 try:
     from utils import setup_logging, get_db_engine
 except ImportError:
@@ -41,6 +48,14 @@ def process_linkedin_connections():
             email = raw_email.strip() if raw_email else None
             if email and "@linkedin.user" in email:
                 email = None
+
+            # Skip blank records with no identifying fields
+            if not first_name and not last_name and not email and not profile_url:
+                conn.execute(
+                    text("UPDATE s_linkedin.connections SET processed = 1 WHERE id = :conn_id"),
+                    {"conn_id": conn_id}
+                )
+                continue
 
             # Upsert into cdp.persons matching by linkedin_url or primary_email
             conn.execute(
