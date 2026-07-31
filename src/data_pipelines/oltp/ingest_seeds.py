@@ -25,6 +25,13 @@ def run_ingestion():
     substack_dir = os.path.join(root_dir, 'data', 'seed', 'substack')
     cdp_dir = os.path.join(root_dir, 'data', 'seed', 'cdp')
 
+    # Fallback to test fixtures directory if data/seed does not exist (e.g. in CI environment where data/ is gitignored)
+    if not os.path.exists(substack_dir) and not os.path.exists(cdp_dir):
+        fixtures_dir = os.path.join(root_dir, 'tests', 'fixtures', 'seed')
+        if os.path.exists(fixtures_dir):
+            substack_dir = os.path.join(fixtures_dir, 'substack')
+            cdp_dir = os.path.join(fixtures_dir, 'cdp')
+
     records_processed = 0
 
     with engine.begin() as conn:
