@@ -153,3 +153,12 @@
 - Always create **1 YAML file per dbt model**, co-located alongside the `.sql` file in the same directory.
 - The YAML filename must exactly match the model filename, with a `.yml` extension (e.g., `marts__content_marketing__daily_performance.yml` for `marts__content_marketing__daily_performance.sql`).
 - Do NOT use a shared `_models.yml` or `_sources.yml`-style file to document multiple models in a single file. Sources (raw tables) may still use `_sources.yml` per folder.
+
+## Environment & Secrets Conventions
+- The `.env` file at the workspace root is **strictly for local development only**. It MUST NEVER be deployed to or read from in production environments.
+- In production, all environment variables (API keys, tokens, database URLs, etc.) must be injected at runtime via the host environment or a secrets manager — never via a committed or deployed `.env` file.
+- The `.env` file is gitignored and should remain so. Never add it to version control.
+- When writing Python scripts that load environment variables, always use `python-dotenv` (`load_dotenv()`) for local dev convenience, but the code must work correctly without it — i.e., the script must read from `os.environ` directly and not assume `.env` is present.
+- When an environment variable has a hardcoded fallback default in code (e.g. `os.getenv("VAR") or "default"`), the fallback must be a safe non-sensitive default (e.g. a public page ID or a staging flag). **Never hardcode secrets as fallbacks.**
+- `docker-compose.yml` passes env vars using `${VAR}` substitution from the host environment. In production the host environment provides the values; `.env` is only used locally to populate those host vars via Docker Compose's automatic `.env` file loading.
+
