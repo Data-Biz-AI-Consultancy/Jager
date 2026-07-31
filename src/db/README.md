@@ -46,7 +46,6 @@ erDiagram
         string rate
         string status "new | person_linked | account_linked | qualified | converted | rejected"
         string source
-        string source_lead_id
         jsonb raw_payload
         timestamp_tz intake_at
         timestamp_tz updated_at

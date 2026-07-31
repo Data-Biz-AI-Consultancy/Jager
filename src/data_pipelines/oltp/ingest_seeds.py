@@ -64,14 +64,13 @@ def run_ingestion():
                             full_name = f"{first_name} {last_name}".strip() or None
                             conn.execute(
                                 text("""
-                                    INSERT INTO cdp.leads (id, person_id, full_name, description, status, source, source_lead_id, raw_payload, intake_at, updated_at)
-                                    VALUES (:id, :person_id, :full_name, 'Substack subscriber lead', 'person_linked', 'substack_seed', :email, :raw_payload, NOW(), NOW())
+                                    INSERT INTO cdp.leads (id, person_id, full_name, description, status, source, raw_payload, intake_at, updated_at)
+                                    VALUES (:id, :person_id, :full_name, 'Substack subscriber lead', 'person_linked', 'substack_seed', :raw_payload, NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
                                     "person_id": p_id,
                                     "full_name": full_name,
-                                    "email": email,
                                     "raw_payload": json.dumps(row)
                                 }
                             )
@@ -154,8 +153,8 @@ def run_ingestion():
                             rate = row.get('rate')
                             conn.execute(
                                 text("""
-                                    INSERT INTO cdp.leads (id, person_id, full_name, description, rate, status, source, source_lead_id, raw_payload, intake_at, updated_at)
-                                    VALUES (:id, :person_id, :full_name, :description, :rate, :status, :source, :email, :raw_payload, NOW(), NOW())
+                                    INSERT INTO cdp.leads (id, person_id, full_name, description, rate, status, source, raw_payload, intake_at, updated_at)
+                                    VALUES (:id, :person_id, :full_name, :description, :rate, :status, :source, :raw_payload, NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
@@ -165,7 +164,6 @@ def run_ingestion():
                                     "rate": rate,
                                     "status": lead_status,
                                     "source": source,
-                                    "email": email,
                                     "raw_payload": json.dumps(row)
                                 }
                             )
