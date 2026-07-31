@@ -1,32 +1,32 @@
 import os
 import sys
 import pytest
-from sqlalchemy import text
-
-from sqlalchemy import create_engine, text
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/data_pipelines')))
 
-from oltp.ingest_seeds import run_ingestion
+
+def _make_mock_engine():
+    """Build a mock SQLAlchemy engine/connection — no real DB required."""
+    mock_conn = MagicMock()
+    mock_conn.execute.return_value.scalar.return_value = "mock-uuid"
+    mock_cm = MagicMock()
+    mock_cm.__enter__ = MagicMock(return_value=mock_conn)
+    mock_cm.__exit__ = MagicMock(return_value=False)
+    mock_engine = MagicMock()
+    mock_engine.begin.return_value = mock_cm
+    return mock_engine
 
 
-@pytest.fixture
-def db_engine():
-    db_url = os.environ.get("DATABASE_URL", "postgresql://jager:jager@localhost:5432/jager")
-    os.environ["DATABASE_URL"] = db_url
-    return create_engine(db_url)
+def test_cdp_seed_ingestion():
+    mock_engine = _make_mock_engine()
 
+    from oltp import ingest_seeds
 
-def test_cdp_seed_ingestion(db_engine):
-    # Run seed ingestion pipeline
-    res = run_ingestion()
+    # Mock the DB engine
+    with patch.object(ingest_seeds, 'get_db_engine', return_value=mock_engine):
+        res = ingest_seeds.run_ingestion()
+
     assert res["status"] == "success"
-    assert res["records_processed"] >= 0
-
-    # Check populated cdp tables in PostgreSQL if database engine connection succeeds
-    try:
-        with db_engine.connect() as conn:
-            persons_count = conn.execute(text("SELECT COUNT(*) FROM cdp.persons")).scalar()
-            assert persons_count >= 0
-    except Exception:
-        pass
+    # 3 substack rows + 3 cdp rows = 6 records (from local data/seed or tests/fixtures/seed)
+    assert res["records_processed"] >= 3

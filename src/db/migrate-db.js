@@ -56,14 +56,11 @@ CREATE SCHEMA IF NOT EXISTS s_manual;
 CREATE SCHEMA IF NOT EXISTS s_motherduck;
 CREATE SCHEMA IF NOT EXISTS cdp;
 
+-- Client Account status lifecycle: 'prospect', 'reached', 'decision_maker_reached', 'contract_signed', 'engaging', 'completed'
 CREATE TABLE IF NOT EXISTS cdp.client_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_name VARCHAR(255) NOT NULL,
   domain VARCHAR(255) UNIQUE,
-  industry VARCHAR(100),
-  company_size VARCHAR(50),
-  website_url VARCHAR(2048),
-  linkedin_company_url VARCHAR(2048),
   status VARCHAR(50) DEFAULT 'prospect',
   attributes JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -87,21 +84,16 @@ CREATE TABLE IF NOT EXISTS cdp.persons (
 );
 
 
+-- Lead status lifecycle: 'prospect', 'negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed', 'nurture', 'disqualified'
 CREATE TABLE IF NOT EXISTS cdp.leads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  source VARCHAR(100) NOT NULL,
-  source_lead_id VARCHAR(255),
-  first_name VARCHAR(255),
-  last_name VARCHAR(255),
-  email VARCHAR(255),
-  phone VARCHAR(100),
-  company_name VARCHAR(255),
-  job_title VARCHAR(255),
-  linkedin_url VARCHAR(2048),
   person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
-  client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
-  raw_payload JSONB DEFAULT '{}'::jsonb,
+  full_name VARCHAR(255),
+  description TEXT,
+  rate VARCHAR(100),
   status VARCHAR(50) DEFAULT 'new',
+  source VARCHAR(100) NOT NULL DEFAULT 'manual',
+  raw_payload JSONB DEFAULT '{}'::jsonb,
   intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

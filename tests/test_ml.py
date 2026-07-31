@@ -30,11 +30,8 @@ def get_mock_df():
     df['date'] = df['price_timestamp'].dt.date
     return df
 
-# Global mock for sqlalchemy.create_engine to avoid connecting to postgres during imports/tests
+# Global mock engine for test_ml
 mock_engine = mock.MagicMock()
-sys.modules['sqlalchemy'] = mock.MagicMock()
-import sqlalchemy
-sqlalchemy.create_engine.return_value = mock_engine
 
 # Global mock for duckdb to avoid dependency errors in environments where duckdb is not installed
 sys.modules['duckdb'] = mock.MagicMock()
@@ -56,12 +53,13 @@ def mock_pandas_read_sql():
         mock_read.return_value = get_mock_df()
         yield mock_read
 
-# Now import the modules safely
-import train
-import predict
-import backtest
-from fastapi.testclient import TestClient
-import main
+# Now import the modules safely with create_engine patched during module load
+with mock.patch('sqlalchemy.create_engine', return_value=mock_engine):
+    import train
+    import predict
+    import backtest
+    from fastapi.testclient import TestClient
+    import main
 
 def test_train_model():
     mock_conn = mock.MagicMock()
@@ -184,11 +182,12 @@ def test_api_evaluate():
     ]
     mock_conn.execute.return_value.fetchone.return_value = (7584.31,)
     
-    response = client.post("/evaluate")
-    assert response.status_code == 200
-    data = response.json()
-    assert data['status'] == "success"
-    assert data['evaluated_records_count'] == 1
+    with mock.patch('main.engine', mock_engine):
+        response = client.post("/evaluate")
+        assert response.status_code == 200
+        data = response.json()
+        assert data['status'] == "success"
+        assert data['evaluated_records_count'] == 1
 
 def test_linkedin_timeslot_train_validate():
     # Mock duckdb connection and execution

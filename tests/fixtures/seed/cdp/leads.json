@@ -1,0 +1,29 @@
+[
+  {
+    "email": "dave@fashiondigital.com",
+    "first_name": "Dave",
+    "last_name": "Smith",
+    "company_name": "Fashion Digital",
+    "job_title": "Head of Marketing",
+    "account_status": "active",
+    "source": "cdp_seed"
+  },
+  {
+    "email": "emma@taxfix.com",
+    "first_name": "Emma",
+    "last_name": "Brown",
+    "company_name": "Taxfix",
+    "job_title": "CFO",
+    "account_status": "active",
+    "source": "cdp_seed"
+  },
+  {
+    "email": "frank@acme.com",
+    "first_name": "Frank",
+    "last_name": "Jones",
+    "company_name": "Acme Corp",
+    "job_title": "CEO",
+    "account_status": "prospect",
+    "source": "cdp_seed"
+  }
+]

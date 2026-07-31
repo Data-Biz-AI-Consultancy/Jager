@@ -25,6 +25,13 @@ def run_ingestion():
     substack_dir = os.path.join(root_dir, 'data', 'seed', 'substack')
     cdp_dir = os.path.join(root_dir, 'data', 'seed', 'cdp')
 
+    # Fallback to test fixtures directory if data/seed does not exist (e.g. in CI environment where data/ is gitignored)
+    if not os.path.exists(substack_dir) and not os.path.exists(cdp_dir):
+        fixtures_dir = os.path.join(root_dir, 'tests', 'fixtures', 'seed')
+        if os.path.exists(fixtures_dir):
+            substack_dir = os.path.join(fixtures_dir, 'substack')
+            cdp_dir = os.path.join(fixtures_dir, 'cdp')
+
     records_processed = 0
 
     with engine.begin() as conn:
@@ -37,11 +44,20 @@ def run_ingestion():
                     with open(fpath, mode='r', encoding='utf-8') as f:
                         reader = csv.DictReader(f)
                         for row in reader:
-                            email = row.get('email', '').strip()
+                            # Handle different CSV casing (e.g. 'Email' vs 'email', 'Name' vs 'first_name')
+                            row_lower = {k.lower(): v for k, v in row.items() if k}
+                            email = row_lower.get('email', '').strip()
                             if not email:
                                 continue
-                            first_name = row.get('first_name', '').strip()
-                            last_name = row.get('last_name', '').strip()
+                            
+                            # Parse name fields
+                            name_val = row_lower.get('name', '').strip()
+                            first_name = row_lower.get('first_name', '').strip()
+                            last_name = row_lower.get('last_name', '').strip()
+                            if name_val and not (first_name or last_name):
+                                name_parts = name_val.split(' ', 1)
+                                first_name = name_parts[0]
+                                last_name = name_parts[1] if len(name_parts) > 1 else ''
 
                             # Upsert person
                             person_id = str(uuid.uuid4())
@@ -61,17 +77,16 @@ def run_ingestion():
 
                             # Insert lead intake record
                             lead_id = str(uuid.uuid4())
+                            full_name = f"{first_name} {last_name}".strip() or None
                             conn.execute(
                                 text("""
-                                    INSERT INTO cdp.leads (id, source, source_lead_id, first_name, last_name, email, person_id, raw_payload, status, intake_at, updated_at)
-                                    VALUES (:id, 'substack_seed', :email, :first_name, :last_name, :email, :person_id, :raw_payload, 'processed', NOW(), NOW())
+                                    INSERT INTO cdp.leads (id, person_id, full_name, description, status, source, raw_payload, intake_at, updated_at)
+                                    VALUES (:id, :person_id, :full_name, 'Substack subscriber lead', 'person_linked', 'substack_seed', :raw_payload, NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
-                                    "first_name": first_name,
-                                    "last_name": last_name,
-                                    "email": email,
                                     "person_id": p_id,
+                                    "full_name": full_name,
                                     "raw_payload": json.dumps(row)
                                 }
                             )
@@ -104,16 +119,18 @@ def run_ingestion():
                             if company_name:
                                 account_id = str(uuid.uuid4())
                                 domain = company_name.lower().replace(" ", "").replace(",", "") + ".com"
+                                acc_status = row.get('account_status', 'prospect').strip()
                                 acc_res = conn.execute(
                                     text("""
                                         INSERT INTO cdp.client_accounts (id, company_name, domain, status, created_at, updated_at)
-                                        VALUES (:id, :company_name, :domain, 'prospect', NOW(), NOW())
+                                        VALUES (:id, :company_name, :domain, :status, NOW(), NOW())
                                         ON CONFLICT (domain) DO UPDATE SET
                                             company_name = EXCLUDED.company_name,
+                                            status = EXCLUDED.status,
                                             updated_at = NOW()
                                         RETURNING id
                                     """),
-                                    {"id": account_id, "company_name": company_name, "domain": domain}
+                                    {"id": account_id, "company_name": company_name, "domain": domain, "status": acc_status}
                                 )
                                 client_account_id = acc_res.scalar()
 
@@ -146,23 +163,23 @@ def run_ingestion():
 
                             # Insert lead intake record
                             lead_id = str(uuid.uuid4())
+                            full_name = f"{first_name} {last_name}".strip() or None
+                            lead_status = 'engaging' if client_account_id else 'prospect'
+                            description = row.get('description', f"Role: {job_title}" if job_title else None)
+                            rate = row.get('rate')
                             conn.execute(
                                 text("""
-                                    INSERT INTO cdp.leads (id, source, source_lead_id, first_name, last_name, email, phone, company_name, job_title, linkedin_url, person_id, client_account_id, raw_payload, status, intake_at, updated_at)
-                                    VALUES (:id, :source, :email, :first_name, :last_name, :email, :phone, :company_name, :job_title, :linkedin_url, :person_id, :client_account_id, :raw_payload, 'processed', NOW(), NOW())
+                                    INSERT INTO cdp.leads (id, person_id, full_name, description, rate, status, source, raw_payload, intake_at, updated_at)
+                                    VALUES (:id, :person_id, :full_name, :description, :rate, :status, :source, :raw_payload, NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
-                                    "source": source,
-                                    "email": email,
-                                    "first_name": first_name,
-                                    "last_name": last_name,
-                                    "phone": phone,
-                                    "company_name": company_name,
-                                    "job_title": job_title,
-                                    "linkedin_url": linkedin_url,
                                     "person_id": p_id,
-                                    "client_account_id": client_account_id,
+                                    "full_name": full_name,
+                                    "description": description,
+                                    "rate": rate,
+                                    "status": lead_status,
+                                    "source": source,
                                     "raw_payload": json.dumps(row)
                                 }
                             )

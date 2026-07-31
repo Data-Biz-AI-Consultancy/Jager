@@ -6,17 +6,15 @@ This directory contains the database setup and initialization scripts for Postgr
 
 The `cdp` schema is the Customer Data Platform (CDP) processing/domain schema managing entity profiles, lead intake, organizational relationships, and interactions.
 
+For detailed status definitions and stage transition diagrams, see [Status Lifecycle Documentation](STATUS_LIFECYCLE.md).
+
 ```mermaid
 erDiagram
     CLIENT_ACCOUNTS {
         uuid id PK
         string company_name
         string domain UK
-        string industry
-        string company_size
-        string website_url
-        string linkedin_company_url
-        string status
+        string status "prospect | reached | decision_maker_reached | contract_signed | engaging | completed"
         jsonb attributes
         timestamp_tz created_at
         timestamp_tz updated_at
@@ -40,19 +38,13 @@ erDiagram
 
     LEADS {
         uuid id PK
-        string source
-        string source_lead_id
-        string first_name
-        string last_name
-        string email
-        string phone
-        string company_name
-        string job_title
-        string linkedin_url
         uuid person_id FK
-        uuid client_account_id FK
+        string full_name
+        text description
+        string rate
+        string status "prospect | negotiating | offer_accepted | contract_signed | engaging | completed | nurture | disqualified"
+        string source
         jsonb raw_payload
-        string status
         timestamp_tz intake_at
         timestamp_tz updated_at
     }
