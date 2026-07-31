@@ -222,7 +222,7 @@ def create_database_resource(db: dict, headers: dict, now_iso: str):
 def create_subpages_resource(prefix: str, subpages: list, headers: dict, now_iso: str):
     table_name = derive_table_name(prefix, "subpages", tool_name="notion")
 
-    @dlt.resource(name=table_name, write_disposition="merge", primary_key="id")
+    @dlt.resource(name=table_name, write_disposition="replace")
     def fetch_subpages():
         for sub in subpages:
             subpage_id = sub["id"]
