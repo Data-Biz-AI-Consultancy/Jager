@@ -13,8 +13,8 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
 ### Key Functional Domains:
 1. **Entities & Identity Resolution**:
    - **`cdp.persons`**: Individual contacts and prospect profiles, resolved by primary email or LinkedIn URL.
-   - **`cdp.client_accounts`**: Target client companies, organizations, and accounts.
-   - **`cdp.person_account_relationships`**: Mapping individual contacts to client accounts with specific roles (e.g. decision maker) and employment dates.
+   - **`cdp.client_accounts`**: Target client companies, organizations, and accounts extracted from sources (e.g. LinkedIn connections).
+   - **`cdp.person_account_relationships`**: Mapping individual contacts to client accounts with specific roles (e.g. decision maker, job position) and employment status.
 2. **Lead Intake & Opportunity Lifecycle**:
    - **`cdp.leads`**: Opportunity intake tracking leads through an 8-stage lifecycle.
 3. **Client Engagement & Activity Overview**:
@@ -98,7 +98,7 @@ src/cdp/
 ├── main.py                     # FastAPI application endpoints
 ├── utils.py                    # Database connection & logging helpers
 └── processors/                 # Core domain processors & handlers
-    └── process_linkedin_connections.py  # Normalizes raw LinkedIn connections into cdp.persons
+    └── process_linkedin_connections.py  # Normalizes LinkedIn connections into cdp.persons, cdp.client_accounts, and cdp.person_account_relationships
 ```
 
 ---
@@ -106,7 +106,7 @@ src/cdp/
 ## API Endpoints
 
 * `GET /health`: Service health check.
-* `POST /process/linkedin_connections`: Runs the processor to normalize raw connections from `s_linkedin.connections` into `cdp.persons`.
+* `POST /process/linkedin_connections`: Runs the processor to normalize raw connections from `s_linkedin.connections` into `cdp.persons`, `cdp.client_accounts`, and `cdp.person_account_relationships`.
 
 ---
 
