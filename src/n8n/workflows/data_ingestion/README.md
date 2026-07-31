@@ -29,5 +29,19 @@ This directory contains N8N workflows responsible for ingesting external data (S
   * **GraphQL Schema Design Constraint:** The Buffer API is designed such that posts are nested under individual channels (`Channel.posts`). There is no global endpoint to query all posts across all channels at once.
   * **Implementation:** Consequently, the workflow must loop through each retrieved channel one-by-one, initiating pagination using a cursor-based approach for each channel to retrieve and ingest its associated posts.
 
+---
 
+## 4. Manual Data Ingestion (Notion)
+* **File:** [data_ingestion_manual.json](data_ingestion_manual.json)
+* **Schedule:** Daily at **07:00 UTC** (also supports on-demand via Manual Trigger)
+* **Description:** Triggers the Python dlt pipeline (`ingest_notion_manual.py`) via the data pipeline service (`POST /run/oltp/ingest_notion_manual`). The pipeline reads any database or page under the Notion parent page `_manual_data_ingestion` (ID: `3ad6e98d4ef8808e90e5d12894842709`) and ingests them into `s_manual.*` tables using the naming convention `notion__<child_page_prefix>_<entity_name>`.
+* **Downstream:** The `CDP - Manual Data Ingestion` workflow (in `cdp/`) depends on this and runs at 07:30 UTC to process `s_manual` rows into `cdp.*` entities.
+
+### Current Manual Export Sources
+
+| Source | Notion Child Page | Target Table Pattern |
+|---|---|---|
+| Substack subscriber export (CSV) | `substack` | `s_manual.notion__substack_<export_name>` |
+
+> Additional manual export sources (e.g. LinkedIn exports) will be added under the same Notion parent page and picked up automatically by this pipeline.
 
