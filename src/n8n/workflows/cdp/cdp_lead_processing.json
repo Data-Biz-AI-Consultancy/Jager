@@ -77,13 +77,8 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1"
-  },
-  "tags": [
-    {
-      "name": "cdp"
-    }
-  ]
+  }
 }

@@ -7,8 +7,6 @@
         "rule": {
           "interval": [
             {
-              "field": "hours",
-              "hoursInterval": 24,
               "triggerAtHour": 7
             }
           ]
@@ -27,6 +25,8 @@
       "parameters": {
         "method": "POST",
         "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/oltp/ingest_notion_manual",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
         "options": {}
       },
       "id": "trigger-notion-manual-ingestion",
@@ -36,7 +36,13 @@
       "position": [
         336,
         256
-      ]
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "notion-substack-posts-generation-api",
+          "name": "Notion Substack Posts Generation API"
+        }
+      }
     }
   ],
   "connections": {
@@ -56,10 +62,5 @@
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
-  },
-  "tags": [
-    {
-      "name": "data-ingestion"
-    }
-  ]
+  }
 }
