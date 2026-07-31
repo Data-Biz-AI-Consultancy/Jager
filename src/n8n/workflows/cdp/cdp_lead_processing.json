@@ -25,7 +25,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, first_name, last_name, profile_url, email_address, company, position, connected_at FROM s_linkedin.connections WHERE processed = 0 LIMIT 100;"
+        "query": "SELECT id, first_name, last_name, profile_url, email_address, company, position, connected_at FROM s_linkedin.connections WHERE processed = 0;"
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -44,7 +44,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst results = [];\n\nconst sqlEscape = (str) => {\n  if (!str) return null;\n  return String(str).replace(/'/g, \"''\");\n};\n\nfor (const item of items) {\n  const data = item.json;\n  if (!data.id) continue;\n  \n  const rawEmail = data.email_address ? data.email_address.trim() : null;\n  const email = (rawEmail && !rawEmail.includes('@linkedin.user')) ? rawEmail : null;\n  const company = data.company ? data.company.trim() : '';\n  const domain = company ? company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com' : null;\n  \n  results.push({\n    json: {\n      connection_id: data.id,\n      first_name: data.first_name || '',\n      last_name: data.last_name || '',\n      email: email,\n      company: company,\n      domain: domain,\n      position: data.position || '',\n      profile_url: data.profile_url || '',\n      source: 'linkedin_connection',\n      sql_connection_id: sqlEscape(data.id),\n      sql_first_name: sqlEscape(data.first_name || ''),\n      sql_last_name: sqlEscape(data.last_name || ''),\n      sql_email: email ? sqlEscape(email) : null,\n      sql_company: company ? sqlEscape(company) : null,\n      sql_domain: domain ? sqlEscape(domain) : null,\n      sql_position: sqlEscape(data.position || ''),\n      sql_profile_url: sqlEscape(data.profile_url || '')\n    }\n  });\n}\n\nreturn results;"
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nconst sqlEscape = (str) => {\n  if (!str) return null;\n  return String(str).replace(/'/g, \"''\");\n};\n\nfor (const item of items) {\n  const data = item.json;\n  if (!data.id) continue;\n  \n  const rawEmail = data.email_address ? data.email_address.trim() : null;\n  const email = (rawEmail && !rawEmail.includes('@linkedin.user')) ? rawEmail : null;\n  \n  results.push({\n    json: {\n      connection_id: data.id,\n      first_name: data.first_name || '',\n      last_name: data.last_name || '',\n      email: email,\n      profile_url: data.profile_url || '',\n      sql_connection_id: sqlEscape(data.id),\n      sql_first_name: sqlEscape(data.first_name || ''),\n      sql_last_name: sqlEscape(data.last_name || ''),\n      sql_email: email ? sqlEscape(email) : null,\n      sql_profile_url: sqlEscape(data.profile_url || '')\n    }\n  });\n}\n\nreturn results;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -53,12 +53,12 @@
         0
       ],
       "id": "3",
-      "name": "Normalize LinkedIn Connection Leads"
+      "name": "Normalize LinkedIn Connections"
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH inserted_account AS (\n  INSERT INTO cdp.client_accounts (company_name, domain, status)\n  SELECT {{ $json.sql_company ? \"'\" + $json.sql_company + \"'\" : 'NULL' }}, {{ $json.sql_domain ? \"'\" + $json.sql_domain + \"'\" : 'NULL' }}, 'prospect'\n  WHERE {{ $json.sql_company ? 'TRUE' : 'FALSE' }}\n  ON CONFLICT (domain) DO UPDATE SET\n    company_name = COALESCE(EXCLUDED.company_name, cdp.client_accounts.company_name),\n    updated_at = NOW()\n  RETURNING id\n),\ntarget_account AS (\n  SELECT id FROM inserted_account\n  UNION ALL\n  SELECT id FROM cdp.client_accounts WHERE domain = {{ $json.sql_domain ? \"'\" + $json.sql_domain + \"'\" : 'NULL' }} AND {{ $json.sql_domain ? 'TRUE' : 'FALSE' }}\n  LIMIT 1\n),\nupserted_person AS (\n  INSERT INTO cdp.persons (first_name, last_name, primary_email, linkedin_url, primary_client_account_id, status)\n  VALUES (\n    {{ $json.sql_first_name ? \"'\" + $json.sql_first_name + \"'\" : 'NULL' }},\n    {{ $json.sql_last_name ? \"'\" + $json.sql_last_name + \"'\" : 'NULL' }},\n    {{ $json.sql_email ? \"'\" + $json.sql_email + \"'\" : 'NULL' }},\n    {{ $json.sql_profile_url ? \"'\" + $json.sql_profile_url + \"'\" : 'NULL' }},\n    (SELECT id FROM target_account),\n    'active'\n  )\n  ON CONFLICT (primary_email) DO UPDATE SET\n    first_name = COALESCE(EXCLUDED.first_name, cdp.persons.first_name),\n    last_name = COALESCE(EXCLUDED.last_name, cdp.persons.last_name),\n    linkedin_url = COALESCE(EXCLUDED.linkedin_url, cdp.persons.linkedin_url),\n    primary_client_account_id = COALESCE(EXCLUDED.primary_client_account_id, cdp.persons.primary_client_account_id),\n    updated_at = NOW()\n  RETURNING id\n)\nUPDATE s_linkedin.connections\nSET processed = 1\nWHERE id = '{{ $json.sql_connection_id }}';"
+        "query": "WITH upserted_person AS (\n  INSERT INTO cdp.persons (first_name, last_name, primary_email, linkedin_url, status)\n  VALUES (\n    {{ $json.sql_first_name ? \"'\" + $json.sql_first_name + \"'\" : 'NULL' }},\n    {{ $json.sql_last_name ? \"'\" + $json.sql_last_name + \"'\" : 'NULL' }},\n    {{ $json.sql_email ? \"'\" + $json.sql_email + \"'\" : 'NULL' }},\n    {{ $json.sql_profile_url ? \"'\" + $json.sql_profile_url + \"'\" : 'NULL' }},\n    'active'\n  )\n  ON CONFLICT (primary_email) DO UPDATE SET\n    first_name = COALESCE(EXCLUDED.first_name, cdp.persons.first_name),\n    last_name = COALESCE(EXCLUDED.last_name, cdp.persons.last_name),\n    linkedin_url = COALESCE(EXCLUDED.linkedin_url, cdp.persons.linkedin_url),\n    updated_at = NOW()\n  RETURNING id\n)\nUPDATE s_linkedin.connections\nSET processed = 1\nWHERE id = '{{ $json.sql_connection_id }}';"
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
@@ -92,14 +92,14 @@
       "main": [
         [
           {
-            "node": "Normalize LinkedIn Connection Leads",
+            "node": "Normalize LinkedIn Connections",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize LinkedIn Connection Leads": {
+    "Normalize LinkedIn Connections": {
       "main": [
         [
           {

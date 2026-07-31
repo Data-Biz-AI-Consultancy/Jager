@@ -6,7 +6,7 @@ This directory contains N8N workflows responsible for Customer Data Platform (CD
 
 ## 1. CDP Lead Processing
 * **File:** [cdp_lead_processing.json](cdp_lead_processing.json)
-* **Description:** Fetches unprocessed LinkedIn connections from `s_linkedin.connections`, normalizes profile fields, and upserts them into canonical CDP person and client account tables (`cdp.persons`, `cdp.client_accounts`).
+* **Description:** Fetches unprocessed LinkedIn connections from `s_linkedin.connections`, normalizes profile fields, and upserts them into `cdp.persons`.
 
 ---
 
