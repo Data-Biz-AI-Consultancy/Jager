@@ -17,7 +17,7 @@ from common.utils import setup_logging, create_postgres_pipeline
 # Set up logging
 logger = setup_logging("ingest-notion-manual")
 
-MANUAL_PAGE_ID = os.getenv("NOTION_MANUAL_INGESTION_PAGE_ID", "3ad6e98d4ef8808e90e5d12894842709")
+MANUAL_PAGE_ID = os.getenv("NOTION_MANUAL_INGESTION_PAGE_ID") or "3ad6e98d4ef8808e90e5d12894842709"
 
 
 def get_notion_headers():
@@ -148,6 +148,8 @@ def create_database_resource(db: dict, headers: dict, now_iso: str):
         query_url = f"https://api.notion.com/v1/databases/{db_id}/query"
         has_more = True
         query_body = {"page_size": 100}
+        total_rows = 0
+        page_num = 0
 
         while has_more:
             try:
@@ -160,12 +162,15 @@ def create_database_resource(db: dict, headers: dict, now_iso: str):
                 pages = data.get("results", [])
                 has_more = data.get("has_more", False)
                 next_cursor = data.get("next_cursor")
+                page_num += 1
+                logger.info(f"  Page {page_num}: fetched {len(pages)} rows (has_more={has_more})")
                 if has_more and next_cursor:
                     query_body["start_cursor"] = next_cursor
                 else:
                     has_more = False
 
                 for page in pages:
+                    total_rows += 1
                     page_id = page.get("id")
                     if not page_id:
                         continue
@@ -215,6 +220,8 @@ def create_database_resource(db: dict, headers: dict, now_iso: str):
                 logger.error(f"Error querying database {db_id}: {db_err}")
                 return
 
+        logger.info(f"  Total rows fetched from '{db_name}': {total_rows}")
+
     return fetch_database_pages
 
 
@@ -259,7 +266,7 @@ def create_subpages_resource(prefix: str, subpages: list, headers: dict, now_iso
 
 def run_ingestion():
     os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
-    parent_page_id = os.getenv("NOTION_MANUAL_INGESTION_PAGE_ID", "3ad6e98d4ef8808e90e5d12894842709")
+    parent_page_id = MANUAL_PAGE_ID
     logger.info(f"Starting Notion Manual Data Ingestion for parent page {parent_page_id}")
 
     headers = get_notion_headers()
