@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import json
 from sqlalchemy import text
 
 cdp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -21,8 +22,9 @@ logger = setup_logging("cdp-manual-data-processor")
 
 def process_manual_data():
     """
-    Scans tables in the s_manual schema (e.g., notion__* tables created by manual ingestion),
-    extracts lead/contact/company entities, and normalizes them into cdp.leads, cdp.persons, and cdp.client_accounts.
+    Cross-checks Substack Subscriber data from s_manual schema against LinkedIn connections
+    in cdp.persons (matching on primary_email, name, or linkedin_url) to maintain a complete,
+    unified view of contacts across different sources (FULL OUTER JOIN semantics).
     """
     logger.info("Starting processing of s_manual tables into cdp schema...")
     engine = get_db_engine()
@@ -32,21 +34,21 @@ def process_manual_data():
     accounts_processed = 0
 
     with engine.begin() as conn:
-        # 1. Discover all user tables in s_manual schema
+        # 1. Discover user data tables in s_manual schema (excluding dlt metadata tables)
         tables_res = conn.execute(
             text("""
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 's_manual'
                   AND table_type = 'BASE TABLE'
+                  AND table_name NOT LIKE '\_dlt%'
             """)
         ).fetchall()
 
         table_names = [r[0] for r in tables_res]
-        logger.info(f"Found {len(table_names)} tables in s_manual: {table_names}")
+        logger.info(f"Found {len(table_names)} user data tables in s_manual: {table_names}")
 
         for table in table_names:
-            # Check table column names dynamically
             cols_res = conn.execute(
                 text("""
                     SELECT column_name
@@ -58,8 +60,6 @@ def process_manual_data():
             ).fetchall()
             col_set = {r[0].lower() for r in cols_res}
 
-            # Build query to fetch rows from the manual table
-            # If the table has a 'processed' column, filter by processed = 0
             has_processed = "processed" in col_set
             where_clause = "WHERE processed = 0" if has_processed else ""
 
@@ -73,25 +73,31 @@ def process_manual_data():
             for row in rows:
                 row_dict = dict(row)
 
-                # Identify potential contact/lead fields dynamically from common Notion/manual column names
-                first_name = (
-                    row_dict.get("first_name") or
-                    row_dict.get("firstname") or
+                # Extract contact fields (e.g. Substack subscriber export or Notion pages)
+                raw_name = (
                     row_dict.get("name") or
                     row_dict.get("full_name") or
                     row_dict.get("title") or
                     ""
                 )
+                if isinstance(raw_name, str):
+                    raw_name = raw_name.strip()
+                else:
+                    raw_name = ""
+
+                first_name = row_dict.get("first_name") or row_dict.get("firstname") or ""
+                last_name = row_dict.get("last_name") or row_dict.get("lastname") or ""
+
+                if not first_name and not last_name and raw_name:
+                    parts = raw_name.split(maxsplit=1)
+                    first_name = parts[0]
+                    last_name = parts[1] if len(parts) > 1 else ""
+
                 if isinstance(first_name, str):
                     first_name = first_name.strip()
                 else:
                     first_name = ""
 
-                last_name = (
-                    row_dict.get("last_name") or
-                    row_dict.get("lastname") or
-                    ""
-                )
                 if isinstance(last_name, str):
                     last_name = last_name.strip()
                 else:
@@ -123,7 +129,6 @@ def process_manual_data():
                     row_dict.get("linkedin") or
                     row_dict.get("linkedin_url") or
                     row_dict.get("profile_url") or
-                    row_dict.get("notion_url") or
                     ""
                 )
                 if isinstance(linkedin_url, str):
@@ -142,8 +147,18 @@ def process_manual_data():
                 else:
                     company = ""
 
-                # Skip if no meaningful person or company details found
-                if not first_name and not last_name and not email and not linkedin_url and not company:
+                country = (
+                    row_dict.get("country") or
+                    row_dict.get("state_province") or
+                    ""
+                )
+                if isinstance(country, str):
+                    country = country.strip()
+                else:
+                    country = ""
+
+                # Skip blank records with no identifying fields
+                if not first_name and not last_name and not email and not linkedin_url and not company and not raw_name:
                     if has_processed and "id" in row_dict:
                         conn.execute(
                             text(f"UPDATE s_manual.{table} SET processed = 1 WHERE id = :row_id"),
@@ -156,7 +171,8 @@ def process_manual_data():
                         )
                     continue
 
-                # 1. Upsert person into cdp.persons if contact info exists
+                # 1. Cross-check / Upsert person into cdp.persons (FULL OUTER JOIN behavior)
+                # Matches existing person by primary_email or linkedin_url, merging attributes if matched
                 person_id = None
                 if first_name or last_name or email or linkedin_url:
                     person_res = conn.execute(
@@ -168,8 +184,8 @@ def process_manual_data():
                               LIMIT 1
                             ),
                             upserted_person AS (
-                              INSERT INTO cdp.persons (first_name, last_name, primary_email, primary_phone, linkedin_url, status, created_at, updated_at)
-                              SELECT :first_name, :last_name, NULLIF(:email, ''), NULLIF(:phone, ''), NULLIF(:linkedin_url, ''), 'active', NOW(), NOW()
+                              INSERT INTO cdp.persons (first_name, last_name, primary_email, primary_phone, linkedin_url, country, status, created_at, updated_at)
+                              SELECT :first_name, :last_name, NULLIF(:email, ''), NULLIF(:phone, ''), NULLIF(:linkedin_url, ''), NULLIF(:country, ''), 'active', NOW(), NOW()
                               WHERE NOT EXISTS (SELECT 1 FROM existing_person)
                               RETURNING id
                             ),
@@ -181,6 +197,7 @@ def process_manual_data():
                                 primary_email = COALESCE(NULLIF(:email, ''), cdp.persons.primary_email),
                                 primary_phone = COALESCE(NULLIF(:phone, ''), cdp.persons.primary_phone),
                                 linkedin_url = COALESCE(NULLIF(:linkedin_url, ''), cdp.persons.linkedin_url),
+                                country = COALESCE(NULLIF(:country, ''), cdp.persons.country),
                                 updated_at = NOW()
                               WHERE id = (SELECT id FROM existing_person)
                               RETURNING id
@@ -192,7 +209,8 @@ def process_manual_data():
                             "last_name": last_name or None,
                             "email": email or "",
                             "phone": phone or "",
-                            "linkedin_url": linkedin_url or ""
+                            "linkedin_url": linkedin_url or "",
+                            "country": country or ""
                         }
                     )
                     person_id = person_res.scalar()
@@ -236,14 +254,16 @@ def process_manual_data():
                         accounts_processed += 1
 
                 # 3. Create lead record in cdp.leads
-                full_lead_name = f"{first_name} {last_name}".strip() or company or "Manual Lead"
+                full_lead_name = f"{first_name} {last_name}".strip() or raw_name or company or "Manual Lead"
+                serialized_json = json.dumps(row_dict, default=str)
+
                 conn.execute(
                     text("""
                         INSERT INTO cdp.leads (
                             person_id, client_account_id, full_name, description, status, source, raw_payload, intake_at, updated_at
                         )
                         VALUES (
-                            :person_id, :client_account_id, :full_name, :description, 'prospect', :source, :raw_payload, NOW(), NOW()
+                            :person_id, :client_account_id, :full_name, :description, 'prospect', :source, CAST(:raw_payload AS jsonb), NOW(), NOW()
                         );
                     """),
                     {
@@ -252,7 +272,7 @@ def process_manual_data():
                         "full_name": full_lead_name,
                         "description": f"Manual lead ingested from s_manual.{table}",
                         "source": f"manual:{table}",
-                        "raw_payload": str(row_dict)
+                        "raw_payload": serialized_json
                     }
                 )
                 leads_processed += 1
@@ -284,3 +304,4 @@ def process_manual_data():
 
 if __name__ == "__main__":
     process_manual_data()
+
