@@ -82,8 +82,9 @@
 
 
 ## Python Testing Conventions
-- All Python scripts in the codebase, including data pipelines (`src/data_pipelines/`) and machine learning components (`src/ml/`), must have corresponding automated unit tests.
-- Python tests should be added to the `tests/` directory and run using `pytest` via `uv run pytest tests/`.
+- All Python scripts in the codebase, including data pipelines, ML components, and core services, must have corresponding automated unit tests.
+- Python tests must be organized into namespaced subdirectories under `tests/` matching their service domain (e.g., `tests/cdp/`, `tests/dapp/`, `tests/shared/`, `tests/integration/`).
+- Tests can be executed as a full suite (`uv run pytest tests/`) or target specific service suites (`uv run pytest tests/cdp/`, `uv run pytest tests/dapp/`).
 - Ensure tests verify key functionalities like database connections, data transformations, API query formats, and model predictions using mocks/patches where appropriate.
 
 ## dlt Pipeline Conventions
