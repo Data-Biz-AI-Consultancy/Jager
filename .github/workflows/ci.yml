@@ -53,7 +53,10 @@ jobs:
           enable-cache: true
 
       - name: Run Python Backend Tests
+        env:
+          PYTHONPATH: src
         run: uv run --with pytest --with scikit-learn --with pandas --with fastapi --with httpx --with numpy --with sqlalchemy --with psycopg2-binary --with dlt --with feedparser --with beautifulsoup4 pytest tests/
+
 
   dbt-compile:
     runs-on: ubuntu-latest
