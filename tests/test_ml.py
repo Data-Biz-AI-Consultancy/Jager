@@ -12,8 +12,8 @@ import warnings
 warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-# Add src/ml to Python path so we can import the modules
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/ml')))
+# Add src/dapp/ml to Python path so we can import the modules
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/dapp/ml')))
 
 # Create mock data
 MOCK_DATES = ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05']

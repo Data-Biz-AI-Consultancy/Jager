@@ -12,7 +12,7 @@ DATABASE_URL=postgresql://jager:jager@localhost:5432/jager uv run pytest tests/
 
 ## Test Files Overview
 
-- **`test_seed_ingestion.py`**: Verifies seed file ingestion from `data/seed/` (`subscribers.csv`, `leads.json`) via `src/data_pipelines/oltp/ingest_seeds.py` into `cdp.leads`, `cdp.persons`, `cdp.client_accounts`, `cdp.person_account_relationships`, and `cdp.engagements`.
+- **`test_seed_ingestion.py`**: Verifies seed file ingestion from `data/seed/` (`subscribers.csv`, `leads.json`) via `src/dapp/oltp/ingest_seeds.py` into `cdp.leads`, `cdp.persons`, `cdp.client_accounts`, `cdp.person_account_relationships`, and `cdp.engagements`.
 - **`test_dlt_ingestion.py`**: Unit tests for dlt ingestion pipelines and Motherduck integration mocks.
 - **`test_ml.py`**: Tests ML prediction pipeline data formatting and features.
 - **`test_utils.py`**: Tests database connection helper functions, HTTP header generation, and dlt pipeline initializers.

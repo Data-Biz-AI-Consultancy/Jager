@@ -4,8 +4,8 @@ import pytest
 import logging
 from unittest.mock import patch, MagicMock
 
-# Add src/data_pipelines to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/data_pipelines')))
+# Add src/dapp to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/dapp')))
 
 # Mock DLT modules to prevent actual initialization issues during imports
 sys.modules['dlt'] = MagicMock()

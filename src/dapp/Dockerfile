@@ -9,11 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY src/data_pipelines/requirements.txt .
+COPY src/dapp/requirements.txt .
 RUN uv pip install --system --no-cache -r requirements.txt
 
-COPY src/data_pipelines/ .
-COPY src/ml/ /app/ml/
+COPY src/dapp/ .
 
 ENV PYTHONPATH=/app:/app/ml
 

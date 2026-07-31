@@ -76,7 +76,7 @@ services:
   dapp:
     build:
       context: ./
-      dockerfile: src/data_pipelines/Dockerfile
+      dockerfile: src/dapp/Dockerfile
     restart: always
     profiles:
       - data

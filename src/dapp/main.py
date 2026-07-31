@@ -10,20 +10,20 @@ logger = logging.getLogger("dapp-service")
 
 app = FastAPI(title="Jager Data App (DAPP) Service")
 
-# Include ML routes from src/ml
-ml_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "ml"))
+# Include ML routes from ml module
+ml_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "ml"))
 if os.path.exists(ml_dir) and ml_dir not in sys.path:
     sys.path.insert(0, ml_dir)
 
 try:
-    from main import app as ml_app
+    from ml.main import app as ml_app
     app.include_router(ml_app.router)
     logger.info("Successfully mounted ML routes into DAPP service")
 except Exception as e:
     try:
-        import ml.main as ml_main
-        app.include_router(ml_main.app.router)
-        logger.info("Successfully mounted ML routes from ml.main into DAPP service")
+        from main import app as ml_app
+        app.include_router(ml_app.router)
+        logger.info("Successfully mounted ML routes from main into DAPP service")
     except Exception as err:
         logger.warning(f"Could not mount ML router: {err}")
 

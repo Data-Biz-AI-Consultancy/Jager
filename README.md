@@ -74,13 +74,13 @@ flowchart TD
 
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
 *   **CDP App ([src/cdp/](src/cdp/README.md))**: A dedicated FastAPI domain microservice responsible for Customer Data Platform logic (managing `cdp.persons`, `cdp.client_accounts`, `cdp.leads`, `cdp.person_account_relationships`, and `cdp.engagements`). N8N triggers CDP processing via HTTP requests (`CDP_SERVICE_URL`).
-*   **DAPP App ([src/data_pipelines/](src/data_pipelines/README.md))**: A consolidated Data App service combining data ingestion (**dlt**), transformations (**dbt**), and machine learning training/predictions (**ml**). N8N triggers pipelines (`DATA_PIPELINE_URL`) and ML inference (`ML_SERVICE_URL`) on this service.
+*   **DAPP App ([src/dapp/](src/dapp/README.md))**: A consolidated Data App service combining data ingestion (**dlt**), transformations (**dbt**), and machine learning training/predictions (**ml**). N8N triggers pipelines (`DATA_PIPELINE_URL`) and ML inference (`ML_SERVICE_URL`) on this service.
 
 ### Database & Storage Schemas
 
 We organize our databases into clear operational (OLTP) and analytical (OLAP) processing schemas:
-- **OLTP Schema (PostgreSQL)**: Stores operational source data (`s_*` schemas) and core CDP domain entities (`cdp.*` schema). Refer to the [CDP Documentation](src/cdp/README.md) and [OLTP Database Documentation](src/data_pipelines/oltp/README.md) for details.
-- **OLAP Schema (MotherDuck)**: Stores curated presentation data (`t_jager`), features, validation snapshots, and serialized model metrics for ML workflows. Refer to the [OLAP Database Documentation](src/data_pipelines/olap/README.md) for details.
+- **OLTP Schema (PostgreSQL)**: Stores operational source data (`s_*` schemas) and core CDP domain entities (`cdp.*` schema). Refer to the [CDP Documentation](src/cdp/README.md) and [OLTP Database Documentation](src/dapp/oltp/README.md) for details.
+- **OLAP Schema (MotherDuck)**: Stores curated presentation data (`t_jager`), features, validation snapshots, and serialized model metrics for ML workflows. Refer to the [OLAP Database Documentation](src/dapp/olap/README.md) for details.
 
 
 ---
@@ -96,20 +96,21 @@ jager/
 ├── prompts/                 # Markdown prompt templates (intent detection, lead enrichment)
 ├── scripts/                 # Utility scripts for database cloning, schema migrations, and data import
 ├── src/                     # Core application source code
-│   ├── data_pipelines/      # Ingestion & transformation pipelines (dlt & dbt)
+│   ├── cdp/                 # Customer Data Platform domain microservice
+│   ├── dapp/                # Data App (Ingestion, dbt transformations, and ML microservice)
 │   ├── db/                  # Database initialization scripts
-│   ├── ml/                  # Machine learning backend (training & prediction pipelines)
 │   └── n8n/                 # N8N configuration, workflow files, and sync scripts
 └── tests/                   # Automated Node.js and Python unit test suites
 ```
 
 Refer to the folder-level READMEs for detailed guides:
 - [scripts/README.md](scripts/README.md)
+- [src/cdp/README.md](src/cdp/README.md)
 - [src/db/README.md](src/db/README.md)
-- [src/data_pipelines/README.md](src/data_pipelines/README.md)
-- [src/data_pipelines/oltp/README.md](src/data_pipelines/oltp/README.md)
-- [src/data_pipelines/olap/README.md](src/data_pipelines/olap/README.md)
-- [src/ml/README.md](src/ml/README.md)
+- [src/dapp/README.md](src/dapp/README.md)
+- [src/dapp/oltp/README.md](src/dapp/oltp/README.md)
+- [src/dapp/olap/README.md](src/dapp/olap/README.md)
+- [src/dapp/ml/README.md](src/dapp/ml/README.md)
 - [tests/README.md](tests/README.md)
 
 
