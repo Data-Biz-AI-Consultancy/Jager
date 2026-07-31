@@ -53,12 +53,13 @@ def mock_pandas_read_sql():
         mock_read.return_value = get_mock_df()
         yield mock_read
 
-# Now import the modules safely
-import train
-import predict
-import backtest
-from fastapi.testclient import TestClient
-import main
+# Now import the modules safely with create_engine patched during module load
+with mock.patch('sqlalchemy.create_engine', return_value=mock_engine):
+    import train
+    import predict
+    import backtest
+    from fastapi.testclient import TestClient
+    import main
 
 def test_train_model():
     mock_conn = mock.MagicMock()
