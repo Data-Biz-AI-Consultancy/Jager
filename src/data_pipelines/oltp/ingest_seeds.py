@@ -64,14 +64,14 @@ def run_ingestion():
                             full_name = f"{first_name} {last_name}".strip() or None
                             conn.execute(
                                 text("""
-                                    INSERT INTO cdp.leads (id, source, source_lead_id, person_id, full_name, raw_payload, status, intake_at, updated_at)
-                                    VALUES (:id, 'substack_seed', :email, :person_id, :full_name, :raw_payload, 'person_linked', NOW(), NOW())
+                                    INSERT INTO cdp.leads (id, person_id, full_name, description, status, source, source_lead_id, raw_payload, intake_at, updated_at)
+                                    VALUES (:id, :person_id, :full_name, 'Substack subscriber lead', 'person_linked', 'substack_seed', :email, :raw_payload, NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
-                                    "email": email,
                                     "person_id": p_id,
                                     "full_name": full_name,
+                                    "email": email,
                                     "raw_payload": json.dumps(row)
                                 }
                             )
@@ -150,19 +150,21 @@ def run_ingestion():
                             lead_id = str(uuid.uuid4())
                             full_name = f"{first_name} {last_name}".strip() or None
                             lead_status = 'account_linked' if client_account_id else 'person_linked'
+                            description = f"Role: {job_title}" if job_title else None
                             conn.execute(
                                 text("""
-                                    INSERT INTO cdp.leads (id, source, source_lead_id, person_id, full_name, raw_payload, status, intake_at, updated_at)
-                                    VALUES (:id, :source, :email, :person_id, :full_name, :raw_payload, :status, NOW(), NOW())
+                                    INSERT INTO cdp.leads (id, person_id, full_name, description, status, source, source_lead_id, raw_payload, intake_at, updated_at)
+                                    VALUES (:id, :person_id, :full_name, :description, :status, :source, :email, :raw_payload, NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
-                                    "source": source,
-                                    "email": email,
                                     "person_id": p_id,
                                     "full_name": full_name,
-                                    "raw_payload": json.dumps(row),
-                                    "status": lead_status
+                                    "description": description,
+                                    "status": lead_status,
+                                    "source": source,
+                                    "email": email,
+                                    "raw_payload": json.dumps(row)
                                 }
                             )
 

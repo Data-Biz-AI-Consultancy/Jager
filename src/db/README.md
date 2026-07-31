@@ -40,12 +40,13 @@ erDiagram
 
     LEADS {
         uuid id PK
-        string source
-        string source_lead_id
         uuid person_id FK
         string full_name
-        jsonb raw_payload
+        text description
         string status "new | person_linked | account_linked | qualified | converted | rejected"
+        string source
+        string source_lead_id
+        jsonb raw_payload
         timestamp_tz intake_at
         timestamp_tz updated_at
     }
