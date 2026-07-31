@@ -25,9 +25,10 @@ def test_process_linkedin_connections_no_rows():
         result = process_linkedin_connections()
         assert result["status"] == "success"
         assert result["processed_count"] == 0
+        assert result["accounts_processed"] == 0
 
 
-def test_process_linkedin_connections_with_rows():
+def test_process_linkedin_connections_with_company_rows():
     mock_engine = MagicMock()
     mock_conn = MagicMock()
     mock_engine.begin.return_value.__enter__.return_value = mock_conn
@@ -42,9 +43,11 @@ def test_process_linkedin_connections_with_rows():
         "position": "CEO"
     }
     mock_conn.execute.return_value.mappings.return_value.all.return_value = [fake_row]
+    mock_conn.execute.return_value.scalar.side_effect = ["person-uuid-1", "account-uuid-1"]
 
     with patch('processors.process_linkedin_connections.get_db_engine', return_value=mock_engine):
         result = process_linkedin_connections()
         assert result["status"] == "success"
         assert result["processed_count"] == 1
-        assert mock_conn.execute.call_count >= 2
+        assert result["accounts_processed"] == 1
+        assert result["relationships_processed"] == 1
