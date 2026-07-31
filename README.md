@@ -35,6 +35,7 @@ Access your local N8N instance at [http://localhost](http://localhost).
 Jager is structured around three core application components, supported by containerized databases:
 
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to coordinate and schedule all automated workflows.
+*   **CDP App ([src/cdp/](src/cdp/README.md))**: A dedicated FastAPI microservice responsible for Customer Data Platform domain processing, profile normalization, and identity resolution.
 *   **Data Pipelines App ([src/data_pipelines/](src/data_pipelines/README.md))**: A dedicated Python application handling all data ingestion (writing raw feeds to the operational PostgreSQL OLTP database, and loading analytical data to MotherDuck) and data transformations (using **dlt** and **dbt**).
 *   **ML App ([src/ml/](src/ml/README.md))**: A dedicated machine learning Python application responsible for model training, validation, and generation of publishing timeslot recommendations.
 

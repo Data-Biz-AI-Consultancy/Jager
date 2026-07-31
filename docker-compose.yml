@@ -53,6 +53,7 @@ services:
       - MOTHERDUCK_HOST=${MOTHERDUCK_HOST:-pg.us-east-1-aws.motherduck.com}
       - MOTHERDUCK_USER=${MOTHERDUCK_USER:-postgres}
       - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://data-pipeline:8000}
+      - CDP_SERVICE_URL=${CDP_SERVICE_URL:-http://cdp:8000}
     depends_on:
       - db
     volumes:
@@ -81,6 +82,21 @@ services:
     build:
       context: ./
       dockerfile: src/data_pipelines/Dockerfile
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://jager:jager@db:5432/jager
+      - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
+      - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - NOTION_MANUAL_INGESTION_PAGE_ID=${NOTION_MANUAL_INGESTION_PAGE_ID}
+    depends_on:
+      - db
+
+
+  cdp:
+    build:
+      context: ./
+      dockerfile: src/cdp/Dockerfile
     restart: always
     environment:
       - DATABASE_URL=postgresql://jager:jager@db:5432/jager

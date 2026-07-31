@@ -6,7 +6,7 @@ This directory contains the database setup and initialization scripts for Postgr
 
 The `cdp` schema is the Customer Data Platform (CDP) processing/domain schema managing entity profiles, lead intake, organizational relationships, and interactions.
 
-For detailed status definitions and stage transition diagrams, see [Status Lifecycle Documentation](STATUS_LIFECYCLE.md).
+For detailed status definitions and stage transition diagrams, see [CDP Status Lifecycle Documentation](../cdp/README.md#status-lifecycles--state-transitions).
 
 ```mermaid
 erDiagram
