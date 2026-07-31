@@ -259,10 +259,11 @@ def create_subpages_resource(prefix: str, subpages: list, headers: dict, now_iso
 
 def run_ingestion():
     os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
-    logger.info(f"Starting Notion Manual Data Ingestion for parent page {MANUAL_PAGE_ID}")
+    parent_page_id = os.getenv("NOTION_MANUAL_INGESTION_PAGE_ID", "3ad6e98d4ef8808e90e5d12894842709")
+    logger.info(f"Starting Notion Manual Data Ingestion for parent page {parent_page_id}")
 
     headers = get_notion_headers()
-    databases, subpages = discover_child_sources(MANUAL_PAGE_ID, is_root=True)
+    databases, subpages = discover_child_sources(parent_page_id, is_root=True)
 
     # Fallback to Notion database search if no sources discovered
     if not databases and not subpages:

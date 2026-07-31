@@ -48,6 +48,8 @@
 ## CDP (Customer Data Platform) Conventions
 - The `cdp` schema in PostgreSQL is the core processing/domain schema for customer data platform entities (`cdp.leads`, `cdp.persons`, `cdp.client_accounts`, `cdp.engagements`, `cdp.person_account_relationships`).
 - Entity intake tables in CDP use descriptive domain names (e.g. `cdp.leads` instead of generic `raw_leads`).
+- **Seed Data Scope**: Data under `data/` (e.g., `data/seed/`) is strictly **dev-only** local sample data and is gitignored. It MUST NEVER be depended upon, loaded, or expected in production environments or CI test pipelines. Production pipelines must handle incoming data exclusively from real application sources or live integrations.
+
 
 
 ## Documentation Integrity
