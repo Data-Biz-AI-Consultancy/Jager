@@ -83,6 +83,7 @@ services:
       - data
       - all
     environment:
+      - PYTHONDONTWRITEBYTECODE=1
       - DATABASE_URL=postgresql://jager:jager@db:5432/jager
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
       - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
@@ -101,6 +102,7 @@ services:
       - app
       - all
     environment:
+      - PYTHONDONTWRITEBYTECODE=1
       - DATABASE_URL=postgresql://jager:jager@db:5432/jager
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
       - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
