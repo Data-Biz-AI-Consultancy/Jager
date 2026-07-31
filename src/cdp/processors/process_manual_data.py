@@ -11,11 +11,11 @@ for path in (cdp_dir, root_dir):
         sys.path.insert(0, path)
 
 try:
-    from utils import setup_logging, get_db_engine
+    from shared.db import setup_logging, get_db_engine
     from processors.process_linkedin_connections import generate_company_domain
 except ImportError:
-    from src.cdp.utils import setup_logging, get_db_engine
-    from src.cdp.processors.process_linkedin_connections import generate_company_domain
+    from utils import setup_logging, get_db_engine
+    from processors.process_linkedin_connections import generate_company_domain
 
 logger = setup_logging("cdp-manual-data-processor")
 

@@ -14,7 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY src/cdp/pyproject.toml .
 RUN uv pip install --system --no-cache .
 
+COPY src/shared /app/src/shared
 COPY src/cdp/ .
+
+ENV PYTHONPATH=/app:/app/src
 
 EXPOSE 8000
 

@@ -10,9 +10,9 @@ for path in (cdp_dir, root_dir):
         sys.path.insert(0, path)
 
 try:
-    from utils import setup_logging, get_db_engine
+    from shared.db import setup_logging, get_db_engine
 except ImportError:
-    from src.cdp.utils import setup_logging, get_db_engine
+    from utils import setup_logging, get_db_engine
 
 logger = setup_logging("cdp-linkedin-processor")
 

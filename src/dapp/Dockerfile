@@ -14,9 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY src/dapp/pyproject.toml .
 RUN uv pip install --system --no-cache .
 
+COPY src/shared /app/src/shared
 COPY src/dapp/ .
 
-ENV PYTHONPATH=/app:/app/ml
+ENV PYTHONPATH=/app:/app/ml:/app/src
 
 EXPOSE 8000
 

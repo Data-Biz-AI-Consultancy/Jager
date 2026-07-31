@@ -1,11 +1,7 @@
 import logging
 from fastapi import FastAPI, HTTPException
-try:
-    from processors.process_linkedin_connections import process_linkedin_connections
-    from processors.process_manual_data import process_manual_data
-except ImportError:
-    from src.cdp.processors.process_linkedin_connections import process_linkedin_connections
-    from src.cdp.processors.process_manual_data import process_manual_data
+from processors.process_linkedin_connections import process_linkedin_connections
+from processors.process_manual_data import process_manual_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cdp-service")
