@@ -7,8 +7,6 @@
         "rule": {
           "interval": [
             {
-              "field": "hours",
-              "hoursInterval": 24,
               "triggerAtHour": 7
             }
           ]
@@ -56,10 +54,5 @@
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
-  },
-  "tags": [
-    {
-      "name": "data-ingestion"
-    }
-  ]
+  }
 }

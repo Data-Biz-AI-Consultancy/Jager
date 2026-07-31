@@ -31,7 +31,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        260,
+        224,
         0
       ],
       "id": "2",
@@ -46,7 +46,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        520,
+        448,
         0
       ],
       "id": "3",
@@ -79,11 +79,7 @@
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
-  },
-  "tags": [
-    {
-      "name": "cdp"
-    }
-  ]
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
 }
