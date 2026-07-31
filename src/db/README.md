@@ -12,7 +12,7 @@ erDiagram
         uuid id PK
         string company_name
         string domain UK
-        string status "prospect | engaged | active | churned | inactive"
+        string status "prospect | reached | decision_maker_reached | negotiating | offer_accepted | contract_signed | engaging | completed | nurture | disqualified"
         jsonb attributes
         timestamp_tz created_at
         timestamp_tz updated_at

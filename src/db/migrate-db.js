@@ -56,7 +56,7 @@ CREATE SCHEMA IF NOT EXISTS s_manual;
 CREATE SCHEMA IF NOT EXISTS s_motherduck;
 CREATE SCHEMA IF NOT EXISTS cdp;
 
-// Client Account status lifecycle: 'prospect', 'engaged', 'active', 'churned', 'inactive'
+// Client Account status lifecycle: 'prospect', 'reached', 'decision_maker_reached', 'negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed', 'nurture', 'disqualified'
 CREATE TABLE IF NOT EXISTS cdp.client_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_name VARCHAR(255) NOT NULL,
