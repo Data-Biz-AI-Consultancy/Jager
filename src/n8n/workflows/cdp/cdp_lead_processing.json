@@ -24,56 +24,18 @@
     },
     {
       "parameters": {
-        "operation": "executeQuery",
-        "query": "SELECT id, first_name, last_name, profile_url, email_address, company, position, connected_at FROM s_linkedin.connections WHERE processed = 0;"
+        "method": "POST",
+        "url": "={{ $env.CDP_SERVICE_URL || 'http://cdp:8000' }}/process/linkedin_connections",
+        "options": {}
       },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        220,
+        260,
         0
       ],
       "id": "2",
-      "name": "Fetch Unprocessed LinkedIn Connections",
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const items = $input.all();\nconst results = [];\n\nconst sqlEscape = (str) => {\n  if (!str) return null;\n  return String(str).replace(/'/g, \"''\");\n};\n\nfor (const item of items) {\n  const data = item.json;\n  if (!data.id) continue;\n  \n  const rawEmail = data.email_address ? data.email_address.trim() : null;\n  const email = (rawEmail && !rawEmail.includes('@linkedin.user')) ? rawEmail : null;\n  \n  results.push({\n    json: {\n      connection_id: data.id,\n      first_name: data.first_name || '',\n      last_name: data.last_name || '',\n      email: email,\n      profile_url: data.profile_url || '',\n      sql_connection_id: sqlEscape(data.id),\n      sql_first_name: sqlEscape(data.first_name || ''),\n      sql_last_name: sqlEscape(data.last_name || ''),\n      sql_email: email ? sqlEscape(email) : null,\n      sql_profile_url: sqlEscape(data.profile_url || '')\n    }\n  });\n}\n\nreturn results;"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        440,
-        0
-      ],
-      "id": "3",
-      "name": "Normalize LinkedIn Connections"
-    },
-    {
-      "parameters": {
-        "operation": "executeQuery",
-        "query": "WITH upserted_person AS (\n  INSERT INTO cdp.persons (first_name, last_name, primary_email, linkedin_url, status)\n  VALUES (\n    {{ $json.sql_first_name ? \"'\" + $json.sql_first_name + \"'\" : 'NULL' }},\n    {{ $json.sql_last_name ? \"'\" + $json.sql_last_name + \"'\" : 'NULL' }},\n    {{ $json.sql_email ? \"'\" + $json.sql_email + \"'\" : 'NULL' }},\n    {{ $json.sql_profile_url ? \"'\" + $json.sql_profile_url + \"'\" : 'NULL' }},\n    'active'\n  )\n  ON CONFLICT (primary_email) DO UPDATE SET\n    first_name = COALESCE(EXCLUDED.first_name, cdp.persons.first_name),\n    last_name = COALESCE(EXCLUDED.last_name, cdp.persons.last_name),\n    linkedin_url = COALESCE(EXCLUDED.linkedin_url, cdp.persons.linkedin_url),\n    updated_at = NOW()\n  RETURNING id\n)\nUPDATE s_linkedin.connections\nSET processed = 1\nWHERE id = '{{ $json.sql_connection_id }}';"
-      },
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
-      "position": [
-        660,
-        0
-      ],
-      "id": "4",
-      "name": "Canonical CDP Lead Upsert Processor",
-      "credentials": {
-        "postgres": {
-          "id": "postgres-db",
-          "name": "postgres Credential"
-        }
-      }
+      "name": "Process LinkedIn Connections"
     }
   ],
   "connections": {
@@ -81,29 +43,7 @@
       "main": [
         [
           {
-            "node": "Fetch Unprocessed LinkedIn Connections",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Fetch Unprocessed LinkedIn Connections": {
-      "main": [
-        [
-          {
-            "node": "Normalize LinkedIn Connections",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Normalize LinkedIn Connections": {
-      "main": [
-        [
-          {
-            "node": "Canonical CDP Lead Upsert Processor",
+            "node": "Process LinkedIn Connections",
             "type": "main",
             "index": 0
           }
@@ -111,6 +51,7 @@
       ]
     }
   },
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
