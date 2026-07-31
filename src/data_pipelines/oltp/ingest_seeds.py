@@ -148,7 +148,7 @@ def run_ingestion():
                             # Insert lead intake record
                             lead_id = str(uuid.uuid4())
                             full_name = f"{first_name} {last_name}".strip() or None
-                            lead_status = 'account_linked' if client_account_id else 'person_linked'
+                            lead_status = 'engaging' if client_account_id else 'prospect'
                             description = row.get('description', f"Role: {job_title}" if job_title else None)
                             rate = row.get('rate')
                             conn.execute(

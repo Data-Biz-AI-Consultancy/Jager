@@ -25,7 +25,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE SCHEMA IF NOT EXISTS s_motherduck;
 	CREATE SCHEMA IF NOT EXISTS cdp;
 
-	-- Client Account status lifecycle: 'prospect', 'reached', 'decision_maker_reached', 'negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed', 'nurture', 'disqualified'
+	-- Client Account status lifecycle: 'prospect', 'reached', 'decision_maker_reached', 'contract_signed', 'engaging', 'completed'
 	CREATE TABLE IF NOT EXISTS cdp.client_accounts (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		company_name VARCHAR(255) NOT NULL,
@@ -35,6 +35,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
+
 
 	CREATE TABLE IF NOT EXISTS cdp.persons (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -53,7 +54,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	);
 
 
-	-- Lead status lifecycle: 'new', 'person_linked', 'account_linked', 'qualified', 'converted', 'rejected'
+	-- Lead status lifecycle: 'prospect', 'negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed', 'nurture', 'disqualified'
 	CREATE TABLE IF NOT EXISTS cdp.leads (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
