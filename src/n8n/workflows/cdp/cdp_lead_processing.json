@@ -25,31 +25,16 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://data-pipeline:8000' }}/run/oltp/ingest_notion_manual",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        240,
-        0
-      ],
-      "id": "2",
-      "name": "Trigger Notion Manual Ingestion"
-    },
-    {
-      "parameters": {
-        "method": "POST",
         "url": "={{ $env.CDP_SERVICE_URL || 'http://cdp:8000' }}/process/linkedin_connections",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        480,
+        260,
         0
       ],
-      "id": "3",
+      "id": "2",
       "name": "Process LinkedIn Connections"
     },
     {
@@ -61,26 +46,15 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        720,
+        520,
         0
       ],
-      "id": "4",
+      "id": "3",
       "name": "Process Manual Data"
     }
   ],
   "connections": {
     "Schedule Trigger": {
-      "main": [
-        [
-          {
-            "node": "Trigger Notion Manual Ingestion",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Trigger Notion Manual Ingestion": {
       "main": [
         [
           {
