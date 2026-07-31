@@ -171,6 +171,10 @@ def process_manual_data():
                         )
                     continue
 
+                # Determine source flags based on manual table name
+                is_substack = "substack" in table.lower()
+                is_linkedin = "linkedin" in table.lower()
+
                 # 1. Cross-check / Upsert person into cdp.persons (FULL OUTER JOIN behavior)
                 # Matches existing person by primary_email or linkedin_url, merging attributes if matched
                 person_id = None
@@ -184,8 +188,13 @@ def process_manual_data():
                               LIMIT 1
                             ),
                             upserted_person AS (
-                              INSERT INTO cdp.persons (first_name, last_name, primary_email, primary_phone, linkedin_url, country, status, created_at, updated_at)
-                              SELECT :first_name, :last_name, NULLIF(:email, ''), NULLIF(:phone, ''), NULLIF(:linkedin_url, ''), NULLIF(:country, ''), 'active', NOW(), NOW()
+                              INSERT INTO cdp.persons (
+                                  first_name, last_name, primary_email, primary_phone, linkedin_url, country,
+                                  in_substack_subscriber_export, in_linkedin_connections, status, created_at, updated_at
+                              )
+                              SELECT
+                                  :first_name, :last_name, NULLIF(:email, ''), NULLIF(:phone, ''), NULLIF(:linkedin_url, ''), NULLIF(:country, ''),
+                                  :is_substack, :is_linkedin, 'active', NOW(), NOW()
                               WHERE NOT EXISTS (SELECT 1 FROM existing_person)
                               RETURNING id
                             ),
@@ -198,6 +207,8 @@ def process_manual_data():
                                 primary_phone = COALESCE(NULLIF(:phone, ''), cdp.persons.primary_phone),
                                 linkedin_url = COALESCE(NULLIF(:linkedin_url, ''), cdp.persons.linkedin_url),
                                 country = COALESCE(NULLIF(:country, ''), cdp.persons.country),
+                                in_substack_subscriber_export = CASE WHEN :is_substack THEN TRUE ELSE cdp.persons.in_substack_subscriber_export END,
+                                in_linkedin_connections = CASE WHEN :is_linkedin THEN TRUE ELSE cdp.persons.in_linkedin_connections END,
                                 updated_at = NOW()
                               WHERE id = (SELECT id FROM existing_person)
                               RETURNING id
@@ -210,7 +221,9 @@ def process_manual_data():
                             "email": email or "",
                             "phone": phone or "",
                             "linkedin_url": linkedin_url or "",
-                            "country": country or ""
+                            "country": country or "",
+                            "is_substack": is_substack,
+                            "is_linkedin": is_linkedin
                         }
                     )
                     person_id = person_res.scalar()
