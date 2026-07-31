@@ -56,6 +56,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	);
 
 
+	-- Lead status lifecycle: 'new', 'person_linked', 'account_linked', 'qualified', 'converted', 'rejected'
 	CREATE TABLE IF NOT EXISTS cdp.leads (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		source VARCHAR(100) NOT NULL,

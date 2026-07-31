@@ -45,7 +45,7 @@ erDiagram
         uuid person_id FK
         string full_name
         jsonb raw_payload
-        string status
+        string status "new | person_linked | account_linked | qualified | converted | rejected"
         timestamp_tz intake_at
         timestamp_tz updated_at
     }

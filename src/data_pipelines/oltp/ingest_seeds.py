@@ -65,7 +65,7 @@ def run_ingestion():
                             conn.execute(
                                 text("""
                                     INSERT INTO cdp.leads (id, source, source_lead_id, person_id, full_name, raw_payload, status, intake_at, updated_at)
-                                    VALUES (:id, 'substack_seed', :email, :person_id, :full_name, :raw_payload, 'processed', NOW(), NOW())
+                                    VALUES (:id, 'substack_seed', :email, :person_id, :full_name, :raw_payload, 'person_linked', NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
@@ -149,10 +149,11 @@ def run_ingestion():
                             # Insert lead intake record
                             lead_id = str(uuid.uuid4())
                             full_name = f"{first_name} {last_name}".strip() or None
+                            lead_status = 'account_linked' if client_account_id else 'person_linked'
                             conn.execute(
                                 text("""
                                     INSERT INTO cdp.leads (id, source, source_lead_id, person_id, full_name, raw_payload, status, intake_at, updated_at)
-                                    VALUES (:id, :source, :email, :person_id, :full_name, :raw_payload, 'processed', NOW(), NOW())
+                                    VALUES (:id, :source, :email, :person_id, :full_name, :raw_payload, :status, NOW(), NOW())
                                 """),
                                 {
                                     "id": lead_id,
@@ -160,7 +161,8 @@ def run_ingestion():
                                     "email": email,
                                     "person_id": p_id,
                                     "full_name": full_name,
-                                    "raw_payload": json.dumps(row)
+                                    "raw_payload": json.dumps(row),
+                                    "status": lead_status
                                 }
                             )
 

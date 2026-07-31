@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS cdp.persons (
 );
 
 
+// Lead status lifecycle: 'new', 'person_linked', 'account_linked', 'qualified', 'converted', 'rejected'
 CREATE TABLE IF NOT EXISTS cdp.leads (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   source VARCHAR(100) NOT NULL,
