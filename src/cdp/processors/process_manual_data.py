@@ -36,7 +36,7 @@ def process_manual_data():
     with engine.begin() as conn:
         # 1. Discover user data tables in s_manual schema (excluding dlt metadata tables)
         tables_res = conn.execute(
-            text("""
+            text(r"""
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 's_manual'
