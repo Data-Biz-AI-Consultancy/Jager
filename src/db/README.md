@@ -12,11 +12,7 @@ erDiagram
         uuid id PK
         string company_name
         string domain UK
-        string industry
-        string company_size
-        string website_url
-        string linkedin_company_url
-        string status
+        string status "prospect | engaged | active | churned | inactive"
         jsonb attributes
         timestamp_tz created_at
         timestamp_tz updated_at

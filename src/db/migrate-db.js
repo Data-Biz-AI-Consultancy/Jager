@@ -56,14 +56,11 @@ CREATE SCHEMA IF NOT EXISTS s_manual;
 CREATE SCHEMA IF NOT EXISTS s_motherduck;
 CREATE SCHEMA IF NOT EXISTS cdp;
 
+// Client Account status lifecycle: 'prospect', 'engaged', 'active', 'churned', 'inactive'
 CREATE TABLE IF NOT EXISTS cdp.client_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_name VARCHAR(255) NOT NULL,
   domain VARCHAR(255) UNIQUE,
-  industry VARCHAR(100),
-  company_size VARCHAR(50),
-  website_url VARCHAR(2048),
-  linkedin_company_url VARCHAR(2048),
   status VARCHAR(50) DEFAULT 'prospect',
   attributes JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
