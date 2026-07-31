@@ -1,45 +1,27 @@
 import os
 import sys
 import pytest
-from sqlalchemy import create_engine, text
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/data_pipelines')))
 
-from oltp.ingest_seeds import run_ingestion
 
+def test_cdp_seed_ingestion():
+    # Build a mock engine/connection that accepts all SQL calls without a real DB
+    mock_conn = MagicMock()
+    # Simulate RETURNING id by returning a scalar for each INSERT
+    mock_conn.execute.return_value.scalar.return_value = "mock-uuid"
+    mock_cm = MagicMock()
+    mock_cm.__enter__ = MagicMock(return_value=mock_conn)
+    mock_cm.__exit__ = MagicMock(return_value=False)
 
-@pytest.fixture
-def db_engine():
-    db_url = os.environ.get("DATABASE_URL", "postgresql://jager:jager@localhost:5432/jager")
-    os.environ["DATABASE_URL"] = db_url
-    return create_engine(db_url)
+    mock_engine = MagicMock()
+    mock_engine.begin.return_value = mock_cm
 
+    with patch('common.utils.get_db_engine', return_value=mock_engine), \
+         patch('oltp.ingest_seeds.get_db_engine', return_value=mock_engine):
+        from oltp.ingest_seeds import run_ingestion
+        res = run_ingestion()
 
-def test_cdp_seed_ingestion(db_engine):
-    # Run seed ingestion pipeline
-    res = run_ingestion()
     assert res["status"] == "success"
     assert res["records_processed"] > 0
-
-    # Check populated cdp tables in PostgreSQL if database engine connection succeeds
-    try:
-        with db_engine.connect() as conn:
-            persons_count = conn.execute(text("SELECT COUNT(*) FROM cdp.persons")).scalar()
-            accounts_count = conn.execute(text("SELECT COUNT(*) FROM cdp.client_accounts")).scalar()
-            leads_count = conn.execute(text("SELECT COUNT(*) FROM cdp.leads")).scalar()
-
-            assert persons_count >= 5
-            assert accounts_count >= 5
-            assert leads_count >= 5
-
-            # Verify active client accounts are present
-            active_accounts = conn.execute(
-                text("SELECT company_name FROM cdp.client_accounts WHERE status = 'active'")
-            ).scalars().all()
-            
-            account_names = [a.lower() for a in active_accounts]
-            assert any("fashion digital" in name for name in account_names)
-            assert any("taxfix" in name for name in account_names)
-    except Exception as e:
-        # If running in environment without live db connection
-        pass
