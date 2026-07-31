@@ -36,6 +36,21 @@
       ],
       "id": "2",
       "name": "Process LinkedIn Connections"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CDP_SERVICE_URL || 'http://cdp:8000' }}/process/manual_data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "id": "3",
+      "name": "Process Manual Data"
     }
   ],
   "connections": {
@@ -44,6 +59,17 @@
         [
           {
             "node": "Process LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process LinkedIn Connections": {
+      "main": [
+        [
+          {
+            "node": "Process Manual Data",
             "type": "main",
             "index": 0
           }

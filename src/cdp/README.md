@@ -98,7 +98,8 @@ src/cdp/
 ├── main.py                     # FastAPI application endpoints
 ├── utils.py                    # Database connection & logging helpers
 └── processors/                 # Core domain processors & handlers
-    └── process_linkedin_connections.py  # Normalizes LinkedIn connections into cdp.persons, cdp.client_accounts, and cdp.person_account_relationships
+    ├── process_linkedin_connections.py  # Normalizes LinkedIn connections into cdp.persons, cdp.client_accounts, and cdp.person_account_relationships
+    └── process_manual_data.py           # Processes s_manual schema tables into cdp.leads, cdp.persons, and cdp.client_accounts
 ```
 
 ---
@@ -107,6 +108,7 @@ src/cdp/
 
 * `GET /health`: Service health check.
 * `POST /process/linkedin_connections`: Runs the processor to normalize raw connections from `s_linkedin.connections` into `cdp.persons`, `cdp.client_accounts`, and `cdp.person_account_relationships`.
+* `POST /process/manual_data`: Runs the processor to extract and normalize manual data ingestion tables from `s_manual` schema into `cdp.leads`, `cdp.persons`, and `cdp.client_accounts`.
 
 ---
 

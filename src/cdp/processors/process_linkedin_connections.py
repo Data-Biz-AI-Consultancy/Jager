@@ -104,8 +104,8 @@ def process_linkedin_connections():
                       LIMIT 1
                     ),
                     upserted_person AS (
-                      INSERT INTO cdp.persons (first_name, last_name, primary_email, linkedin_url, status, created_at, updated_at)
-                      SELECT :first_name, :last_name, :email, :profile_url, 'active', NOW(), NOW()
+                      INSERT INTO cdp.persons (first_name, last_name, primary_email, linkedin_url, in_linkedin_connections, status, created_at, updated_at)
+                      SELECT :first_name, :last_name, :email, :profile_url, TRUE, 'active', NOW(), NOW()
                       WHERE NOT EXISTS (SELECT 1 FROM existing_person)
                       RETURNING id
                     ),
@@ -116,6 +116,7 @@ def process_linkedin_connections():
                         last_name = COALESCE(:last_name, cdp.persons.last_name),
                         primary_email = COALESCE(:email, cdp.persons.primary_email),
                         linkedin_url = COALESCE(:profile_url, cdp.persons.linkedin_url),
+                        in_linkedin_connections = TRUE,
                         updated_at = NOW()
                       WHERE id = (SELECT id FROM existing_person)
                       RETURNING id
