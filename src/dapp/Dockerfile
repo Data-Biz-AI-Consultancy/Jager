@@ -11,8 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY src/dapp/requirements.txt .
-RUN uv pip install --system --no-cache -r requirements.txt
+COPY src/dapp/pyproject.toml .
+RUN uv pip install --system --no-cache .
 
 COPY src/dapp/ .
 
