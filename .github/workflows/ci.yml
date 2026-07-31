@@ -23,7 +23,7 @@ jobs:
           node-version: '20'
 
       - name: Run Dockerfile Context Unit Test
-        run: node tests/test-dockerfile.js
+        run: node tests/integration/test-dockerfile.js
 
       - name: Validate Docker Compose configuration
         run: |
