@@ -13,7 +13,9 @@ COPY src/data_pipelines/requirements.txt .
 RUN uv pip install --system --no-cache -r requirements.txt
 
 COPY src/data_pipelines/ .
+COPY src/ml/ /app/ml/
 
+ENV PYTHONPATH=/app:/app/ml
 
 EXPOSE 8000
 

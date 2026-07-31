@@ -52,7 +52,7 @@ services:
       - NOTION_SUBSTACK_POSTS_GENERATION_API_KEY=${NOTION_SUBSTACK_POSTS_GENERATION_API_KEY}
       - BUFFER_API_KEY=${BUFFER_API_KEY}
       - HUGGING_FACE_TOKEN=${HUGGING_FACE_TOKEN}
-      - ML_SERVICE_URL=${ML_SERVICE_URL:-http://ml:8000}
+      - ML_SERVICE_URL=${ML_SERVICE_URL:-http://dapp:8000}
       - WEBHOOK_URL=${WEBHOOK_URL:-https://jager.n8n.com/}
       - GENERIC_TIMEZONE=Europe/Berlin
       - N8N_PROXY_HOPS=1
@@ -60,7 +60,7 @@ services:
       - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
       - MOTHERDUCK_HOST=${MOTHERDUCK_HOST:-pg.us-east-1-aws.motherduck.com}
       - MOTHERDUCK_USER=${MOTHERDUCK_USER:-postgres}
-      - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://data-pipeline:8000}
+      - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://dapp:8000}
       - CDP_SERVICE_URL=${CDP_SERVICE_URL:-http://cdp:8000}
     depends_on:
       - db
@@ -73,23 +73,7 @@ services:
       retries: 60
       start_period: 120s
 
-  ml:
-    build:
-      context: ./
-      dockerfile: src/ml/Dockerfile
-    restart: always
-    profiles:
-      - data
-      - all
-    environment:
-      - DATABASE_URL=postgresql://jager:jager@db:5432/jager
-      - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
-      - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
-    depends_on:
-      - db
-
-
-  data-pipeline:
+  dapp:
     build:
       context: ./
       dockerfile: src/data_pipelines/Dockerfile
