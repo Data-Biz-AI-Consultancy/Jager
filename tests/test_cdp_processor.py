@@ -118,3 +118,24 @@ def test_cdp_fastapi_endpoints():
         assert response.status_code == 500
         assert response.json()["detail"] == "Database connection error"
 
+    # Manual data endpoint success
+    with patch.object(cdp_main, 'process_manual_data', return_value={"status": "success", "leads_processed": 3}):
+        response = client.post("/process/manual_data")
+        assert response.status_code == 200
+        assert response.json()["leads_processed"] == 3
+
+
+def test_process_manual_data_no_tables():
+    from processors.process_manual_data import process_manual_data
+    mock_engine = MagicMock()
+    mock_conn = MagicMock()
+    mock_engine.begin.return_value.__enter__.return_value = mock_conn
+    mock_conn.execute.return_value.fetchall.return_value = []
+
+    with patch('processors.process_manual_data.get_db_engine', return_value=mock_engine):
+        result = process_manual_data()
+        assert result["status"] == "success"
+        assert result["leads_processed"] == 0
+        assert result["persons_processed"] == 0
+
+
