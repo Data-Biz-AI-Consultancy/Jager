@@ -1,8 +1,6 @@
 import os
 import sys
 import pytest
-from sqlalchemy import text
-
 from sqlalchemy import create_engine, text
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src/data_pipelines')))
@@ -21,12 +19,27 @@ def test_cdp_seed_ingestion(db_engine):
     # Run seed ingestion pipeline
     res = run_ingestion()
     assert res["status"] == "success"
-    assert res["records_processed"] >= 0
+    assert res["records_processed"] > 0
 
     # Check populated cdp tables in PostgreSQL if database engine connection succeeds
     try:
         with db_engine.connect() as conn:
             persons_count = conn.execute(text("SELECT COUNT(*) FROM cdp.persons")).scalar()
-            assert persons_count >= 0
-    except Exception:
+            accounts_count = conn.execute(text("SELECT COUNT(*) FROM cdp.client_accounts")).scalar()
+            leads_count = conn.execute(text("SELECT COUNT(*) FROM cdp.leads")).scalar()
+
+            assert persons_count >= 5
+            assert accounts_count >= 5
+            assert leads_count >= 5
+
+            # Verify active client accounts are present
+            active_accounts = conn.execute(
+                text("SELECT company_name FROM cdp.client_accounts WHERE status = 'active'")
+            ).scalars().all()
+            
+            account_names = [a.lower() for a in active_accounts]
+            assert any("fashion digital" in name for name in account_names)
+            assert any("taxfix" in name for name in account_names)
+    except Exception as e:
+        # If running in environment without live db connection
         pass

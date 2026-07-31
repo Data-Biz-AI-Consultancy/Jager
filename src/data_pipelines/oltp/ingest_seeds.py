@@ -104,16 +104,18 @@ def run_ingestion():
                             if company_name:
                                 account_id = str(uuid.uuid4())
                                 domain = company_name.lower().replace(" ", "").replace(",", "") + ".com"
+                                acc_status = row.get('account_status', 'prospect').strip()
                                 acc_res = conn.execute(
                                     text("""
                                         INSERT INTO cdp.client_accounts (id, company_name, domain, status, created_at, updated_at)
-                                        VALUES (:id, :company_name, :domain, 'prospect', NOW(), NOW())
+                                        VALUES (:id, :company_name, :domain, :status, NOW(), NOW())
                                         ON CONFLICT (domain) DO UPDATE SET
                                             company_name = EXCLUDED.company_name,
+                                            status = EXCLUDED.status,
                                             updated_at = NOW()
                                         RETURNING id
                                     """),
-                                    {"id": account_id, "company_name": company_name, "domain": domain}
+                                    {"id": account_id, "company_name": company_name, "domain": domain, "status": acc_status}
                                 )
                                 client_account_id = acc_res.scalar()
 
