@@ -37,11 +37,20 @@ def run_ingestion():
                     with open(fpath, mode='r', encoding='utf-8') as f:
                         reader = csv.DictReader(f)
                         for row in reader:
-                            email = row.get('email', '').strip()
+                            # Handle different CSV casing (e.g. 'Email' vs 'email', 'Name' vs 'first_name')
+                            row_lower = {k.lower(): v for k, v in row.items() if k}
+                            email = row_lower.get('email', '').strip()
                             if not email:
                                 continue
-                            first_name = row.get('first_name', '').strip()
-                            last_name = row.get('last_name', '').strip()
+                            
+                            # Parse name fields
+                            name_val = row_lower.get('name', '').strip()
+                            first_name = row_lower.get('first_name', '').strip()
+                            last_name = row_lower.get('last_name', '').strip()
+                            if name_val and not (first_name or last_name):
+                                name_parts = name_val.split(' ', 1)
+                                first_name = name_parts[0]
+                                last_name = name_parts[1] if len(name_parts) > 1 else ''
 
                             # Upsert person
                             person_id = str(uuid.uuid4())
