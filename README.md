@@ -30,22 +30,45 @@ Access your local N8N instance at [http://localhost](http://localhost).
 
 ---
 
-## Architecture
+## Architecture & Microservice Interactions
 
-Jager is structured around three core application components, supported by containerized databases:
+Jager is structured around four core application components:
 
-*   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to coordinate and schedule all automated workflows.
-*   **CDP App ([src/cdp/](src/cdp/README.md))**: A dedicated FastAPI microservice responsible for Customer Data Platform domain processing, profile normalization, and identity resolution.
-*   **Data Pipelines App ([src/data_pipelines/](src/data_pipelines/README.md))**: A dedicated Python application handling all data ingestion (writing raw feeds to the operational PostgreSQL OLTP database, and loading analytical data to MotherDuck) and data transformations (using **dlt** and **dbt**).
-*   **ML App ([src/ml/](src/ml/README.md))**: A dedicated machine learning Python application responsible for model training, validation, and generation of publishing timeslot recommendations.
+```mermaid
+flowchart TD
+    N8N["N8N Orchestration (src/n8n/)<br/>Workflow Scheduler & Orchestrator"]
+    
+    subgraph DataServices["Python Microservices & Pipelines"]
+        DP["Data Pipelines App (src/data_pipelines/)<br/>dlt & dbt OLTP/OLAP Ingestion"]
+        CDP["CDP App (src/cdp/)<br/>Customer Data Platform Domain Service"]
+        ML["ML App (src/ml/)<br/>Timeslot Training & Prediction"]
+    end
+    
+    subgraph Storage["Storage Layer"]
+        PG[("PostgreSQL (db)<br/>OLTP Data & cdp.* Schema")]
+        MD[("MotherDuck<br/>OLAP Data & ds_* Datasets")]
+    end
+    
+    N8N -->|"HTTP POST /run/*"| DP
+    N8N -->|"HTTP POST /process/*"| CDP
+    N8N -->|"HTTP POST /predict"| ML
+    
+    DP -->|"Ingest / Transform"| PG
+    DP -->|"Sync OLAP / Reverse ETL"| MD
+    CDP -->|"Normalize Persons, Accounts & Relationships"| PG
+    ML -->|"Features & Predictions"| MD
+```
 
-
+*   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
+*   **CDP App ([src/cdp/](src/cdp/README.md))**: A dedicated FastAPI domain microservice responsible for Customer Data Platform logic (managing `cdp.persons`, `cdp.client_accounts`, `cdp.leads`, `cdp.person_account_relationships`, and `cdp.engagements`). N8N triggers CDP processing via HTTP requests (`CDP_SERVICE_URL`).
+*   **Data Pipelines App ([src/data_pipelines/](src/data_pipelines/README.md))**: A dedicated Python application handling data ingestion (writing raw feeds into PostgreSQL ODS schemas) and loading analytics data to MotherDuck via **dlt** and **dbt**. N8N triggers ingestion via `DATA_PIPELINE_URL`.
+*   **ML App ([src/ml/](src/ml/README.md))**: A dedicated machine learning Python microservice responsible for model training, validation, and publishing timeslot predictions. N8N triggers ML inference via `ML_SERVICE_URL`.
 
 ### Database & Storage Schemas
 
-We organize our databases into clear schemas for operational (OLTP) and analytical (OLAP) processing:
-- **OLTP Schema (PostgreSQL)**: Stores operational data (e.g. Reddit, Slack, Substack feeds) inside schema-scoped ODS namespaces. Refer to the [OLTP Database Documentation](src/data_pipelines/oltp/README.md) for table schemas.
-- **OLAP Schema (MotherDuck)**: Stores features, validation snapshots, and serialized model metrics for ML workflows. Refer to the [OLAP Database Documentation](src/data_pipelines/olap/README.md) for details.
+We organize our databases into clear operational (OLTP) and analytical (OLAP) processing schemas:
+- **OLTP Schema (PostgreSQL)**: Stores operational source data (`s_*` schemas) and core CDP domain entities (`cdp.*` schema). Refer to the [CDP Documentation](src/cdp/README.md) and [OLTP Database Documentation](src/data_pipelines/oltp/README.md) for details.
+- **OLAP Schema (MotherDuck)**: Stores curated presentation data (`t_jager`), features, validation snapshots, and serialized model metrics for ML workflows. Refer to the [OLAP Database Documentation](src/data_pipelines/olap/README.md) for details.
 
 
 ---
