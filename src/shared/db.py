@@ -17,9 +17,9 @@ def setup_logging(name: str) -> logging.Logger:
         logger.setLevel(logging.INFO)
     return logger
 
-def get_db_engine(default_url: str = "postgresql://jager:jager@db:5432/jager"):
+def get_db_engine(default_url: str = "postgresql://jager:jager@db:5432/jager", env_var: str = "DATABASE_URL"):
     """Returns a SQLAlchemy engine for PostgreSQL database connection."""
-    pg_url = os.getenv("DATABASE_URL", default_url)
+    pg_url = os.getenv(env_var, default_url)
     return create_engine(pg_url)
 
 def create_motherduck_pipeline(pipeline_name: str, dataset_name: str):

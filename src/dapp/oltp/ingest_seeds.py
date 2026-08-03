@@ -19,7 +19,7 @@ def get_workspace_root():
 
 def run_ingestion():
     logger.info("Initializing DB engine for CDP seed ingestion...")
-    engine = get_db_engine()
+    engine = get_db_engine(default_url="postgresql://jager:jager@db:5432/cdp", env_var="CDP_DATABASE_URL")
     root_dir = get_workspace_root()
 
     substack_dir = os.path.join(root_dir, 'data', 'seed', 'substack')
