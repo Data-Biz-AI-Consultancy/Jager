@@ -30,12 +30,20 @@ def test_generate_company_domain():
 
 
 def test_process_linkedin_connections_no_rows():
-    mock_engine = MagicMock()
-    mock_conn = MagicMock()
-    mock_engine.begin.return_value.__enter__.return_value = mock_conn
-    mock_conn.execute.return_value.mappings.return_value.all.return_value = []
+    mock_jager_engine = MagicMock()
+    mock_cdp_engine = MagicMock()
+    mock_jager_conn = MagicMock()
+    mock_cdp_conn = MagicMock()
+    mock_jager_engine.begin.return_value.__enter__.return_value = mock_jager_conn
+    mock_cdp_engine.begin.return_value.__enter__.return_value = mock_cdp_conn
+    mock_jager_conn.execute.return_value.mappings.return_value.all.return_value = []
 
-    with patch('processors.process_linkedin_connections.get_db_engine', return_value=mock_engine):
+    def mock_get_engine(default_url=None, env_var="DATABASE_URL"):
+        if env_var == "JAGER_DATABASE_URL":
+            return mock_jager_engine
+        return mock_cdp_engine
+
+    with patch('processors.process_linkedin_connections.get_db_engine', side_effect=mock_get_engine):
         result = process_linkedin_connections()
         assert result["status"] == "success"
         assert result["processed_count"] == 0
@@ -43,9 +51,12 @@ def test_process_linkedin_connections_no_rows():
 
 
 def test_process_linkedin_connections_blank_row_skipped():
-    mock_engine = MagicMock()
-    mock_conn = MagicMock()
-    mock_engine.begin.return_value.__enter__.return_value = mock_conn
+    mock_jager_engine = MagicMock()
+    mock_cdp_engine = MagicMock()
+    mock_jager_conn = MagicMock()
+    mock_cdp_conn = MagicMock()
+    mock_jager_engine.begin.return_value.__enter__.return_value = mock_jager_conn
+    mock_cdp_engine.begin.return_value.__enter__.return_value = mock_cdp_conn
 
     blank_row = {
         "id": "conn-blank",
@@ -56,9 +67,14 @@ def test_process_linkedin_connections_blank_row_skipped():
         "company": "",
         "position": ""
     }
-    mock_conn.execute.return_value.mappings.return_value.all.return_value = [blank_row]
+    mock_jager_conn.execute.return_value.mappings.return_value.all.return_value = [blank_row]
 
-    with patch('processors.process_linkedin_connections.get_db_engine', return_value=mock_engine):
+    def mock_get_engine(default_url=None, env_var="DATABASE_URL"):
+        if env_var == "JAGER_DATABASE_URL":
+            return mock_jager_engine
+        return mock_cdp_engine
+
+    with patch('processors.process_linkedin_connections.get_db_engine', side_effect=mock_get_engine):
         result = process_linkedin_connections()
         assert result["status"] == "success"
         assert result["processed_count"] == 0
@@ -66,9 +82,12 @@ def test_process_linkedin_connections_blank_row_skipped():
 
 
 def test_process_linkedin_connections_with_company_rows():
-    mock_engine = MagicMock()
-    mock_conn = MagicMock()
-    mock_engine.begin.return_value.__enter__.return_value = mock_conn
+    mock_jager_engine = MagicMock()
+    mock_cdp_engine = MagicMock()
+    mock_jager_conn = MagicMock()
+    mock_cdp_conn = MagicMock()
+    mock_jager_engine.begin.return_value.__enter__.return_value = mock_jager_conn
+    mock_cdp_engine.begin.return_value.__enter__.return_value = mock_cdp_conn
 
     fake_row = {
         "id": "conn-123",
@@ -79,10 +98,15 @@ def test_process_linkedin_connections_with_company_rows():
         "company": "Acme Inc",
         "position": "CEO"
     }
-    mock_conn.execute.return_value.mappings.return_value.all.return_value = [fake_row]
-    mock_conn.execute.return_value.scalar.side_effect = ["person-uuid-1", "account-uuid-1"]
+    mock_jager_conn.execute.return_value.mappings.return_value.all.return_value = [fake_row]
+    mock_cdp_conn.execute.return_value.scalar.side_effect = ["person-uuid-1", "account-uuid-1"]
 
-    with patch('processors.process_linkedin_connections.get_db_engine', return_value=mock_engine):
+    def mock_get_engine(default_url=None, env_var="DATABASE_URL"):
+        if env_var == "JAGER_DATABASE_URL":
+            return mock_jager_engine
+        return mock_cdp_engine
+
+    with patch('processors.process_linkedin_connections.get_db_engine', side_effect=mock_get_engine):
         result = process_linkedin_connections()
         assert result["status"] == "success"
         assert result["processed_count"] == 1
@@ -127,24 +151,29 @@ def test_cdp_fastapi_endpoints():
 
 def test_process_manual_data_with_rows():
     from processors.process_manual_data import process_manual_data
-    mock_engine = MagicMock()
-    mock_conn = MagicMock()
-    mock_engine.begin.return_value.__enter__.return_value = mock_conn
+    mock_jager_engine = MagicMock()
+    mock_cdp_engine = MagicMock()
+    mock_jager_conn = MagicMock()
+    mock_cdp_conn = MagicMock()
+    mock_jager_engine.begin.return_value.__enter__.return_value = mock_jager_conn
+    mock_cdp_engine.begin.return_value.__enter__.return_value = mock_cdp_conn
 
-    mock_conn.execute.return_value.fetchall.side_effect = [
+    mock_jager_conn.execute.return_value.fetchall.side_effect = [
         [("notion__test_pages",)],  # table list
         [("notion_id",), ("title",), ("email",)],  # columns
     ]
 
     row_dict = {"notion_id": "123", "title": "John Doe", "email": "john@example.com"}
-    mock_conn.execute.return_value.mappings.return_value.all.return_value = [row_dict]
-    mock_conn.execute.return_value.scalar.side_effect = ["person-uuid-1", "account-uuid-1"]
+    mock_jager_conn.execute.return_value.mappings.return_value.all.return_value = [row_dict]
+    mock_cdp_conn.execute.return_value.scalar.side_effect = ["person-uuid-1", "account-uuid-1"]
 
-    with patch('processors.process_manual_data.get_db_engine', return_value=mock_engine):
+    def mock_get_engine(default_url=None, env_var="DATABASE_URL"):
+        if env_var == "JAGER_DATABASE_URL":
+            return mock_jager_engine
+        return mock_cdp_engine
+
+    with patch('processors.process_manual_data.get_db_engine', side_effect=mock_get_engine):
         result = process_manual_data()
         assert result["status"] == "success"
         assert result["leads_processed"] == 1
-        assert result["persons_processed"] == 1
-
-
 

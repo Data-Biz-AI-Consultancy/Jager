@@ -22,20 +22,20 @@ logger = setup_logging("cdp-manual-data-processor")
 
 def process_manual_data():
     """
-    Cross-checks Substack Subscriber data from s_manual schema against LinkedIn connections
-    in cdp.persons (matching on primary_email, name, or linkedin_url) to maintain a complete,
-    unified view of contacts across different sources (FULL OUTER JOIN semantics).
+    Cross-checks Substack Subscriber data from s_manual schema in jager DB against LinkedIn connections
+    in cdp.persons (in cdp DB) to maintain a complete, unified view of contacts.
     """
     logger.info("Starting processing of s_manual tables into cdp schema...")
-    engine = get_db_engine()
+    jager_engine = get_db_engine(default_url="postgresql://jager:jager@db:5432/jager", env_var="JAGER_DATABASE_URL")
+    cdp_engine = get_db_engine(default_url="postgresql://jager:jager@db:5432/cdp", env_var="DATABASE_URL")
 
     leads_processed = 0
     persons_processed = 0
     accounts_processed = 0
 
-    with engine.begin() as conn:
-        # 1. Discover user data tables in s_manual schema (excluding dlt metadata tables)
-        tables_res = conn.execute(
+    with jager_engine.begin() as jager_conn, cdp_engine.begin() as cdp_conn:
+        # 1. Discover user data tables in s_manual schema in jager DB
+        tables_res = jager_conn.execute(
             text(r"""
                 SELECT table_name
                 FROM information_schema.tables
@@ -49,7 +49,7 @@ def process_manual_data():
         logger.info(f"Found {len(table_names)} user data tables in s_manual: {table_names}")
 
         for table in table_names:
-            cols_res = conn.execute(
+            cols_res = jager_conn.execute(
                 text("""
                     SELECT column_name
                     FROM information_schema.columns
@@ -64,7 +64,7 @@ def process_manual_data():
             where_clause = "WHERE processed = 0" if has_processed else ""
 
             select_query = f"SELECT * FROM s_manual.{table} {where_clause}"
-            rows = conn.execute(text(select_query)).mappings().all()
+            rows = jager_conn.execute(text(select_query)).mappings().all()
 
             if not rows:
                 logger.info(f"No unprocessed rows found in s_manual.{table}.")
@@ -160,12 +160,12 @@ def process_manual_data():
                 # Skip blank records with no identifying fields
                 if not first_name and not last_name and not email and not linkedin_url and not company and not raw_name:
                     if has_processed and "id" in row_dict:
-                        conn.execute(
+                        jager_conn.execute(
                             text(f"UPDATE s_manual.{table} SET processed = 1 WHERE id = :row_id"),
                             {"row_id": row_dict["id"]}
                         )
                     elif has_processed and "notion_id" in row_dict:
-                        conn.execute(
+                        jager_conn.execute(
                             text(f"UPDATE s_manual.{table} SET processed = 1 WHERE notion_id = :row_id"),
                             {"row_id": row_dict["notion_id"]}
                         )
@@ -179,7 +179,7 @@ def process_manual_data():
                 # Matches existing person by primary_email or linkedin_url, merging attributes if matched
                 person_id = None
                 if first_name or last_name or email or linkedin_url:
-                    person_res = conn.execute(
+                    person_res = cdp_conn.execute(
                         text("""
                             WITH existing_person AS (
                               SELECT id FROM cdp.persons
@@ -234,7 +234,7 @@ def process_manual_data():
                 client_account_id = None
                 if company:
                     domain = generate_company_domain(company)
-                    account_res = conn.execute(
+                    account_res = cdp_conn.execute(
                         text("""
                             WITH existing_account AS (
                               SELECT id FROM cdp.client_accounts
@@ -270,7 +270,7 @@ def process_manual_data():
                 full_lead_name = f"{first_name} {last_name}".strip() or raw_name or company or "Manual Lead"
                 serialized_json = json.dumps(row_dict, default=str)
 
-                conn.execute(
+                cdp_conn.execute(
                     text("""
                         INSERT INTO cdp.leads (
                             person_id, client_account_id, full_name, description, status, source, raw_payload, intake_at, updated_at
@@ -293,12 +293,12 @@ def process_manual_data():
                 # 4. Mark row as processed if column exists
                 if has_processed:
                     if "id" in row_dict:
-                        conn.execute(
+                        jager_conn.execute(
                             text(f"UPDATE s_manual.{table} SET processed = 1 WHERE id = :row_id"),
                             {"row_id": row_dict["id"]}
                         )
                     elif "notion_id" in row_dict:
-                        conn.execute(
+                        jager_conn.execute(
                             text(f"UPDATE s_manual.{table} SET processed = 1 WHERE notion_id = :row_id"),
                             {"row_id": row_dict["notion_id"]}
                         )

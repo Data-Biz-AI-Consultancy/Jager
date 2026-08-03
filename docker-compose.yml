@@ -103,7 +103,8 @@ services:
       - all
     environment:
       - PYTHONDONTWRITEBYTECODE=1
-      - DATABASE_URL=postgresql://jager:jager@db:5432/jager
+      - DATABASE_URL=postgresql://jager:jager@db:5432/cdp
+      - JAGER_DATABASE_URL=postgresql://jager:jager@db:5432/jager
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
       - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
       - NOTION_API_KEY=${NOTION_API_KEY}

@@ -5,24 +5,13 @@ set -e
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
 	SELECT 'CREATE DATABASE n8n'
 	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'n8n')\gexec
+	SELECT 'CREATE DATABASE cdp'
+	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'cdp')\gexec
 EOSQL
 
 
-# Initialize OLTP database
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-	CREATE SCHEMA IF NOT EXISTS s_reddit;
-	CREATE SCHEMA IF NOT EXISTS s_slack;
-	CREATE SCHEMA IF NOT EXISTS s_substack;
-	CREATE SCHEMA IF NOT EXISTS s_meetup;
-	CREATE SCHEMA IF NOT EXISTS s_euro_stat;
-	CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
-	CREATE SCHEMA IF NOT EXISTS s_wordpress;
-	CREATE SCHEMA IF NOT EXISTS s_linkedin;
-	CREATE SCHEMA IF NOT EXISTS s_notion;
-	CREATE SCHEMA IF NOT EXISTS s_zernio;
-	CREATE SCHEMA IF NOT EXISTS s_buffer;
-	CREATE SCHEMA IF NOT EXISTS s_manual;
-	CREATE SCHEMA IF NOT EXISTS s_motherduck;
+# Initialize CDP database
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	CREATE SCHEMA IF NOT EXISTS cdp;
 
 	-- Client Account status lifecycle: 'prospect', 'reached', 'decision_maker_reached', 'contract_signed', 'engaging', 'completed'
@@ -106,6 +95,24 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
+EOSQL
+
+
+# Initialize OLTP database
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+	CREATE SCHEMA IF NOT EXISTS s_reddit;
+	CREATE SCHEMA IF NOT EXISTS s_slack;
+	CREATE SCHEMA IF NOT EXISTS s_substack;
+	CREATE SCHEMA IF NOT EXISTS s_meetup;
+	CREATE SCHEMA IF NOT EXISTS s_euro_stat;
+	CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
+	CREATE SCHEMA IF NOT EXISTS s_wordpress;
+	CREATE SCHEMA IF NOT EXISTS s_linkedin;
+	CREATE SCHEMA IF NOT EXISTS s_notion;
+	CREATE SCHEMA IF NOT EXISTS s_zernio;
+	CREATE SCHEMA IF NOT EXISTS s_buffer;
+	CREATE SCHEMA IF NOT EXISTS s_manual;
+	CREATE SCHEMA IF NOT EXISTS s_motherduck;
 
 
 

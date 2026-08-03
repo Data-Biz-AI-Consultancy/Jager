@@ -36,24 +36,8 @@ if (process.env.DB_APPLICATION_URL) {
 
 console.log(`Database migration script connecting via: ${configLog}`);
 
-const ddl = `
+const cdpDdl = `
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-CREATE EXTENSION IF NOT EXISTS vector;
-
-CREATE SCHEMA IF NOT EXISTS s_reddit;
-CREATE SCHEMA IF NOT EXISTS s_slack;
-CREATE SCHEMA IF NOT EXISTS s_substack;
-CREATE SCHEMA IF NOT EXISTS s_meetup;
-CREATE SCHEMA IF NOT EXISTS s_euro_stat;
-CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
-CREATE SCHEMA IF NOT EXISTS s_wordpress;
-CREATE SCHEMA IF NOT EXISTS s_linkedin;
-CREATE SCHEMA IF NOT EXISTS s_analytics;
-CREATE SCHEMA IF NOT EXISTS s_notion;
-CREATE SCHEMA IF NOT EXISTS s_zernio;
-CREATE SCHEMA IF NOT EXISTS s_buffer;
-CREATE SCHEMA IF NOT EXISTS s_manual;
-CREATE SCHEMA IF NOT EXISTS s_motherduck;
 CREATE SCHEMA IF NOT EXISTS cdp;
 
 -- Client Account status lifecycle: 'prospect', 'reached', 'decision_maker_reached', 'contract_signed', 'engaging', 'completed'
@@ -136,6 +120,26 @@ ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
+`;
+
+const ddl = `
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE SCHEMA IF NOT EXISTS s_reddit;
+CREATE SCHEMA IF NOT EXISTS s_slack;
+CREATE SCHEMA IF NOT EXISTS s_substack;
+CREATE SCHEMA IF NOT EXISTS s_meetup;
+CREATE SCHEMA IF NOT EXISTS s_euro_stat;
+CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
+CREATE SCHEMA IF NOT EXISTS s_wordpress;
+CREATE SCHEMA IF NOT EXISTS s_linkedin;
+CREATE SCHEMA IF NOT EXISTS s_analytics;
+CREATE SCHEMA IF NOT EXISTS s_notion;
+CREATE SCHEMA IF NOT EXISTS s_zernio;
+CREATE SCHEMA IF NOT EXISTS s_buffer;
+CREATE SCHEMA IF NOT EXISTS s_manual;
+CREATE SCHEMA IF NOT EXISTS s_motherduck;
 
 
 
@@ -1113,9 +1117,44 @@ async function run() {
 
   console.log('Application database migrations and data transfers completed successfully.');
   await client.end();
+
+  // Run CDP database migrations
+  const cdpClient = new Client({
+    host: process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db',
+    port: parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10),
+    database: 'cdp',
+    user: process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager',
+    password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',
+  });
+  try {
+    console.log('Connecting to cdp database for migrations...');
+    await cdpClient.connect();
+  } catch (err) {
+    if (err.code === '3D000') {
+      // Database does not exist, create it via admin client connection to postgres DB
+      const adminClient = new Client({
+        host: process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db',
+        port: parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10),
+        database: 'jager',
+        user: process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager',
+        password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',
+      });
+      await adminClient.connect();
+      await adminClient.query('CREATE DATABASE cdp');
+      await adminClient.end();
+      await cdpClient.connect();
+    } else {
+      throw err;
+    }
+  }
+  console.log('Applying cdp database schema DDL...');
+  await cdpClient.query(cdpDdl);
+  console.log('CDP database migrations completed successfully.');
+  await cdpClient.end();
 }
 
 run().catch(err => {
   console.error('Database migration failed:', err);
   process.exit(1);
 });
+

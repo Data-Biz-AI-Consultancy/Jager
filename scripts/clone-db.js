@@ -62,13 +62,19 @@ async function waitForPostgres(dockerComposeCmd, timeoutSeconds = 30) {
 
 // ─── Usage ────────────────────────────────────────────────────────────────────
 
+// ─── Usage ────────────────────────────────────────────────────────────────────
+
 function usage() {
   console.log(`
 Usage: node scripts/clone-db.js <PROD_DATABASE_URL> [options]
 
 Options:
-  --skip-n8n, --jager-only    Only clone the 'jager' database, skip 'n8n' database
-  --skip-jager, --n8n-only    Only clone the 'n8n' database, skip 'jager' database
+  --skip-n8n                  Skip cloning 'n8n' database
+  --skip-cdp                  Skip cloning 'cdp' database
+  --skip-jager                Skip cloning 'jager' database
+  --jager-only                Only clone 'jager' database
+  --n8n-only                  Only clone 'n8n' database
+  --cdp-only                  Only clone 'cdp' database
   --include-history           Include n8n execution log table data (execution_entity,
                               execution_data, execution_metadata). By default these
                               tables are skipped as they can be very large.
@@ -92,8 +98,14 @@ if (args.includes('--help') || args.includes('-h')) usage();
 const connectionString = args.find(
   a => a.startsWith('postgres://') || a.startsWith('postgresql://') || a.includes('@')
 );
-const skipN8N        = args.includes('--skip-n8n')    || args.includes('--jager-only');
-const skipJager      = args.includes('--skip-jager')   || args.includes('--n8n-only');
+const cdpOnly        = args.includes('--cdp-only');
+const n8nOnly        = args.includes('--n8n-only');
+const jagerOnly      = args.includes('--jager-only');
+
+const skipN8N        = args.includes('--skip-n8n') || jagerOnly || cdpOnly;
+const skipCDP        = args.includes('--skip-cdp') || jagerOnly || n8nOnly;
+const skipJager      = args.includes('--skip-jager') || n8nOnly || cdpOnly;
+
 const includeHistory = args.includes('--include-history');
 const excludeHistory = !includeHistory; // excluded by default; use --include-history to opt in
 
@@ -109,16 +121,22 @@ const numJobs    = (jobsIdx !== -1 && args[jobsIdx + 1])
 
 let PROD_JAGER_URL      = connectionString || process.env.PROD_DATABASE_URL || process.env.PROD_JAGER_URL;
 let PROD_N8N_URL        = process.env.PROD_N8N_URL;
+let PROD_CDP_URL        = process.env.PROD_CDP_URL;
 
 if (PROD_JAGER_URL) {
   try {
     const urlObj = new URL(PROD_JAGER_URL);
-    if (urlObj.pathname !== '/n8n') {
+    if (!PROD_N8N_URL) {
       urlObj.pathname = '/n8n';
       PROD_N8N_URL = urlObj.toString();
     }
+    if (!PROD_CDP_URL) {
+      urlObj.pathname = '/cdp';
+      PROD_CDP_URL = urlObj.toString();
+    }
   } catch {
-    PROD_N8N_URL = PROD_JAGER_URL.replace(/\/jager(\?|$)/, '/n8n$1');
+    if (!PROD_N8N_URL) PROD_N8N_URL = PROD_JAGER_URL.replace(/\/jager(\?|$)/, '/n8n$1');
+    if (!PROD_CDP_URL) PROD_CDP_URL = PROD_JAGER_URL.replace(/\/jager(\?|$)/, '/cdp$1');
   }
 }
 
@@ -361,6 +379,16 @@ async function cloneDatabase(dbName, prodUrl) {
     }
   } else {
     console.log("Skipping 'jager' database clone.");
+  }
+
+  if (!skipCDP) {
+    if (PROD_CDP_URL) {
+      tasks.push(cloneDatabase('cdp', PROD_CDP_URL));
+    } else {
+      console.log("Production URL for 'cdp' not available. Skipping.");
+    }
+  } else {
+    console.log("Skipping 'cdp' database clone.");
   }
 
   if (!skipN8N) {
