@@ -549,6 +549,19 @@ async function cloneDatabase(dbName, prodUrl) {
     } catch (e) {
       console.warn('Warning: CDP auto-seed check failed:', e.message);
     }
+
+    // Mirror cdp schema into jager database so the 'Jager (Dev)' PostgreSQL Explorer
+    // connection (database: jager) can browse cdp.leads, cdp.persons etc without switching connections.
+    console.log('Mirroring cdp schema into jager database for IDE browsing...');
+    try {
+      await execAsync(
+        `${dockerComposeCmd} exec -T db sh -c "pg_dump -U jager -d cdp -n cdp | psql -U jager -d jager -q"`,
+        { maxBuffer: 50 * 1024 * 1024 }
+      );
+      console.log('cdp schema mirrored into jager database.');
+    } catch (e) {
+      console.warn('Warning: cdp schema mirror into jager failed:', e.message);
+    }
   }
 
   console.log('Database clone process completed.');
