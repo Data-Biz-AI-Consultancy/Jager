@@ -544,6 +544,29 @@ async function cloneDatabase(dbName, prodUrl) {
     console.log('n8n database updated. Refresh the n8n browser tab to see the new data.');
   }
 
+  // ── Seed CDP local data if empty ──────────────────────────────────────────
+  if (!skipCDP) {
+    try {
+      const { stdout: countOut } = await execAsync(
+        `${dockerComposeCmd} exec -T db psql -U jager -d cdp -tAc "SELECT COUNT(*) FROM cdp.leads;"`,
+        { maxBuffer: 1 * 1024 * 1024 }
+      );
+      const leadCount = parseInt(countOut.trim(), 10) || 0;
+      if (leadCount === 0) {
+        console.log('Local CDP database is empty. Ingesting seed data (substack & cdp seeds)...');
+        await execAsync(
+          `${dockerComposeCmd} exec -T dapp python /app/src/dapp/oltp/ingest_seeds.py`,
+          { maxBuffer: 50 * 1024 * 1024 }
+        );
+        console.log('Local CDP database seeded successfully.');
+      } else {
+        console.log(`Local CDP database verified (${leadCount} leads existing).`);
+      }
+    } catch (e) {
+      console.warn('Warning: CDP auto-seed check/ingestion failed:', e.message);
+    }
+  }
+
   console.log('Database clone process completed.');
 
 
