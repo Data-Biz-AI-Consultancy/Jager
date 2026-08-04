@@ -52,6 +52,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		message_count INTEGER DEFAULT 0,
 		summary TEXT,
 		convo_history TEXT,
+		intent VARCHAR(100),
+		signal_strength VARCHAR(50),
+		opportunity_type VARCHAR(100),
 		rate VARCHAR(100),
 		status VARCHAR(50) DEFAULT 'new',
 		source VARCHAR(100) NOT NULL DEFAULT 'manual',
@@ -101,6 +104,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS intent VARCHAR(100);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS signal_strength VARCHAR(50);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS opportunity_type VARCHAR(100);
 	ALTER TABLE cdp.leads RENAME COLUMN id TO conversation_id;
 EOSQL
 

@@ -18,6 +18,55 @@ except ImportError:
 logger = setup_logging("cdp-linkedin-messages-processor")
 
 
+def analyze_convo_nlp(convo_text: str):
+    """
+    Simple heuristic NLP rule engine to detect intent, signal strength, and opportunity type from conversation history.
+    """
+    if not convo_text:
+        return {
+            "intent": "general_inquiry",
+            "signal_strength": "low",
+            "opportunity_type": "unknown"
+        }
+
+    text_lower = convo_text.lower()
+
+    # 1. Opportunity Type Detection
+    opp_types = []
+    if any(k in text_lower for k in ["freelance", "freelancer", "contract", "contractor", "interim", "project-based"]):
+        opp_types.append("freelance_contract")
+    if any(k in text_lower for k in ["consulting", "advisory", "adviser", "consultant", "services", "access your service"]):
+        opp_types.append("consulting_advisory")
+    if any(k in text_lower for k in ["full time", "full-time", "permanent", "head of", "director", "lead", "hiring", "recruit", "talent partner"]):
+        opp_types.append("full_time_job")
+
+    opportunity_type = "/".join(opp_types) if opp_types else "general_inquiry"
+
+    # 2. Intent Detection
+    if any(k in text_lower for k in ["access your service", "how i can access", "hire you", "work together", "pricing", "quote", "rate"]):
+        intent = "inbound_service_request"
+    elif any(k in text_lower for k in ["recruiting", "talent partner", "open for a role", "job opportunity", "hiring"]):
+        intent = "recruitment_inbound"
+    elif any(k in text_lower for k in ["consulting", "advisory", "project"]):
+        intent = "business_collaboration"
+    else:
+        intent = "networking_inquiry"
+
+    # 3. Signal Strength Detection
+    if any(k in text_lower for k in ["access your service", "pricing", "rate", "quote", "proposal", "call next week", "call this week", "phone number"]):
+        signal_strength = "high"
+    elif any(k in text_lower for k in ["opportunity", "hiring", "role", "project", "freelance", "contract"]):
+        signal_strength = "medium"
+    else:
+        signal_strength = "low"
+
+    return {
+        "intent": intent,
+        "signal_strength": signal_strength,
+        "opportunity_type": opportunity_type
+    }
+
+
 def process_linkedin_messages():
     """
     Groups s_linkedin.messages from jager DB by conversation_id, matches counterpart contacts
@@ -166,20 +215,24 @@ def process_linkedin_messages():
                 description_text = f"LinkedIn Conversation with {full_name} ({msg_count} messages)."
 
             summary_text = description_text
+            nlp_result = analyze_convo_nlp(convo_transcript)
 
             cdp_conn.execute(
                 text("""
                     INSERT INTO cdp.leads (
-                        conversation_id, person_id, full_name, description, message_count, summary, convo_history, status, source, raw_payload, intake_at, updated_at
+                        conversation_id, person_id, full_name, description, message_count, summary, convo_history, intent, signal_strength, opportunity_type, status, source, raw_payload, intake_at, updated_at
                     )
                     VALUES (
-                        :conv_id, :person_id, :full_name, :description, :message_count, :summary, :convo_history, 'prospect', 'linkedin:message', CAST(:raw_payload AS jsonb), :intake_at, NOW()
+                        :conv_id, :person_id, :full_name, :description, :message_count, :summary, :convo_history, :intent, :signal_strength, :opportunity_type, 'prospect', 'linkedin:message', CAST(:raw_payload AS jsonb), :intake_at, NOW()
                     )
                     ON CONFLICT (conversation_id) DO UPDATE SET
                         description = EXCLUDED.description,
                         message_count = EXCLUDED.message_count,
                         summary = EXCLUDED.summary,
                         convo_history = EXCLUDED.convo_history,
+                        intent = EXCLUDED.intent,
+                        signal_strength = EXCLUDED.signal_strength,
+                        opportunity_type = EXCLUDED.opportunity_type,
                         raw_payload = EXCLUDED.raw_payload,
                         updated_at = NOW();
                 """),
@@ -191,6 +244,9 @@ def process_linkedin_messages():
                     "message_count": msg_count,
                     "summary": summary_text,
                     "convo_history": convo_transcript,
+                    "intent": nlp_result["intent"],
+                    "signal_strength": nlp_result["signal_strength"],
+                    "opportunity_type": nlp_result["opportunity_type"],
                     "intake_at": last_sent or first_sent,
                     "raw_payload": raw_payload
                 }
