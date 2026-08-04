@@ -168,18 +168,18 @@ def process_linkedin_messages():
             cdp_conn.execute(
                 text("""
                     INSERT INTO cdp.leads (
-                        id, person_id, full_name, description, status, source, raw_payload, intake_at, updated_at
+                        conversation_id, person_id, full_name, description, status, source, raw_payload, intake_at, updated_at
                     )
                     VALUES (
-                        :lead_id, :person_id, :full_name, :description, 'prospect', 'linkedin:message', CAST(:raw_payload AS jsonb), :intake_at, NOW()
+                        :conv_id, :person_id, :full_name, :description, 'prospect', 'linkedin:message', CAST(:raw_payload AS jsonb), :intake_at, NOW()
                     )
-                    ON CONFLICT (id) DO UPDATE SET
+                    ON CONFLICT (conversation_id) DO UPDATE SET
                         description = EXCLUDED.description,
                         raw_payload = EXCLUDED.raw_payload,
                         updated_at = NOW();
                 """),
                 {
-                    "lead_id": conv_id,
+                    "conv_id": conv_id,
                     "person_id": person_id,
                     "full_name": full_name,
                     "description": description_text,
