@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import uuid
 from sqlalchemy import text
 
 cdp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -145,21 +146,43 @@ def process_linkedin_messages():
                 "counterparty_url": profile_url
             })
 
-            description_text = (
-                f"LinkedIn conversation ({msg_count} msgs).\n\n--- Transcript ---\n{convo_transcript[:1000]}"
-                if convo_transcript else f"LinkedIn conversation ({msg_count} msgs)."
-            )
+            # Build a structured summary of the conversation history for description column
+            if convo_transcript:
+                first_date_str = str(first_sent.date()) if first_sent else "N/A"
+                last_date_str = str(last_sent.date()) if last_sent else "N/A"
+                
+                # Take up to the 3 most key messages (first message & recent messages)
+                lines = [line.strip() for line in convo_transcript.split('\n') if line.strip()]
+                if len(lines) <= 4:
+                    summary_excerpt = "\n".join(lines)
+                else:
+                    summary_excerpt = f"{lines[0]}\n...\n" + "\n".join(lines[-3:])
+
+                description_text = (
+                    f"LinkedIn Conversation Summary ({msg_count} messages, {first_date_str} to {last_date_str}):\n"
+                    f"{summary_excerpt}"
+                )
+            else:
+                description_text = f"LinkedIn Conversation with {full_name} ({msg_count} messages)."
+
+            # Generate deterministic UUID from LinkedIn conversation_id
+            lead_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, conv_id))
 
             cdp_conn.execute(
                 text("""
                     INSERT INTO cdp.leads (
-                        person_id, full_name, description, status, source, raw_payload, intake_at, updated_at
+                        id, person_id, full_name, description, status, source, raw_payload, intake_at, updated_at
                     )
                     VALUES (
-                        :person_id, :full_name, :description, 'prospect', 'linkedin:message', CAST(:raw_payload AS jsonb), :intake_at, NOW()
-                    );
+                        :lead_id, :person_id, :full_name, :description, 'prospect', 'linkedin:message', CAST(:raw_payload AS jsonb), :intake_at, NOW()
+                    )
+                    ON CONFLICT (id) DO UPDATE SET
+                        description = EXCLUDED.description,
+                        raw_payload = EXCLUDED.raw_payload,
+                        updated_at = NOW();
                 """),
                 {
+                    "lead_id": lead_uuid,
                     "person_id": person_id,
                     "full_name": full_name,
                     "description": description_text,
