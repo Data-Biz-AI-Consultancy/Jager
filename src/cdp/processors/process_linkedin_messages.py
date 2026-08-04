@@ -30,7 +30,7 @@ def process_linkedin_messages():
     persons_created = 0
 
     with jager_engine.begin() as jager_conn, cdp_engine.begin() as cdp_conn:
-        # Group s_linkedin.messages by conversation_id
+        # Group s_linkedin.messages by conversation_id, filtering for business opportunity signals
         conversations_query = text("""
             SELECT 
                 conversation_id,
@@ -62,6 +62,22 @@ def process_linkedin_messages():
                 ) as latest_snippet
             FROM s_linkedin.messages m
             GROUP BY conversation_id
+            HAVING BOOL_OR(
+                content ILIKE '%access%service%'
+                OR content ILIKE '%how%access%'
+                OR content ILIKE '%your service%'
+                OR content ILIKE '%consulting%'
+                OR content ILIKE '%advisory%'
+                OR content ILIKE '%pricing%'
+                OR content ILIKE '%rate%'
+                OR content ILIKE '%quote%'
+                OR content ILIKE '%proposal%'
+                OR content ILIKE '%freelance%'
+                OR content ILIKE '%contractor%'
+                OR content ILIKE '%opportunity%'
+                OR content ILIKE '%hire%you%'
+                OR content ILIKE '%work together%'
+            )
         """)
 
         conv_rows = jager_conn.execute(conversations_query).mappings().all()
