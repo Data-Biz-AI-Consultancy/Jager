@@ -165,9 +165,6 @@ def process_linkedin_messages():
             else:
                 description_text = f"LinkedIn Conversation with {full_name} ({msg_count} messages)."
 
-            # Generate deterministic UUID from LinkedIn conversation_id
-            lead_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, conv_id))
-
             cdp_conn.execute(
                 text("""
                     INSERT INTO cdp.leads (
@@ -182,7 +179,7 @@ def process_linkedin_messages():
                         updated_at = NOW();
                 """),
                 {
-                    "lead_id": lead_uuid,
+                    "lead_id": conv_id,
                     "person_id": person_id,
                     "full_name": full_name,
                     "description": description_text,

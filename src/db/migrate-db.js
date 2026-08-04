@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS cdp.persons (
 
 -- Lead status lifecycle: 'prospect', 'negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed', 'nurture', 'disqualified'
 CREATE TABLE IF NOT EXISTS cdp.leads (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id VARCHAR(255) PRIMARY KEY,
   person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
   full_name VARCHAR(255),
   description TEXT,
@@ -120,6 +120,7 @@ ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
+ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255);
 `;
 
 const ddl = `
