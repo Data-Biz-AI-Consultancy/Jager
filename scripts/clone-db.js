@@ -223,13 +223,30 @@ async function cloneDatabase(dbName, prodUrl) {
     );
 
     // ── Step 2: Clean existing database schema (without dropping database) ──
-    // Clearing public and cdp schemas preserves client connection handles so GUI tools don't crash
+    // We only drop 'public' and s_* schemas. The 'cdp' schema is intentionally
+    // preserved so that GUI IDE connections (PostgreSQL Explorer) bound to
+    // cdp/scratch.pgsql never lose their connection handle.
     log(`Clearing existing schemas in local database ${dbName}...`);
-    await run(
-      `${dockerComposeCmd} exec -T db psql -U jager -d ${dbName}` +
-        ` -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; DROP SCHEMA IF EXISTS cdp CASCADE;"`,
-      tag
-    );
+    if (dbName === 'jager') {
+      // Enumerate and drop all s_* schemas (ODS layer) plus public; leave cdp alone.
+      await run(
+        `${dockerComposeCmd} exec -T db psql -U jager -d ${dbName} -tAc ` +
+          `"SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 's\\_%' OR schema_name = 'public'"`,
+        tag
+      ).catch(() => {});
+      await run(
+        `${dockerComposeCmd} exec -T db psql -U jager -d ${dbName} -c ` +
+          `"DO \\$\\$ DECLARE r RECORD; BEGIN FOR r IN SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 's\\_%%' LOOP EXECUTE 'DROP SCHEMA IF EXISTS ' || quote_ident(r.schema_name) || ' CASCADE'; END LOOP; END \\$\\$; DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"`,
+        tag
+      );
+    } else {
+      // n8n and cdp databases: drop public + cdp schemas as before
+      await run(
+        `${dockerComposeCmd} exec -T db psql -U jager -d ${dbName}` +
+          ` -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; DROP SCHEMA IF EXISTS cdp CASCADE;"`,
+        tag
+      );
+    }
 
     // ── Step 4: Restore with pg_restore -Fd -j ───────────────────────────────
     log(`Restoring → local ${dbName}  (-j ${numJobs})...`);
