@@ -59,7 +59,13 @@ def process_linkedin_messages():
                     FROM s_linkedin.messages m2 
                     WHERE m2.conversation_id = m.conversation_id 
                     ORDER BY sent_at DESC LIMIT 1
-                ) as latest_snippet
+                ) as latest_snippet,
+                -- Concatenate full conversation transcript for downstream NLP scanning
+                string_agg(
+                    COALESCE(sender_name, 'Unknown') || ': ' || COALESCE(content, ''), 
+                    E'\n' 
+                    ORDER BY sent_at ASC
+                ) as convo_transcript
             FROM s_linkedin.messages m
             GROUP BY conversation_id
             HAVING BOOL_OR(
@@ -90,6 +96,7 @@ def process_linkedin_messages():
             first_sent = conv["first_sent_at"]
             last_sent = conv["last_sent_at"]
             snippet = conv["latest_snippet"] or ""
+            convo_transcript = conv["convo_transcript"] or ""
             msg_count = conv["msg_count"]
 
             parts = full_name.split(maxsplit=1)
@@ -134,10 +141,14 @@ def process_linkedin_messages():
                 "first_sent_at": str(first_sent),
                 "last_sent_at": str(last_sent),
                 "latest_snippet": snippet,
+                "convo_transcript": convo_transcript,
                 "counterparty_url": profile_url
             })
 
-            description_text = f"LinkedIn conversation ({msg_count} msgs). Latest: {snippet}" if snippet else f"LinkedIn conversation ({msg_count} msgs)."
+            description_text = (
+                f"LinkedIn conversation ({msg_count} msgs).\n\n--- Transcript ---\n{convo_transcript[:1000]}"
+                if convo_transcript else f"LinkedIn conversation ({msg_count} msgs)."
+            )
 
             cdp_conn.execute(
                 text("""
