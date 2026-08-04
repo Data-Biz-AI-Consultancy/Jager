@@ -165,16 +165,21 @@ def process_linkedin_messages():
             else:
                 description_text = f"LinkedIn Conversation with {full_name} ({msg_count} messages)."
 
+            summary_text = description_text
+
             cdp_conn.execute(
                 text("""
                     INSERT INTO cdp.leads (
-                        conversation_id, person_id, full_name, description, status, source, raw_payload, intake_at, updated_at
+                        conversation_id, person_id, full_name, description, message_count, summary, convo_history, status, source, raw_payload, intake_at, updated_at
                     )
                     VALUES (
-                        :conv_id, :person_id, :full_name, :description, 'prospect', 'linkedin:message', CAST(:raw_payload AS jsonb), :intake_at, NOW()
+                        :conv_id, :person_id, :full_name, :description, :message_count, :summary, :convo_history, 'prospect', 'linkedin:message', CAST(:raw_payload AS jsonb), :intake_at, NOW()
                     )
                     ON CONFLICT (conversation_id) DO UPDATE SET
                         description = EXCLUDED.description,
+                        message_count = EXCLUDED.message_count,
+                        summary = EXCLUDED.summary,
+                        convo_history = EXCLUDED.convo_history,
                         raw_payload = EXCLUDED.raw_payload,
                         updated_at = NOW();
                 """),
@@ -183,6 +188,9 @@ def process_linkedin_messages():
                     "person_id": person_id,
                     "full_name": full_name,
                     "description": description_text,
+                    "message_count": msg_count,
+                    "summary": summary_text,
+                    "convo_history": convo_transcript,
                     "intake_at": last_sent or first_sent,
                     "raw_payload": raw_payload
                 }

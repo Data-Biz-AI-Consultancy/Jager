@@ -74,6 +74,9 @@ CREATE TABLE IF NOT EXISTS cdp.leads (
   person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
   full_name VARCHAR(255),
   description TEXT,
+  message_count INTEGER DEFAULT 0,
+  summary TEXT,
+  convo_history TEXT,
   rate VARCHAR(100),
   status VARCHAR(50) DEFAULT 'new',
   source VARCHAR(100) NOT NULL DEFAULT 'manual',
@@ -120,7 +123,9 @@ ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
-ALTER TABLE cdp.leads RENAME COLUMN id TO conversation_id;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT;
 `;
 
 const ddl = `
