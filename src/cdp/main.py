@@ -2,6 +2,7 @@ import logging
 from fastapi import FastAPI, HTTPException
 from processors.process_linkedin_connections import process_linkedin_connections
 from processors.process_manual_data import process_manual_data
+from processors.process_linkedin_messages import process_linkedin_messages
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cdp-service")
@@ -34,4 +35,16 @@ def run_process_manual_data():
     except Exception as e:
         logger.error(f"Error processing CDP manual data: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/process/linkedin_messages")
+def run_process_linkedin_messages():
+    logger.info("Triggered CDP LinkedIn messages processing")
+    try:
+        result = process_linkedin_messages()
+        return result
+    except Exception as e:
+        logger.error(f"Error processing CDP LinkedIn messages: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 

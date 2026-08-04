@@ -51,6 +51,21 @@
       ],
       "id": "3",
       "name": "Process Manual Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CDP_SERVICE_URL || 'http://cdp:8000' }}/process/linkedin_messages",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "4",
+      "name": "Process LinkedIn Messages"
     }
   ],
   "connections": {
@@ -70,6 +85,17 @@
         [
           {
             "node": "Process Manual Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Manual Data": {
+      "main": [
+        [
+          {
+            "node": "Process LinkedIn Messages",
             "type": "main",
             "index": 0
           }
