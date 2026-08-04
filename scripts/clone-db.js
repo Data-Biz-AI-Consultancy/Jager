@@ -222,28 +222,12 @@ async function cloneDatabase(dbName, prodUrl) {
       tag
     );
 
-    // ── Step 2: Drop local database (WITH FORCE eliminates separate termination step) ──
-    log(`Dropping local database ${dbName}...`);
-    try {
-      // PostgreSQL 13+ — immediately terminates all connections and drops
-      await run(
-        `${dockerComposeCmd} exec -T db psql -U jager -d postgres` +
-          ` -c "DROP DATABASE IF EXISTS ${dbName} WITH (FORCE);"`,
-        tag
-      );
-    } catch {
-      // Fallback for PostgreSQL < 13
-      await run(
-        `${dockerComposeCmd} exec -T db psql -U jager -d postgres` +
-          ` -c "DROP DATABASE IF EXISTS ${dbName};"`,
-        tag
-      );
-    }
-
-    // ── Step 3: Recreate ─────────────────────────────────────────────────────
-    log(`Creating local database ${dbName}...`);
+    // ── Step 2: Clean existing database schema (without dropping database) ──
+    // Clearing public and cdp schemas preserves client connection handles so GUI tools don't crash
+    log(`Clearing existing schemas in local database ${dbName}...`);
     await run(
-      `${dockerComposeCmd} exec -T db psql -U jager -d postgres -c "CREATE DATABASE ${dbName};"`,
+      `${dockerComposeCmd} exec -T db psql -U jager -d ${dbName}` +
+        ` -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; DROP SCHEMA IF EXISTS cdp CASCADE;"`,
       tag
     );
 
@@ -563,7 +547,7 @@ async function cloneDatabase(dbName, prodUrl) {
         console.log(`Local CDP database verified (${leadCount} leads existing).`);
       }
     } catch (e) {
-      console.warn('Warning: CDP auto-seed check/ingestion failed:', e.message);
+      console.warn('Warning: CDP auto-seed check failed:', e.message);
     }
   }
 
