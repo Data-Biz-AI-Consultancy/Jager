@@ -569,10 +569,12 @@ async function cloneDatabase(dbName, prodUrl) {
 
     // Mirror cdp schema into jager database so the 'Jager (Dev)' PostgreSQL Explorer
     // connection (database: jager) can browse cdp.leads, cdp.persons etc without switching connections.
+    // --clean --if-exists: drops & recreates objects inside the schema without touching the schema itself,
+    // so the IDE's connection handle to the cdp schema folder is never severed.
     console.log('Mirroring cdp schema into jager database for IDE browsing...');
     try {
       await execAsync(
-        `${dockerComposeCmd} exec -T db sh -c "pg_dump -U jager -d cdp -n cdp | psql -U jager -d jager -q"`,
+        `${dockerComposeCmd} exec -T db sh -c "pg_dump -U jager -d cdp -n cdp --clean --if-exists | psql -U jager -d jager -q"`,
         { maxBuffer: 50 * 1024 * 1024 }
       );
       console.log('cdp schema mirrored into jager database.');
