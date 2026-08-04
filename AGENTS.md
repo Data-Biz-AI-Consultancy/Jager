@@ -46,14 +46,17 @@
 - Ensure table names and schemas are kept consistent across `src/db/migrate-db.js`, `src/db/init-user-db.sh`, and within n8n database integration nodes.
 
 ## CDP (Customer Data Platform) Conventions
-- The `cdp` schema in PostgreSQL is the core processing/domain schema for customer data platform entities (`cdp.leads`, `cdp.persons`, `cdp.client_accounts`, `cdp.engagements`, `cdp.person_account_relationships`).
+- **PostgreSQL Database Isolation**: PostgreSQL hosts TWO separate databases:
+  1. `jager` database: Main operational/OLTP database containing raw staging schemas (`s_linkedin`, `s_manual`, `s_slack`, `s_substack`, etc.).
+  2. `cdp` database: Isolated domain database containing the `cdp` schema (`cdp.leads`, `cdp.persons`, `cdp.client_accounts`, `cdp.engagements`, `cdp.person_account_relationships`).
+  - **CRITICAL**: The `cdp` schema resides ONLY in the `cdp` database. It MUST NOT be mirrored, imported via FDW, or created inside the `jager` database.
 - Entity intake tables in CDP use descriptive domain names (e.g. `cdp.leads` instead of generic `raw_leads`).
 - **Seed Data Scope**: Data under `data/` (e.g., `data/seed/`) is strictly **dev-only** local sample data and is gitignored. It MUST NEVER be depended upon, loaded, or expected in production environments or CI test pipelines. Production pipelines must handle incoming data exclusively from real application sources or live integrations.
 
 ## CDP Service Conventions
 - The CDP service (`src/cdp/`) handles core Customer Data Platform domain processing and HTTP endpoints.
 - Processors live under `src/cdp/processors/` (e.g. `src/cdp/processors/process_linkedin_connections.py`).
-- The service runs as the `cdp` Docker service on port 8000 and is accessed by n8n workflows via `CDP_SERVICE_URL`.
+- The service runs as the `cdp` Docker service on port 8000 and connects to `postgresql://jager:jager@db:5432/cdp`. It is accessed by n8n workflows via `CDP_SERVICE_URL`.
 
 
 
