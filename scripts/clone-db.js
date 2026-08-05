@@ -318,14 +318,50 @@ async function cloneDatabase(dbName, prodUrl) {
               `created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
               `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
             `); ` +
-            `CREATE TABLE IF NOT EXISTS cdp.leads (` +
-              `id UUID PRIMARY KEY DEFAULT gen_random_uuid(), ` +
+            `CREATE TABLE IF NOT EXISTS cdp.leads_linkedin (` +
+              `conversation_id VARCHAR(255) PRIMARY KEY, ` +
               `person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL, ` +
               `full_name VARCHAR(255), ` +
               `description TEXT, ` +
+              `message_count INTEGER DEFAULT 0, ` +
+              `summary TEXT, ` +
+              `convo_history TEXT, ` +
+              `intent VARCHAR(100), ` +
+              `signal_strength VARCHAR(50), ` +
+              `opportunity_type VARCHAR(100), ` +
+              `status VARCHAR(50) DEFAULT 'prospect', ` +
+              `raw_payload JSONB DEFAULT '{}'::jsonb, ` +
+              `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.leads_manual (` +
+              `id VARCHAR(255) PRIMARY KEY, ` +
+              `person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL, ` +
+              `client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL, ` +
+              `full_name VARCHAR(255), ` +
+              `description TEXT, ` +
               `rate VARCHAR(100), ` +
-              `status VARCHAR(50) DEFAULT 'new', ` +
-              `source VARCHAR(100) NOT NULL DEFAULT 'manual', ` +
+              `status VARCHAR(50) DEFAULT 'prospect', ` +
+              `source VARCHAR(100) DEFAULT 'manual', ` +
+              `raw_payload JSONB DEFAULT '{}'::jsonb, ` +
+              `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.leads (` +
+              `id VARCHAR(255) PRIMARY KEY, ` +
+              `person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL, ` +
+              `client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL, ` +
+              `full_name VARCHAR(255), ` +
+              `description TEXT, ` +
+              `message_count INTEGER DEFAULT 0, ` +
+              `summary TEXT, ` +
+              `convo_history TEXT, ` +
+              `intent VARCHAR(100), ` +
+              `signal_strength VARCHAR(50), ` +
+              `opportunity_type VARCHAR(100), ` +
+              `rate VARCHAR(100), ` +
+              `status VARCHAR(50) DEFAULT 'prospect', ` +
+              `source VARCHAR(100) NOT NULL DEFAULT 'Manual', ` +
               `raw_payload JSONB DEFAULT '{}'::jsonb, ` +
               `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
               `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +

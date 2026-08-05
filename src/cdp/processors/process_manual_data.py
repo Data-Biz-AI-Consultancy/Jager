@@ -2,6 +2,7 @@ import os
 import sys
 import re
 import json
+import uuid
 from sqlalchemy import text
 
 cdp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -266,25 +267,62 @@ def process_manual_data():
                     if client_account_id:
                         accounts_processed += 1
 
-                # 3. Create lead record in cdp.leads
+                # 3. Create lead record in cdp.leads_manual and cdp.leads
                 full_lead_name = f"{first_name} {last_name}".strip() or raw_name or company or "Manual Lead"
                 serialized_json = json.dumps(row_dict, default=str)
+                lead_id = str(row_dict.get("notion_id") or row_dict.get("id") or uuid.uuid4())
 
                 cdp_conn.execute(
                     text("""
-                        INSERT INTO cdp.leads (
-                            person_id, client_account_id, full_name, description, status, source, raw_payload, intake_at, updated_at
+                        INSERT INTO cdp.leads_manual (
+                            id, person_id, client_account_id, full_name, description, status, source, raw_payload, intake_at, updated_at
                         )
                         VALUES (
-                            :person_id, :client_account_id, :full_name, :description, 'prospect', :source, CAST(:raw_payload AS jsonb), NOW(), NOW()
-                        );
+                            :id, :person_id, :client_account_id, :full_name, :description, 'prospect', :source, CAST(:raw_payload AS jsonb), NOW(), NOW()
+                        )
+                        ON CONFLICT (id) DO UPDATE SET
+                            person_id = COALESCE(EXCLUDED.person_id, cdp.leads_manual.person_id),
+                            client_account_id = COALESCE(EXCLUDED.client_account_id, cdp.leads_manual.client_account_id),
+                            full_name = EXCLUDED.full_name,
+                            description = EXCLUDED.description,
+                            source = EXCLUDED.source,
+                            raw_payload = EXCLUDED.raw_payload,
+                            updated_at = NOW();
                     """),
                     {
+                        "id": lead_id,
                         "person_id": person_id,
                         "client_account_id": client_account_id,
                         "full_name": full_lead_name,
                         "description": f"Manual lead ingested from s_manual.{table}",
                         "source": f"manual:{table}",
+                        "raw_payload": serialized_json
+                    }
+                )
+
+                cdp_conn.execute(
+                    text("""
+                        INSERT INTO cdp.leads (
+                            id, person_id, client_account_id, full_name, description, status, source, raw_payload, intake_at, updated_at
+                        )
+                        VALUES (
+                            :id, :person_id, :client_account_id, :full_name, :description, 'prospect', 'Manual', CAST(:raw_payload AS jsonb), NOW(), NOW()
+                        )
+                        ON CONFLICT (id) DO UPDATE SET
+                            person_id = COALESCE(EXCLUDED.person_id, cdp.leads.person_id),
+                            client_account_id = COALESCE(EXCLUDED.client_account_id, cdp.leads.client_account_id),
+                            full_name = EXCLUDED.full_name,
+                            description = EXCLUDED.description,
+                            source = EXCLUDED.source,
+                            raw_payload = EXCLUDED.raw_payload,
+                            updated_at = NOW();
+                    """),
+                    {
+                        "id": lead_id,
+                        "person_id": person_id,
+                        "client_account_id": client_account_id,
+                        "full_name": full_lead_name,
+                        "description": f"Manual lead ingested from s_manual.{table}",
                         "raw_payload": serialized_json
                     }
                 )

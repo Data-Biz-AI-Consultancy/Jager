@@ -217,13 +217,14 @@ def process_linkedin_messages():
             summary_text = description_text
             nlp_result = analyze_convo_nlp(convo_transcript)
 
+            # Insert/Update Lead in cdp.leads_linkedin
             cdp_conn.execute(
                 text("""
-                    INSERT INTO cdp.leads (
-                        conversation_id, person_id, full_name, description, message_count, summary, convo_history, intent, signal_strength, opportunity_type, status, source, raw_payload, intake_at, updated_at
+                    INSERT INTO cdp.leads_linkedin (
+                        conversation_id, person_id, full_name, description, message_count, summary, convo_history, intent, signal_strength, opportunity_type, status, raw_payload, intake_at, updated_at
                     )
                     VALUES (
-                        :conv_id, :person_id, :full_name, :description, :message_count, :summary, :convo_history, :intent, :signal_strength, :opportunity_type, 'prospect', 'linkedin:message', CAST(:raw_payload AS jsonb), :intake_at, NOW()
+                        :conv_id, :person_id, :full_name, :description, :message_count, :summary, :convo_history, :intent, :signal_strength, :opportunity_type, 'prospect', CAST(:raw_payload AS jsonb), :intake_at, NOW()
                     )
                     ON CONFLICT (conversation_id) DO UPDATE SET
                         description = EXCLUDED.description,
@@ -233,6 +234,43 @@ def process_linkedin_messages():
                         intent = EXCLUDED.intent,
                         signal_strength = EXCLUDED.signal_strength,
                         opportunity_type = EXCLUDED.opportunity_type,
+                        raw_payload = EXCLUDED.raw_payload,
+                        updated_at = NOW();
+                """),
+                {
+                    "conv_id": conv_id,
+                    "person_id": person_id,
+                    "full_name": full_name,
+                    "description": description_text,
+                    "message_count": msg_count,
+                    "summary": summary_text,
+                    "convo_history": convo_transcript,
+                    "intent": nlp_result["intent"],
+                    "signal_strength": nlp_result["signal_strength"],
+                    "opportunity_type": nlp_result["opportunity_type"],
+                    "intake_at": last_sent or first_sent,
+                    "raw_payload": raw_payload
+                }
+            )
+
+            # Insert/Update Lead in aggregated cdp.leads table
+            cdp_conn.execute(
+                text("""
+                    INSERT INTO cdp.leads (
+                        id, person_id, full_name, description, message_count, summary, convo_history, intent, signal_strength, opportunity_type, status, source, raw_payload, intake_at, updated_at
+                    )
+                    VALUES (
+                        :conv_id, :person_id, :full_name, :description, :message_count, :summary, :convo_history, :intent, :signal_strength, :opportunity_type, 'prospect', 'Linkedin', CAST(:raw_payload AS jsonb), :intake_at, NOW()
+                    )
+                    ON CONFLICT (id) DO UPDATE SET
+                        description = EXCLUDED.description,
+                        message_count = EXCLUDED.message_count,
+                        summary = EXCLUDED.summary,
+                        convo_history = EXCLUDED.convo_history,
+                        intent = EXCLUDED.intent,
+                        signal_strength = EXCLUDED.signal_strength,
+                        opportunity_type = EXCLUDED.opportunity_type,
+                        source = EXCLUDED.source,
                         raw_payload = EXCLUDED.raw_payload,
                         updated_at = NOW();
                 """),

@@ -43,8 +43,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	);
 
 
-	-- Lead status lifecycle: 'prospect', 'negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed', 'nurture', 'disqualified'
-	CREATE TABLE IF NOT EXISTS cdp.leads (
+	-- LinkedIn Leads intake (sourced from s_linkedin.messages)
+	CREATE TABLE IF NOT EXISTS cdp.leads_linkedin (
 		conversation_id VARCHAR(255) PRIMARY KEY,
 		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
 		full_name VARCHAR(255),
@@ -55,59 +55,48 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		intent VARCHAR(100),
 		signal_strength VARCHAR(50),
 		opportunity_type VARCHAR(100),
-		rate VARCHAR(100),
-		status VARCHAR(50) DEFAULT 'new',
-		source VARCHAR(100) NOT NULL DEFAULT 'manual',
+		status VARCHAR(50) DEFAULT 'prospect',
 		raw_payload JSONB DEFAULT '{}'::jsonb,
 		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
 
-
-	CREATE TABLE IF NOT EXISTS cdp.person_account_relationships (
-		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-		person_id UUID NOT NULL REFERENCES cdp.persons(id) ON DELETE CASCADE,
-		client_account_id UUID NOT NULL REFERENCES cdp.client_accounts(id) ON DELETE CASCADE,
-		job_title VARCHAR(255),
-		department VARCHAR(100),
-		role_type VARCHAR(50) DEFAULT 'decision_maker',
-		is_primary BOOLEAN DEFAULT TRUE,
-		start_date DATE,
-		end_date DATE,
-		status VARCHAR(50) DEFAULT 'active',
-		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-		UNIQUE (person_id, client_account_id, role_type)
-	);
-
-	CREATE TABLE IF NOT EXISTS cdp.engagements (
-		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	-- Manual Leads intake (sourced from s_manual)
+	CREATE TABLE IF NOT EXISTS cdp.leads_manual (
+		id VARCHAR(255) PRIMARY KEY,
 		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
 		client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
-		engagement_type VARCHAR(50) NOT NULL,
-		direction VARCHAR(20) DEFAULT 'inbound',
-		subject VARCHAR(1024),
-		summary_or_content TEXT,
-		channel VARCHAR(100),
-		status VARCHAR(50) DEFAULT 'completed',
-		occurred_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-		metadata JSONB DEFAULT '{}'::jsonb,
-		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		full_name VARCHAR(255),
+		description TEXT,
+		rate VARCHAR(100),
+		status VARCHAR(50) DEFAULT 'prospect',
+		source VARCHAR(100) DEFAULT 'manual',
+		raw_payload JSONB DEFAULT '{}'::jsonb,
+		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
 
-	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS primary_client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN DEFAULT FALSE;
-	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT;
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS intent VARCHAR(100);
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS signal_strength VARCHAR(50);
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS opportunity_type VARCHAR(100);
-	ALTER TABLE cdp.leads RENAME COLUMN id TO conversation_id;
+	-- Lead status lifecycle: 'prospect', 'negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed', 'nurture', 'disqualified'
+	CREATE TABLE IF NOT EXISTS cdp.leads (
+		id VARCHAR(255) PRIMARY KEY,
+		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+		client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+		full_name VARCHAR(255),
+		description TEXT,
+		message_count INTEGER DEFAULT 0,
+		summary TEXT,
+		convo_history TEXT,
+		intent VARCHAR(100),
+		signal_strength VARCHAR(50),
+		opportunity_type VARCHAR(100),
+		rate VARCHAR(100),
+		status VARCHAR(50) DEFAULT 'prospect',
+		source VARCHAR(100) NOT NULL DEFAULT 'Manual',
+		raw_payload JSONB DEFAULT '{}'::jsonb,
+		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+	ALTER TABLE cdp.leads RENAME COLUMN conversation_id TO id;
 EOSQL
 
 

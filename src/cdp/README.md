@@ -2,7 +2,7 @@
 
 The **CDP Service** is a dedicated FastAPI microservice responsible for core Customer/Client Data Platform processing in Jager.
 
-A Customer Data Platform (CDP) acts as the unified system of record for managing all **Leads** (`cdp.leads`), **Persons/Contacts** (`cdp.persons`), **Client Companies/Accounts** (`cdp.client_accounts`), **Person-Account Relationships** (`cdp.person_account_relationships`), and **Client Engagements** (`cdp.engagements`). Similar to enterprise platforms like Snowplow or Braze, it provides a centralized, 360-degree overview of client interactions and ongoing project engagements.
+A Customer Data Platform (CDP) acts as the unified system of record for managing all **Leads** (`cdp.leads`, with specialized intake tables `cdp.leads_linkedin` and `cdp.leads_manual`), **Persons/Contacts** (`cdp.persons`), **Client Companies/Accounts** (`cdp.client_accounts`), **Person-Account Relationships** (`cdp.person_account_relationships`), and **Client Engagements** (`cdp.engagements`). Similar to enterprise platforms like Snowplow or Braze, it provides a centralized, 360-degree overview of client interactions and ongoing project engagements.
 
 ---
 
@@ -16,11 +16,45 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
    - **`cdp.client_accounts`**: Target client companies, organizations, and accounts extracted from sources (e.g. LinkedIn connections).
    - **`cdp.person_account_relationships`**: Mapping individual contacts to client accounts with specific roles (e.g. decision maker, job position) and employment status.
 2. **Lead Intake & Opportunity Lifecycle**:
-   - **`cdp.leads`**: Opportunity intake tracking leads through an 8-stage lifecycle.
+   - **`cdp.leads_linkedin`**: Intake table for LinkedIn message-derived leads (`s_linkedin.messages`).
+   - **`cdp.leads_manual`**: Intake table for manual data-derived leads (`s_manual`).
+   - **`cdp.leads`**: Aggregated physical table consolidating LinkedIn and Manual leads, featuring a `source` column (`Linkedin` or `Manual`).
 3. **Client Engagement & Activity Overview**:
    - **`cdp.engagements`**: Activity log tracking touchpoints (emails, calls, meetings, notes, form submissions, LinkedIn messages) for complete client engagement visibility.
 4. **Automation Endpoints**:
    - Exposes REST HTTP endpoints consumed by n8n workflows (accessed via `CDP_SERVICE_URL`, e.g. `http://cdp:8000`).
+
+---
+
+## Data Flow Architecture
+
+```mermaid
+flowchart TD
+    subgraph RawSources["Raw Staging Sources (jager DB)"]
+        SLI["s_linkedin.messages"]
+        SM["s_manual.*"]
+    end
+
+    subgraph CDPProcessors["CDP Processors (FastAPI Service)"]
+        PLM["process_linkedin_messages.py"]
+        PMD["process_manual_data.py"]
+    end
+
+    subgraph CDPStore["CDP Lead Storage (cdp DB)"]
+        LL["cdp.leads_linkedin<br/>(conversation_id primary key)"]
+        LM["cdp.leads_manual<br/>(id UUID primary key)"]
+        L["cdp.leads<br/>(Aggregated Table: source = 'Linkedin' | 'Manual')"]
+    end
+
+    SLI --> PLM
+    SM --> PMD
+
+    PLM -->|Ingest LinkedIn Leads| LL
+    PLM -->|Sync Aggregated Lead| L
+
+    PMD -->|Ingest Manual Leads| LM
+    PMD -->|Sync Aggregated Lead| L
+```
 
 ---
 
