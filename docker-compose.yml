@@ -9,6 +9,11 @@ services:
       - app
       - data
       - all
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: '1.0'
     environment:
       POSTGRES_DB: jager
       POSTGRES_USER: jager
@@ -27,6 +32,11 @@ services:
     profiles:
       - app
       - all
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: '1.0'
     expose:
       - "5678"
     environment:
@@ -82,6 +92,11 @@ services:
     profiles:
       - data
       - all
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1.5'
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - DATABASE_URL=postgresql://jager:jager@db:5432/jager
@@ -101,6 +116,11 @@ services:
     profiles:
       - app
       - all
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+          cpus: '0.5'
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - DATABASE_URL=postgresql://jager:jager@db:5432/cdp
@@ -120,6 +140,11 @@ services:
       - core
       - app
       - all
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+          cpus: '0.25'
     ports:
       - "80:80"
       - "443:443"
@@ -138,6 +163,11 @@ services:
       - core
       - app
       - all
+    deploy:
+      resources:
+        limits:
+          memory: 96m
+          cpus: '0.25'
     command: tunnel --no-autoupdate run
     environment:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN}
