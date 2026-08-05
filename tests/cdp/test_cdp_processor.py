@@ -148,6 +148,13 @@ def test_cdp_fastapi_endpoints():
         assert response.status_code == 200
         assert response.json()["leads_processed"] == 3
 
+    # LinkedIn messages endpoint success
+    with patch.object(cdp_main, 'process_linkedin_messages', return_value={"status": "success", "leads_processed": 4, "persons_created": 1}):
+        response = client.post("/process/linkedin_messages")
+        assert response.status_code == 200
+        assert response.json()["leads_processed"] == 4
+        assert response.json()["persons_created"] == 1
+
 
 def test_process_manual_data_with_rows():
     from processors.process_manual_data import process_manual_data
@@ -176,4 +183,44 @@ def test_process_manual_data_with_rows():
         result = process_manual_data()
         assert result["status"] == "success"
         assert result["leads_processed"] == 1
+
+
+def test_process_linkedin_messages_with_rows():
+    from processors.process_linkedin_messages import process_linkedin_messages
+    mock_jager_engine = MagicMock()
+    mock_cdp_engine = MagicMock()
+    mock_jager_conn = MagicMock()
+    mock_cdp_conn = MagicMock()
+    mock_jager_engine.begin.return_value.__enter__.return_value = mock_jager_conn
+    mock_cdp_engine.begin.return_value.__enter__.return_value = mock_cdp_conn
+
+    conv_row = {
+        "conversation_id": "conv-001",
+        "counterparty_name": "Jane Smith",
+        "counterparty_url": "https://linkedin.com/in/janesmith",
+        "msg_count": 2,
+        "first_sent_at": None,
+        "last_sent_at": None,
+        "latest_snippet": "Interested in advisory services",
+        "convo_transcript": "Jane Smith: Hi, interested in advisory services"
+    }
+    mock_jager_conn.execute.return_value.mappings.return_value.all.return_value = [conv_row]
+    mock_cdp_conn.execute.return_value.scalar.side_effect = [None, "person-uuid-99"]
+
+    def mock_get_engine(default_url=None, env_var="DATABASE_URL"):
+        if env_var == "JAGER_DATABASE_URL":
+            return mock_jager_engine
+        return mock_cdp_engine
+
+    with patch('processors.process_linkedin_messages.get_db_engine', side_effect=mock_get_engine):
+        result = process_linkedin_messages()
+        assert result["status"] == "success"
+        assert result["leads_processed"] == 1
+        assert result["persons_created"] == 1
+
+        # Verify SQL calls to cdp_conn include cdp.leads_linkedin and cdp.leads
+        executed_sqls = [call.args[0].text for call in mock_cdp_conn.execute.call_args_list if hasattr(call.args[0], 'text')]
+        assert any("cdp.leads_linkedin" in sql for sql in executed_sqls)
+        assert any("cdp.leads" in sql for sql in executed_sqls)
+
 

@@ -68,15 +68,55 @@ CREATE TABLE IF NOT EXISTS cdp.persons (
 );
 
 
--- Lead status lifecycle: 'prospect', 'negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed', 'nurture', 'disqualified'
-CREATE TABLE IF NOT EXISTS cdp.leads (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+-- LinkedIn Leads intake (sourced from s_linkedin.messages)
+CREATE TABLE IF NOT EXISTS cdp.leads_linkedin (
+  conversation_id VARCHAR(255) PRIMARY KEY,
   person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
   full_name VARCHAR(255),
   description TEXT,
+  message_count INTEGER DEFAULT 0,
+  summary TEXT,
+  convo_history TEXT,
+  intent VARCHAR(100),
+  signal_strength VARCHAR(50),
+  opportunity_type VARCHAR(100),
+  status VARCHAR(50) DEFAULT 'prospect',
+  raw_payload JSONB DEFAULT '{}'::jsonb,
+  intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Manual Leads intake (sourced from s_manual)
+CREATE TABLE IF NOT EXISTS cdp.leads_manual (
+  id VARCHAR(255) PRIMARY KEY,
+  person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+  client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+  full_name VARCHAR(255),
+  description TEXT,
   rate VARCHAR(100),
-  status VARCHAR(50) DEFAULT 'new',
-  source VARCHAR(100) NOT NULL DEFAULT 'manual',
+  status VARCHAR(50) DEFAULT 'prospect',
+  source VARCHAR(100) DEFAULT 'manual',
+  raw_payload JSONB DEFAULT '{}'::jsonb,
+  intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Aggregated Lead status lifecycle
+CREATE TABLE IF NOT EXISTS cdp.leads (
+  id VARCHAR(255) PRIMARY KEY,
+  person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+  client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+  full_name VARCHAR(255),
+  description TEXT,
+  message_count INTEGER DEFAULT 0,
+  summary TEXT,
+  convo_history TEXT,
+  intent VARCHAR(100),
+  signal_strength VARCHAR(50),
+  opportunity_type VARCHAR(100),
+  rate VARCHAR(100),
+  status VARCHAR(50) DEFAULT 'prospect',
+  source VARCHAR(100) NOT NULL DEFAULT 'Manual',
   raw_payload JSONB DEFAULT '{}'::jsonb,
   intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -120,6 +160,34 @@ ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS intent VARCHAR(100);
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS signal_strength VARCHAR(50);
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS opportunity_type VARCHAR(100);
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS rate VARCHAR(100);
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFAULT 'Manual';
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'conversation_id'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'id'
+  ) THEN
+    ALTER TABLE cdp.leads RENAME COLUMN conversation_id TO id;
+  END IF;
+  
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255);
+  END IF;
+END $$;
 `;
 
 const ddl = `

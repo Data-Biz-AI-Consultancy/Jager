@@ -93,7 +93,9 @@ erDiagram
 
 - **`cdp.client_accounts`**: Accounts / organizations profiles.
 - **`cdp.persons`**: Individual profiles (prospects, leads, contacts) with optional `primary_client_account_id` foreign key.
-- **`cdp.leads`**: Intake table for inbound raw leads before canonicalization, linked to `persons` and `client_accounts`.
+- **`cdp.leads_linkedin`**: Intake table for LinkedIn message-derived leads (`s_linkedin.messages`).
+- **`cdp.leads_manual`**: Intake table for manual data-derived leads (`s_manual`).
+- **`cdp.leads`**: Aggregated table for inbound leads, featuring a `source` column stating if the lead is from `Linkedin` or `Manual`.
 - **`cdp.person_account_relationships`**: Dynamic mapping of persons to client accounts with roles (`role_type`, `job_title`, `department`) and date boundaries.
 - **`cdp.engagements`**: Activity log (emails, calls, meetings, notes, form submissions, LinkedIn messages).
 
