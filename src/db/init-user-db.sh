@@ -96,6 +96,19 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS primary_client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN DEFAULT FALSE;
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS intent VARCHAR(100);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS signal_strength VARCHAR(50);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS opportunity_type VARCHAR(100);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS rate VARCHAR(100);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFAULT 'Manual';
 
 	DO $$
 	BEGIN
@@ -104,6 +117,13 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 			WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'conversation_id'
 		) THEN
 			ALTER TABLE cdp.leads RENAME COLUMN conversation_id TO id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'id' AND data_type = 'uuid'
+		) THEN
+			ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255);
 		END IF;
 	END $$;
 EOSQL
