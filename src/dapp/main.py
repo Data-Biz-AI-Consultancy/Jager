@@ -360,36 +360,6 @@ def run_oltp_ingest_eurostat_fx():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/run/oltp/ingest_seeds")
-def run_oltp_ingest_seeds():
-    logger.info("Triggered oltp/ingest_seeds pipeline execution")
-    try:
-        result = subprocess.run(
-            ["python", "oltp/ingest_seeds.py"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("Pipeline execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Pipeline execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/run/oltp/ingest_notion_manual")
