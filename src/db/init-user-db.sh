@@ -96,7 +96,16 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
-	ALTER TABLE cdp.leads RENAME COLUMN conversation_id TO id;
+
+	DO $$
+	BEGIN
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'conversation_id'
+		) THEN
+			ALTER TABLE cdp.leads RENAME COLUMN conversation_id TO id;
+		END IF;
+	END $$;
 EOSQL
 
 

@@ -166,6 +166,26 @@ ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS intent VARCHAR(100);
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS signal_strength VARCHAR(50);
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS opportunity_type VARCHAR(100);
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'conversation_id'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'id'
+  ) THEN
+    ALTER TABLE cdp.leads RENAME COLUMN conversation_id TO id;
+  END IF;
+  
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'id' AND data_type = 'uuid'
+  ) THEN
+    ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255);
+  END IF;
+END $$;
 `;
 
 const ddl = `
