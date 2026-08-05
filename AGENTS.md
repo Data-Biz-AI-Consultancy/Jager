@@ -166,3 +166,5 @@
 - When an environment variable has a hardcoded fallback default in code (e.g. `os.getenv("VAR") or "default"`), the fallback must be a safe non-sensitive default (e.g. a public page ID or a staging flag). **Never hardcode secrets as fallbacks.**
 - `docker-compose.yml` passes env vars using `${VAR}` substitution from the host environment. In production the host environment provides the values; `.env` is only used locally to populate those host vars via Docker Compose's automatic `.env` file loading.
 
+## File Formatting & Ending Conventions
+- All files across the codebase must end with **exactly one single newline** at the end of the file. Do not leave multiple trailing blank lines at the end of files.

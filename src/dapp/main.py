@@ -392,10 +392,3 @@ def run_oltp_ingest_notion_manual():
     except Exception as e:
         logger.error(f"Unexpected error during pipeline run: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
-
-
-
-
-
