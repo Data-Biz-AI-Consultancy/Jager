@@ -23,30 +23,12 @@ PERSON_SEGMENT_RULES = {
         SELECT DISTINCT p.id FROM cdp.persons p
         JOIN cdp.leads l ON p.id = l.person_id
     """,
-    "hiring_decision_makers": """
-        SELECT DISTINCT p.id FROM cdp.persons p
-        LEFT JOIN cdp.person_account_relationships r ON p.id = r.person_id
-        LEFT JOIN cdp.persons_linkedins pli ON (
-            (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
-            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND p.linkedin_url ILIKE '%' || pli.profile_url || '%')
-        )
-        WHERE r.id IS NOT NULL
-           OR LOWER(COALESCE(pli.position, '')) ~ '(ceo|cto|cfo|coo|vp|vice president|director|head of|founder|owner|chief|hiring manager)'
-    """,
-    "peer_collaborators": """
-        SELECT DISTINCT p.id FROM cdp.persons p
-        JOIN cdp.persons_linkedins pli ON (
-            (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
-            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND p.linkedin_url ILIKE '%' || pli.profile_url || '%')
-        )
-        WHERE LOWER(COALESCE(pli.position, '')) ~ '(agency|freelance|consultant|partner|advisor|contractor)'
-           OR LOWER(COALESCE(pli.company, '')) ~ '(agency|consulting|advisory|solutions|studio)'
-    """,
     "ecosystem_tooling_partners": """
         SELECT DISTINCT p.id FROM cdp.persons p
         JOIN cdp.persons_linkedins pli ON (
             (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
-            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND p.linkedin_url ILIKE '%' || pli.profile_url || '%')
+            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND pli.profile_url ILIKE '%' || p.linkedin_url || '%')
+            OR (LOWER(TRIM(p.first_name)) = LOWER(TRIM(pli.first_name)) AND LOWER(TRIM(p.last_name)) = LOWER(TRIM(pli.last_name)))
         )
         WHERE LOWER(COALESCE(pli.company, '')) ~ '(dlthub|dlt|motherduck|n8n|airbyte|dagster|prefect|duckdb|snowflake|databricks|astronomer)'
            OR LOWER(COALESCE(pli.position, '')) ~ '(devrel|developer advocate|developer relations|maintainer|creator|founding engineer)'
@@ -55,9 +37,31 @@ PERSON_SEGMENT_RULES = {
         SELECT DISTINCT p.id FROM cdp.persons p
         JOIN cdp.persons_linkedins pli ON (
             (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
-            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND p.linkedin_url ILIKE '%' || pli.profile_url || '%')
+            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND pli.profile_url ILIKE '%' || p.linkedin_url || '%')
+            OR (LOWER(TRIM(p.first_name)) = LOWER(TRIM(pli.first_name)) AND LOWER(TRIM(p.last_name)) = LOWER(TRIM(pli.last_name)))
         )
-        WHERE LOWER(COALESCE(pli.company, '')) ~ '(hellofresh|delivery hero|foodpanda|vestiaire)'
+        WHERE LOWER(COALESCE(pli.company, '')) ~ '(hayes|hays|foodpanda|delivery hero|hellofresh|hello fresh|vestiaire)'
+    """,
+    "hiring_decision_makers": """
+        SELECT DISTINCT p.id FROM cdp.persons p
+        LEFT JOIN cdp.person_account_relationships r ON p.id = r.person_id
+        LEFT JOIN cdp.persons_linkedins pli ON (
+            (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
+            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND pli.profile_url ILIKE '%' || p.linkedin_url || '%')
+            OR (LOWER(TRIM(p.first_name)) = LOWER(TRIM(pli.first_name)) AND LOWER(TRIM(p.last_name)) = LOWER(TRIM(pli.last_name)))
+        )
+        WHERE r.id IS NOT NULL
+           OR LOWER(COALESCE(pli.position, '')) ~ '(founder|co-founder|cofounder|owner|partner|chief|ceo|cto|cfo|coo|cmo|cpo|cro|cio|cdo|vp|vice president|head|director|lead|manager|executive|principal)'
+    """,
+    "peer_collaborators": """
+        SELECT DISTINCT p.id FROM cdp.persons p
+        JOIN cdp.persons_linkedins pli ON (
+            (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
+            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND pli.profile_url ILIKE '%' || p.linkedin_url || '%')
+            OR (LOWER(TRIM(p.first_name)) = LOWER(TRIM(pli.first_name)) AND LOWER(TRIM(p.last_name)) = LOWER(TRIM(pli.last_name)))
+        )
+        WHERE LOWER(COALESCE(pli.position, '')) ~ '(agency|freelance|consultant|partner|advisor|contractor)'
+           OR LOWER(COALESCE(pli.company, '')) ~ '(agency|consulting|advisory|solutions|studio)'
     """
 }
 
@@ -103,7 +107,7 @@ def ensure_seed_segments(conn):
         ("hiring_decision_makers", "Hiring Decision-Makers", "Founders, CTOs, VPs of Data/Engineering, and hiring decision makers", "dynamic", {"rule": "hiring_decision_makers"}),
         ("peer_collaborators", "Peer Collaborators & Agencies", "Other consultants, agency owners, or freelancers for project referrals/partnerships", "dynamic", {"rule": "peer_collaborators"}),
         ("ecosystem_tooling_partners", "Ecosystem & Tooling Partners", "Founders, maintainers, DevRel, and creators at data/AI tooling platforms (e.g. dltHub, MotherDuck, n8n)", "dynamic", {"rule": "ecosystem_tooling_partners"}),
-        ("former_colleagues_alumni", "Alumni & Former Colleagues", "Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)", "dynamic", {"rule": "former_colleagues_alumni"}),
+        ("former_colleagues_alumni", "Alumni & Former Colleagues", "Alumni network contacts from target companies (Hays, HelloFresh, Delivery Hero, Foodpanda, Vestiaire)", "dynamic", {"rule": "former_colleagues_alumni"}),
         ("general_network", "General Network", "General network contacts not belonging to specific opportunity segments", "dynamic", {"rule": "general_network"}),
     ]
 
@@ -117,7 +121,6 @@ def ensure_seed_segments(conn):
             {"slug": slug, "name": name, "desc": desc, "type": seg_type, "criteria": json.dumps(criteria)}
         )
 
-    # Delete obsolete community_and_audience segment if present
     conn.execute(text("DELETE FROM cdp.person_segments WHERE slug = 'community_and_audience'"))
 
     lead_seeds = [
@@ -140,24 +143,32 @@ def ensure_seed_segments(conn):
 
 
 def evaluate_person_segments(conn) -> Dict[str, int]:
-    """Evaluates dynamic person segments and updates person_segment_id, person_segment_name, person_segment_slug on cdp.persons."""
+    """Evaluates dynamic person segments in priority order and updates cdp.persons (mutually exclusive)."""
     results = {}
     
     # 1. Reset segment fields
     conn.execute(text("UPDATE cdp.persons SET person_segment_id = NULL, person_segment_name = NULL, person_segment_slug = NULL"))
 
-    segments = conn.execute(text("SELECT id, slug, name, segment_type, criteria FROM cdp.person_segments WHERE slug != 'general_network'")).fetchall()
+    segment_priority = [
+        "clients_and_prospects",
+        "ecosystem_tooling_partners",
+        "former_colleagues_alumni",
+        "hiring_decision_makers",
+        "peer_collaborators",
+    ]
 
-    for seg in segments:
-        seg_id, slug, seg_name, seg_type, criteria = seg[0], seg[1], seg[2], seg[3], seg[4] or {}
-        if seg_type != "dynamic":
+    segments_by_slug = {}
+    rows = conn.execute(text("SELECT id, slug, name, segment_type, criteria FROM cdp.person_segments")).fetchall()
+    for row in rows:
+        segments_by_slug[row[1]] = row
+
+    for slug in segment_priority:
+        if slug not in segments_by_slug or slug not in PERSON_SEGMENT_RULES:
             continue
+        seg = segments_by_slug[slug]
+        seg_id, seg_name = seg[0], seg[2]
 
-        rule_name = criteria.get("rule") if isinstance(criteria, dict) else None
-        if not rule_name or rule_name not in PERSON_SEGMENT_RULES:
-            continue
-
-        sql_query = PERSON_SEGMENT_RULES[rule_name]
+        sql_query = PERSON_SEGMENT_RULES[slug]
         matching_person_rows = conn.execute(text(sql_query)).fetchall()
         matching_person_ids = [row[0] for row in matching_person_rows]
 
@@ -169,14 +180,16 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
                         person_segment_name = :seg_name,
                         person_segment_slug = :seg_slug
                     WHERE id IN :person_ids
+                      AND person_segment_id IS NULL
                 """),
                 {"seg_id": seg_id, "seg_name": seg_name, "seg_slug": slug, "person_ids": tuple(matching_person_ids)}
             )
 
-        results[slug] = len(matching_person_ids)
+        assigned_count = conn.execute(text("SELECT COUNT(*) FROM cdp.persons WHERE person_segment_slug = :slug"), {"slug": slug}).scalar()
+        results[slug] = assigned_count
 
     # 2. Fallback unclassified contacts to 'general_network' (No NULLs)
-    gen_seg = conn.execute(text("SELECT id, slug, name FROM cdp.person_segments WHERE slug = 'general_network'")).fetchone()
+    gen_seg = segments_by_slug.get("general_network")
     if gen_seg:
         unassigned = conn.execute(text("""
             UPDATE cdp.persons 
