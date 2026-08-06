@@ -283,20 +283,23 @@ DROP TABLE IF EXISTS cdp.lead_segment_memberships;
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_id UUID REFERENCES cdp.person_segments(id) ON DELETE SET NULL;
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_name VARCHAR(128);
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_slug VARCHAR(64);
+ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS potential_opportunity_types TEXT;
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS engagement_temperature VARCHAR(32) DEFAULT 'cold';
 
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_id UUID REFERENCES cdp.lead_segments(id) ON DELETE SET NULL;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_name VARCHAR(128);
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_slug VARCHAR(64);
 
-INSERT INTO cdp.person_segments (slug, name, description, segment_type, criteria) VALUES
-('clients_and_prospects', 'Clients & Prospects', 'Active or past consulting clients and warm lead opportunities', 'dynamic', '{"rule": "clients_and_prospects"}'::jsonb),
-('recruiters_and_talent', 'Recruiters & Talent Acquisition', 'Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers', 'dynamic', '{"rule": "recruiters_and_talent"}'::jsonb),
-('hiring_decision_makers', 'Hiring Decision-Makers', 'Founders, CTOs, VPs of Data/Engineering, Heads, and hiring decision makers', 'dynamic', '{"rule": "hiring_decision_makers"}'::jsonb),
-('peer_collaborators', 'Peer Collaborators & Agencies', 'Other consultants, agency owners, freelancers, tooling partners, or DevRel for project referrals/partnerships', 'dynamic', '{"rule": "peer_collaborators"}'::jsonb),
-('former_colleagues_alumni', 'Alumni & Former Colleagues', 'Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)', 'dynamic', '{"rule": "former_colleagues_alumni"}'::jsonb),
-('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', '{"rule": "general_network"}'::jsonb)
-ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+ALTER TABLE cdp.person_segments ADD COLUMN IF NOT EXISTS potential_opportunity_types TEXT;
+
+INSERT INTO cdp.person_segments (slug, name, description, segment_type, potential_opportunity_types, criteria) VALUES
+('clients_and_prospects', 'Clients & Prospects', 'Active or past consulting clients and warm lead opportunities', 'dynamic', 'Consulting Projects, Advisory, Fractional Data Leadership', '{"rule": "clients_and_prospects"}'::jsonb),
+('recruiters_and_talent', 'Recruiters & Talent Acquisition', 'Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers', 'dynamic', 'Full-Time Employment, Contract Roles, Fractional Opportunities', '{"rule": "recruiters_and_talent"}'::jsonb),
+('hiring_decision_makers', 'Hiring Decision-Makers', 'Founders, CTOs, VPs of Data/Engineering, Heads, and hiring decision makers', 'dynamic', 'Consulting Projects, Full-Time Employment, Fractional Leadership', '{"rule": "hiring_decision_makers"}'::jsonb),
+('peer_collaborators', 'Peer Collaborators & Agencies', 'Other consultants, agency owners, freelancers, tooling partners, or DevRel for project referrals/partnerships', 'dynamic', 'Project Subcontracting, Co-bidding, Client Referrals, Tooling Implementations', '{"rule": "peer_collaborators"}'::jsonb),
+('former_colleagues_alumni', 'Alumni & Former Colleagues', 'Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)', 'dynamic', 'Referrals, Re-hiring, Warm Client Introductions, Partnering', '{"rule": "former_colleagues_alumni"}'::jsonb),
+('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', 'Brand Awareness, Audience Engagement, Content Reach', '{"rule": "general_network"}'::jsonb)
+ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, potential_opportunity_types = EXCLUDED.potential_opportunity_types, criteria = EXCLUDED.criteria, updated_at = NOW();
 
 INSERT INTO cdp.lead_segments (slug, name, description, segment_type, criteria) VALUES
 ('new_leads_no_followup_7d', 'New Leads No Followup 7d', 'Leads in prospect status created 7+ days ago with zero engagement touchpoints', 'dynamic', '{"rule": "new_leads_no_followup_7d"}'::jsonb),

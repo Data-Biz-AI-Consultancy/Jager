@@ -55,8 +55,8 @@ def test_evaluate_person_segments():
     mock_conn.execute.return_value.fetchall.side_effect = [
         # cdp.person_segments fetchall
         [
-            ("p-uuid-1", "clients_and_prospects", "Clients & Prospects", "dynamic", {"rule": "clients_and_prospects"}),
-            ("p-uuid-2", "hiring_decision_makers", "Hiring Decision-Makers", "dynamic", {"rule": "hiring_decision_makers"}),
+            ("p-uuid-1", "clients_and_prospects", "Clients & Prospects", "dynamic", "Consulting Projects", {"rule": "clients_and_prospects"}),
+            ("p-uuid-2", "hiring_decision_makers", "Hiring Decision-Makers", "dynamic", "Full-Time Employment", {"rule": "hiring_decision_makers"}),
         ],
         # rule 1 matching persons
         [("person-123",)],

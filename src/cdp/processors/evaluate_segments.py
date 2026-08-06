@@ -107,22 +107,22 @@ LEAD_SEGMENT_RULES = {
 def ensure_seed_segments(conn):
     """Ensures built-in seed segments exist in person_segments and lead_segments tables."""
     person_seeds = [
-        ("clients_and_prospects", "Clients & Prospects", "Active or past consulting clients and warm lead opportunities", "dynamic", {"rule": "clients_and_prospects"}),
-        ("recruiters_and_talent", "Recruiters & Talent Acquisition", "Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers", "dynamic", {"rule": "recruiters_and_talent"}),
-        ("hiring_decision_makers", "Hiring Decision-Makers", "Founders, CTOs, VPs of Data/Engineering, Heads, and hiring decision makers", "dynamic", {"rule": "hiring_decision_makers"}),
-        ("peer_collaborators", "Peer Collaborators & Agencies", "Other consultants, agency owners, freelancers, tooling partners, or DevRel for project referrals/partnerships", "dynamic", {"rule": "peer_collaborators"}),
-        ("former_colleagues_alumni", "Alumni & Former Colleagues", "Alumni network contacts from target companies (Hays, HelloFresh, Delivery Hero, Foodpanda, Vestiaire)", "dynamic", {"rule": "former_colleagues_alumni"}),
-        ("general_network", "General Network", "General network contacts not belonging to specific opportunity segments", "dynamic", {"rule": "general_network"}),
+        ("clients_and_prospects", "Clients & Prospects", "Active or past consulting clients and warm lead opportunities", "dynamic", "Consulting Projects, Advisory, Fractional Data Leadership", {"rule": "clients_and_prospects"}),
+        ("recruiters_and_talent", "Recruiters & Talent Acquisition", "Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers", "dynamic", "Full-Time Employment, Contract Roles, Fractional Opportunities", {"rule": "recruiters_and_talent"}),
+        ("hiring_decision_makers", "Hiring Decision-Makers", "Founders, CTOs, VPs of Data/Engineering, Heads, and hiring decision makers", "dynamic", "Consulting Projects, Full-Time Employment, Fractional Leadership", {"rule": "hiring_decision_makers"}),
+        ("peer_collaborators", "Peer Collaborators & Agencies", "Other consultants, agency owners, freelancers, tooling partners, or DevRel for project referrals/partnerships", "dynamic", "Project Subcontracting, Co-bidding, Client Referrals, Tooling Implementations", {"rule": "peer_collaborators"}),
+        ("former_colleagues_alumni", "Alumni & Former Colleagues", "Alumni network contacts from target companies (Hays, HelloFresh, Delivery Hero, Foodpanda, Vestiaire)", "dynamic", "Referrals, Re-hiring, Warm Client Introductions, Partnering", {"rule": "former_colleagues_alumni"}),
+        ("general_network", "General Network", "General network contacts not belonging to specific opportunity segments", "dynamic", "Brand Awareness, Audience Engagement, Content Reach", {"rule": "general_network"}),
     ]
 
-    for slug, name, desc, seg_type, criteria in person_seeds:
+    for slug, name, desc, seg_type, opp_types, criteria in person_seeds:
         conn.execute(
             text("""
-                INSERT INTO cdp.person_segments (slug, name, description, segment_type, criteria)
-                VALUES (:slug, :name, :desc, :type, :criteria)
-                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+                INSERT INTO cdp.person_segments (slug, name, description, segment_type, potential_opportunity_types, criteria)
+                VALUES (:slug, :name, :desc, :type, :opp_types, :criteria)
+                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, potential_opportunity_types = EXCLUDED.potential_opportunity_types, criteria = EXCLUDED.criteria, updated_at = NOW();
             """),
-            {"slug": slug, "name": name, "desc": desc, "type": seg_type, "criteria": json.dumps(criteria)}
+            {"slug": slug, "name": name, "desc": desc, "type": seg_type, "opp_types": opp_types, "criteria": json.dumps(criteria)}
         )
 
     conn.execute(text("DELETE FROM cdp.person_segments WHERE slug IN ('community_and_audience', 'ecosystem_tooling_partners')"))
@@ -151,7 +151,7 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
     results = {}
     
     # 1. Reset segment fields
-    conn.execute(text("UPDATE cdp.persons SET person_segment_id = NULL, person_segment_name = NULL, person_segment_slug = NULL"))
+    conn.execute(text("UPDATE cdp.persons SET person_segment_id = NULL, person_segment_name = NULL, person_segment_slug = NULL, potential_opportunity_types = NULL"))
 
     segment_priority = [
         "clients_and_prospects",
@@ -162,7 +162,7 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
     ]
 
     segments_by_slug = {}
-    rows = conn.execute(text("SELECT id, slug, name, segment_type, criteria FROM cdp.person_segments")).fetchall()
+    rows = conn.execute(text("SELECT id, slug, name, segment_type, potential_opportunity_types, criteria FROM cdp.person_segments")).fetchall()
     for row in rows:
         segments_by_slug[row[1]] = row
 
@@ -170,7 +170,7 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
         if slug not in segments_by_slug or slug not in PERSON_SEGMENT_RULES:
             continue
         seg = segments_by_slug[slug]
-        seg_id, seg_name = seg[0], seg[2]
+        seg_id, seg_name, opp_types = seg[0], seg[2], seg[4]
 
         sql_query = PERSON_SEGMENT_RULES[slug]
         matching_person_rows = conn.execute(text(sql_query)).fetchall()
@@ -182,11 +182,12 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
                     UPDATE cdp.persons 
                     SET person_segment_id = :seg_id,
                         person_segment_name = :seg_name,
-                        person_segment_slug = :seg_slug
+                        person_segment_slug = :seg_slug,
+                        potential_opportunity_types = :opp_types
                     WHERE id IN :person_ids
                       AND person_segment_id IS NULL
                 """),
-                {"seg_id": seg_id, "seg_name": seg_name, "seg_slug": slug, "person_ids": tuple(matching_person_ids)}
+                {"seg_id": seg_id, "seg_name": seg_name, "seg_slug": slug, "opp_types": opp_types, "person_ids": tuple(matching_person_ids)}
             )
 
         assigned_count = conn.execute(text("SELECT COUNT(*) FROM cdp.persons WHERE person_segment_slug = :slug"), {"slug": slug}).scalar()
@@ -199,9 +200,10 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
             UPDATE cdp.persons 
             SET person_segment_id = :seg_id,
                 person_segment_name = :seg_name,
-                person_segment_slug = :seg_slug
+                person_segment_slug = :seg_slug,
+                potential_opportunity_types = :opp_types
             WHERE person_segment_id IS NULL
-        """), {"seg_id": gen_seg[0], "seg_name": gen_seg[2], "seg_slug": gen_seg[1]}).rowcount
+        """), {"seg_id": gen_seg[0], "seg_name": gen_seg[2], "seg_slug": gen_seg[1], "opp_types": gen_seg[4]}).rowcount
         results["general_network"] = unassigned
 
     return results

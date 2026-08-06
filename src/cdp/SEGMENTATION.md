@@ -36,14 +36,14 @@ graph TD
 
 ### Segment Definitions & Rules
 
-| Priority | Slug | Segment Name | Target Persona & Description | Matching Criteria / SQL Logic | Live Count |
+| Priority | Slug | Segment Name | Target Persona & Description | Potential Opportunity Types | Live Count |
 | :---: | :--- | :--- | :--- | :--- | :---: |
-| **1** | `clients_and_prospects` | **Clients & Prospects** | Warm consulting lead opportunities & active/past clients | Associated lead with `inbound_service_request` or `consulting_inquiry` intent, active sales pipeline status (`in_discussion`, `proposal_sent`, `negotiating`, `won`, `active_client`), or explicit service inquiry keywords. | **228** |
-| **2** | `former_colleagues_alumni` | **Alumni & Former Colleagues** | High-trust alumni network contacts | Matched company in `cdp.persons_linkedins` against target companies: **Hays**, **HelloFresh**, **Delivery Hero / Delivery Hero SE**, **Foodpanda**, **Vestiaire / Vestiaire Collective**. | **391** |
-| **3** | `recruiters_and_talent` | **Recruiters & Talent Acquisition** | Talent acquisition managers, recruiters, talent partners, headhunters | Position matching `recruiter`, `recruiting`, `talent acquisition`, `talent partner`, `headhunter`, `sourcer`, `talent manager`, `talent specialist`. | **85** |
-| **4** | `hiring_decision_makers` | **Hiring Decision-Makers** | C-Level executives, Founders, VPs, Directors, Heads of Data/Eng, Leads, Managers | Position matching `founder`, `co-founder`, `owner`, `partner`, `chief`, `ceo`, `cto`, `cfo`, `coo`, `cmo`, `cpo`, `cro`, `cio`, `cdo`, `vp`, `vice president`, `head`, `director`, `lead`, `manager`, `executive`, `principal`. | **1,449** |
-| **5** | `peer_collaborators` | **Peer Collaborators & Agencies** | Agency owners, consultants, freelancers, tooling founders, maintainers, & DevRel | Position matching `agency`, `freelance`, `consultant`, `partner`, `advisor`, `contractor`, `devrel`, `developer advocate`, `maintainer`, `creator`, `founding engineer`, OR company matching `dlthub`, `motherduck`, `n8n`, `airbyte`, `dagster`, `prefect`, `duckdb`, `snowflake`, `databricks`, `astronomer`. | **136** |
-| **6** | `general_network` | **General Network** | Fallback segment for all general network contacts & audience members | Default fallback assigned to any contact where `person_segment_id IS NULL`. Guaranteed zero NULLs across `cdp.persons`. | **1,231** |
+| **1** | `clients_and_prospects` | **Clients & Prospects** | Warm consulting lead opportunities & active/past clients | Consulting Projects, Advisory, Fractional Data Leadership | **1** |
+| **2** | `former_colleagues_alumni` | **Alumni & Former Colleagues** | High-trust alumni network contacts (Hays, HelloFresh, Delivery Hero, Foodpanda, Vestiaire) | Referrals, Re-hiring, Warm Client Introductions, Partnering | **391** |
+| **3** | `recruiters_and_talent` | **Recruiters & Talent Acquisition** | Talent acquisition managers, recruiters, talent partners, headhunters | Full-Time Employment, Contract Roles, Fractional Opportunities | **85** |
+| **4** | `hiring_decision_makers` | **Hiring Decision-Makers** | C-Level executives, Founders, VPs, Directors, Heads of Data/Eng, Leads, Managers | Consulting Projects, Full-Time Employment, Fractional Leadership | **1,449** |
+| **5** | `peer_collaborators` | **Peer Collaborators & Agencies** | Agency owners, consultants, freelancers, tooling partners (dltHub, MotherDuck, n8n), DevRel | Project Subcontracting, Co-bidding, Client Referrals, Tooling Implementations | **136** |
+| **6** | `general_network` | **General Network** | Fallback segment for all general network contacts & audience members | Brand Awareness, Audience Engagement, Content Reach | **1,231** |
 
 ---
 
