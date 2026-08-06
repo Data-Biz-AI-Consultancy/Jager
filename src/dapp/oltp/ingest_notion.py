@@ -430,18 +430,55 @@ def run_ingestion():
 
     logger.info("Starting dlt pipeline load phase into PostgreSQL schema 's_notion'...")
     dlt_start_time = time.time()
+
+    # Pre-flight: ensure 'properties' column is jsonb in both destination tables.
+    # This migration is idempotent — it's a no-op if the column is already jsonb.
+    # Without this, dlt fails with a type-mismatch error when inserting json data
+    # into a legacy varchar 'properties' column left over from an earlier schema.
+    logger.info("Running pre-flight schema migration: ensuring 'properties' columns are jsonb...")
+    migrate_sql_statements = [
+        """
+        DO $$ BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 's_notion'
+                  AND table_name   = 'pages'
+                  AND column_name  = 'properties'
+                  AND data_type   != 'jsonb'
+            ) THEN
+                ALTER TABLE s_notion.pages
+                    ALTER COLUMN properties TYPE jsonb
+                    USING CASE WHEN properties IS NULL OR properties = '' THEN NULL
+                               ELSE properties::jsonb END;
+                RAISE NOTICE 's_notion.pages.properties migrated to jsonb';
+            END IF;
+        END $$;
+        """,
+        """
+        DO $$ BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 's_notion'
+                  AND table_name   = 'meeting_notes'
+                  AND column_name  = 'properties'
+                  AND data_type   != 'jsonb'
+            ) THEN
+                ALTER TABLE s_notion.meeting_notes
+                    ALTER COLUMN properties TYPE jsonb
+                    USING CASE WHEN properties IS NULL OR properties = '' THEN NULL
+                               ELSE properties::jsonb END;
+                RAISE NOTICE 's_notion.meeting_notes.properties migrated to jsonb';
+            END IF;
+        END $$;
+        """,
+    ]
+    with engine.begin() as conn:
+        for stmt in migrate_sql_statements:
+            conn.execute(text(stmt))
+    logger.info("Pre-flight schema migration complete.")
+
     pipeline = create_postgres_pipeline(pipeline_name="ingest_notion", dataset_name="s_notion")
-    
-    try:
-        info = pipeline.run(resources)
-    except Exception as e:
-        logger.warning(f"Initial dlt pipeline run hit schema/package exception: {e}. Forcing dlt to overwrite destination schema with refresh='drop_sources'...")
-        try:
-            pipeline.drop()
-        except Exception:
-            pass
-        pipeline = create_postgres_pipeline(pipeline_name="ingest_notion", dataset_name="s_notion")
-        info = pipeline.run(resources, refresh="drop_sources")
+    info = pipeline.run(resources)
 
     dlt_duration = time.time() - dlt_start_time
     total_pipeline_duration = time.time() - pipeline_start_time
