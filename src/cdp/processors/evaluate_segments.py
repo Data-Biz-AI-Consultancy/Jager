@@ -42,6 +42,15 @@ PERSON_SEGMENT_RULES = {
         WHERE LOWER(COALESCE(pli.position, '')) ~ '(agency|freelance|consultant|partner|advisor|contractor)'
            OR LOWER(COALESCE(pli.company, '')) ~ '(agency|consulting|advisory|solutions|studio)'
     """,
+    "ecosystem_tooling_partners": """
+        SELECT DISTINCT p.id FROM cdp.persons p
+        JOIN cdp.persons_linkedins pli ON (
+            (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
+            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND p.linkedin_url ILIKE '%' || pli.profile_url || '%')
+        )
+        WHERE LOWER(COALESCE(pli.company, '')) ~ '(dlthub|dlt|motherduck|n8n|airbyte|dagster|prefect|duckdb|snowflake|databricks|astronomer)'
+           OR LOWER(COALESCE(pli.position, '')) ~ '(devrel|developer advocate|developer relations|maintainer|creator|founding engineer)'
+    """,
     "former_colleagues_alumni": """
         SELECT DISTINCT p.id FROM cdp.persons p
         JOIN cdp.persons_linkedins pli ON (
@@ -97,6 +106,7 @@ def ensure_seed_segments(conn):
         ("clients_and_prospects", "Clients & Prospects", "Active or past consulting clients and warm lead opportunities", "dynamic", {"rule": "clients_and_prospects"}),
         ("hiring_decision_makers", "Hiring Decision-Makers", "Founders, CTOs, VPs of Data/Engineering, and hiring decision makers", "dynamic", {"rule": "hiring_decision_makers"}),
         ("peer_collaborators", "Peer Collaborators & Agencies", "Other consultants, agency owners, or freelancers for project referrals/partnerships", "dynamic", {"rule": "peer_collaborators"}),
+        ("ecosystem_tooling_partners", "Ecosystem & Tooling Partners", "Founders, maintainers, DevRel, and creators at data/AI tooling platforms (e.g. dltHub, MotherDuck, n8n)", "dynamic", {"rule": "ecosystem_tooling_partners"}),
         ("community_and_audience", "Community & Audience", "Substack readers, LinkedIn connections, and event contacts engaging with content", "dynamic", {"rule": "community_and_audience"}),
         ("former_colleagues_alumni", "Alumni & Former Colleagues", "Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)", "dynamic", {"rule": "former_colleagues_alumni"}),
     ]
