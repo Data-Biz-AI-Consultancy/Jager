@@ -1,14 +1,38 @@
 import os
 import sys
+import time
 import logging
 import subprocess
-from fastapi import FastAPI, HTTPException
+from datetime import datetime
+from fastapi import FastAPI, HTTPException, Request
 
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("dapp-service")
 
 app = FastAPI(title="Jager Data App (DAPP) Service")
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    path = request.url.path
+    method = request.method
+    client_host = request.client.host if request.client else "unknown"
+    logger.info(f"--> [HTTP INBOUND] {method} {path} from {client_host}")
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        logger.info(f"<-- [HTTP OUTBOUND] {method} {path} - Status: {response.status_code} - Duration: {process_time:.3f}s")
+        return response
+    except Exception as e:
+        process_time = time.time() - start_time
+        logger.error(f"<-- [HTTP ERROR] {method} {path} - Exception: {str(e)} - Duration: {process_time:.3f}s")
+        raise e
+
 
 # Include ML routes from ml module
 ml_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "ml"))
@@ -28,367 +52,126 @@ except Exception as e:
         logger.warning(f"Could not mount ML router: {err}")
 
 
-@app.post("/run/ingest_buffer")
-def run_ingest_buffer():
-    logger.info("Triggered ingest_buffer pipeline execution")
+def run_pipeline_command(cmd: list, pipeline_name: str):
+    logger.info(f"===> [DAPP EXECUTION START] Triggering pipeline: '{pipeline_name}' | Command: {' '.join(cmd)}")
+    start_time = time.time()
     try:
-        # Execute the python script as a subprocess
         result = subprocess.run(
-            ["python", "olap/ingest_buffer.py"],
+            cmd,
             capture_output=True,
             text=True,
             check=True
         )
-        logger.info("Pipeline execution succeeded")
+        duration = time.time() - start_time
+        logger.info(f"===> [DAPP EXECUTION SUCCESS] Pipeline '{pipeline_name}' completed in {duration:.2f}s")
+
+        if result.stdout:
+            for line in result.stdout.strip().split("\n"):
+                if line.strip():
+                    logger.info(f"  [{pipeline_name} STDOUT] {line}")
+        if result.stderr:
+            for line in result.stderr.strip().split("\n"):
+                if line.strip():
+                    logger.info(f"  [{pipeline_name} STDERR] {line}")
+
         return {
             "status": "success",
+            "pipeline": pipeline_name,
+            "duration_seconds": round(duration, 2),
             "stdout": result.stdout,
             "stderr": result.stderr
         }
     except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
+        duration = time.time() - start_time
+        logger.error(f"===> [DAPP EXECUTION FAILURE] Pipeline '{pipeline_name}' failed with exit code {e.returncode} after {duration:.2f}s")
+
+        if e.stdout:
+            for line in e.stdout.strip().split("\n"):
+                if line.strip():
+                    logger.error(f"  [{pipeline_name} STDOUT] {line}")
+        if e.stderr:
+            for line in e.stderr.strip().split("\n"):
+                if line.strip():
+                    logger.error(f"  [{pipeline_name} STDERR] {line}")
+
         raise HTTPException(
             status_code=500,
             detail={
-                "error": "Pipeline execution failed",
+                "error": f"Pipeline '{pipeline_name}' execution failed",
                 "exit_code": e.returncode,
+                "duration_seconds": round(duration, 2),
                 "stdout": e.stdout,
                 "stderr": e.stderr
             }
         )
     except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
+        duration = time.time() - start_time
+        logger.error(f"===> [DAPP UNEXPECTED ERROR] Pipeline '{pipeline_name}': {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/run/ingest_buffer")
+def run_ingest_buffer():
+    return run_pipeline_command(["python", "olap/ingest_buffer.py"], "ingest_buffer")
 
 
 @app.post("/run/ingest_zernio")
 def run_ingest_zernio():
-    logger.info("Triggered ingest_zernio pipeline execution")
-    try:
-        # Execute the python script as a subprocess
-        result = subprocess.run(
-            ["python", "olap/ingest_zernio.py"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("Pipeline execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Pipeline execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return run_pipeline_command(["python", "olap/ingest_zernio.py"], "ingest_zernio")
 
 
 @app.post("/run/ingest_linkedin")
 def run_ingest_linkedin():
-    logger.info("Triggered ingest_linkedin pipeline execution")
-    try:
-        # Execute the python script as a subprocess
-        result = subprocess.run(
-            ["python", "olap/ingest_linkedin.py"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("Pipeline execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Pipeline execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return run_pipeline_command(["python", "olap/ingest_linkedin.py"], "ingest_linkedin")
 
 
 @app.post("/run/ingest_substack")
 def run_ingest_substack():
-    logger.info("Triggered ingest_substack pipeline execution")
-    try:
-        # Execute the python script as a subprocess
-        result = subprocess.run(
-            ["python", "olap/ingest_substack.py"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("Pipeline execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Pipeline execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return run_pipeline_command(["python", "olap/ingest_substack.py"], "ingest_substack")
 
 
 @app.post("/run/ingest_nager")
 def run_ingest_nager():
-    logger.info("Triggered ingest_nager pipeline execution")
-    try:
-        # Execute the python script as a subprocess
-        result = subprocess.run(
-            ["python", "olap/ingest_nager.py"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("Pipeline execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Pipeline execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+    return run_pipeline_command(["python", "olap/ingest_nager.py"], "ingest_nager")
 
 
 @app.post("/run/dbt_transform")
 def run_dbt_transform():
-    logger.info("Triggered dbt pipeline execution")
-    try:
-        # Execute the dbt build command as a subprocess
-        result = subprocess.run(
-            ["dbt", "build", "--project-dir", "dbt", "--profiles-dir", "dbt"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("dbt execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"dbt execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "dbt execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during dbt run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return run_pipeline_command(["dbt", "build", "--project-dir", "dbt", "--profiles-dir", "dbt"], "dbt_transform")
 
 
 @app.post("/run/reverse_etl")
 def run_reverse_etl():
-    logger.info("Triggered reverse_etl pipeline execution")
-    try:
-        # Execute the python script as a subprocess
-        result = subprocess.run(
-            ["python", "olap/reverse_etl.py"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("Pipeline execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Pipeline execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return run_pipeline_command(["python", "olap/reverse_etl.py"], "reverse_etl")
 
 
 @app.post("/run/oltp/ingest_wordpress")
 def run_oltp_ingest_wordpress():
-    logger.info("Triggered oltp/ingest_wordpress pipeline execution")
-    try:
-        # Execute the python script as a subprocess
-        result = subprocess.run(
-            ["python", "oltp/ingest_wordpress.py"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("Pipeline execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Pipeline execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return run_pipeline_command(["python", "oltp/ingest_wordpress.py"], "ingest_wordpress")
 
 
 @app.post("/run/oltp/ingest_yahoo_finance")
 def run_oltp_ingest_yahoo_finance():
-    logger.info("Triggered oltp/ingest_yahoo_finance pipeline execution")
-    try:
-        # Execute the python script as a subprocess
-        result = subprocess.run(
-            ["python", "oltp/ingest_yahoo_finance.py"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("Pipeline execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Pipeline execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return run_pipeline_command(["python", "oltp/ingest_yahoo_finance.py"], "ingest_yahoo_finance")
 
 
 @app.post("/run/oltp/ingest_eurostat_fx")
 def run_oltp_ingest_eurostat_fx():
-    logger.info("Triggered oltp/ingest_eurostat_fx pipeline execution")
-    try:
-        # Execute the python script as a subprocess
-        result = subprocess.run(
-            ["python", "oltp/ingest_eurostat_fx.py"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("Pipeline execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Pipeline execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+    return run_pipeline_command(["python", "oltp/ingest_eurostat_fx.py"], "ingest_eurostat_fx")
 
 
 @app.post("/run/oltp/ingest_notion_manual")
 def run_oltp_ingest_notion_manual():
-    logger.info("Triggered oltp/ingest_notion_manual pipeline execution")
-    try:
-        result = subprocess.run(
-            ["python", "oltp/ingest_notion_manual.py"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        logger.info("Pipeline execution succeeded")
-        return {
-            "status": "success",
-            "stdout": result.stdout,
-            "stderr": result.stderr
-        }
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Pipeline execution failed: {e.stderr}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "error": "Pipeline execution failed",
-                "exit_code": e.returncode,
-                "stdout": e.stdout,
-                "stderr": e.stderr
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error during pipeline run: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return run_pipeline_command(["python", "oltp/ingest_notion_manual.py"], "ingest_notion_manual")
+
+
+@app.post("/run/oltp/ingest_notion")
+def run_oltp_ingest_notion(database_id: str | None = None, full_ingestion: bool = False, lookback_days: int | None = 7):
+    cmd = ["python", "oltp/ingest_notion.py"]
+    if database_id:
+        cmd.append(database_id)
+    if full_ingestion:
+        cmd.append("--full")
+    if lookback_days is not None:
+        cmd.append(f"--lookback-days={lookback_days}")
+    return run_pipeline_command(cmd, "ingest_notion")
