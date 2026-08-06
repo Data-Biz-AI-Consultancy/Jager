@@ -180,9 +180,22 @@ def resolve_persons(cdp_conn):
             ).fetchone()
         
         if not existing and url:
+            clean_u = clean_url(url)
             existing = cdp_conn.execute(
-                text("SELECT id FROM cdp.persons WHERE linkedin_url = :url"),
-                {"url": url}
+                text("""
+                    SELECT id FROM cdp.persons
+                    WHERE linkedin_url = :url
+                       OR linkedin_url = :clean_url
+                       OR linkedin_url = :https_url
+                       OR linkedin_url = :www_url
+                    LIMIT 1
+                """),
+                {
+                    "url": url,
+                    "clean_url": clean_u,
+                    "https_url": f"https://{clean_u}" if clean_u else url,
+                    "www_url": f"https://www.{clean_u}" if clean_u else url
+                }
             ).fetchone()
 
         if existing:
