@@ -26,26 +26,29 @@ PERSON_SEGMENT_RULES = {
     "hiring_decision_makers": """
         SELECT DISTINCT p.id FROM cdp.persons p
         LEFT JOIN cdp.person_account_relationships r ON p.id = r.person_id
+        LEFT JOIN cdp.persons_linkedins pli ON (
+            (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
+            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND p.linkedin_url ILIKE '%' || pli.profile_url || '%')
+        )
         WHERE r.id IS NOT NULL
-           OR p.id IN (
-               SELECT person_id FROM cdp.persons_linkedins 
-               WHERE LOWER(COALESCE(position, '')) ~ '(ceo|cto|cfo|coo|vp|vice president|director|head of|founder|owner|chief|hiring manager)'
-           )
+           OR LOWER(COALESCE(pli.position, '')) ~ '(ceo|cto|cfo|coo|vp|vice president|director|head of|founder|owner|chief|hiring manager)'
     """,
     "peer_collaborators": """
         SELECT DISTINCT p.id FROM cdp.persons p
-        WHERE p.id IN (
-            SELECT person_id FROM cdp.persons_linkedins 
-            WHERE LOWER(COALESCE(position, '')) ~ '(agency|freelance|consultant|partner|advisor|contractor)'
-               OR LOWER(COALESCE(company, '')) ~ '(agency|consulting|advisory|solutions|studio)'
+        JOIN cdp.persons_linkedins pli ON (
+            (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
+            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND p.linkedin_url ILIKE '%' || pli.profile_url || '%')
         )
+        WHERE LOWER(COALESCE(pli.position, '')) ~ '(agency|freelance|consultant|partner|advisor|contractor)'
+           OR LOWER(COALESCE(pli.company, '')) ~ '(agency|consulting|advisory|solutions|studio)'
     """,
     "former_colleagues_alumni": """
         SELECT DISTINCT p.id FROM cdp.persons p
-        WHERE p.id IN (
-            SELECT person_id FROM cdp.persons_linkedins 
-            WHERE LOWER(COALESCE(company, '')) ~ '(hellofresh|delivery hero|foodpanda|vestiaire)'
+        JOIN cdp.persons_linkedins pli ON (
+            (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
+            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND p.linkedin_url ILIKE '%' || pli.profile_url || '%')
         )
+        WHERE LOWER(COALESCE(pli.company, '')) ~ '(hellofresh|delivery hero|foodpanda|vestiaire)'
     """,
     "community_and_audience": """
         SELECT p.id FROM cdp.persons p
