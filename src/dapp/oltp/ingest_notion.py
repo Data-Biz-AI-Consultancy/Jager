@@ -356,7 +356,6 @@ def run_ingestion():
                 "database_id": {"data_type": "text"},
                 "title": {"data_type": "text"},
                 "content": {"data_type": "text"},
-                "properties": {"data_type": "json"},
                 "cover_url": {"data_type": "text"},
                 "icon": {"data_type": "text"},
                 "url": {"data_type": "text"},
@@ -372,7 +371,6 @@ def run_ingestion():
                     "database_id": p["database_id"],
                     "title": p["title"],
                     "content": p["content"],
-                    "properties": p["properties"] if isinstance(p["properties"], dict) else {},
                     "cover_url": p["cover_url"],
                     "icon": p["icon"],
                     "url": p["url"],
@@ -397,7 +395,6 @@ def run_ingestion():
                 "transcription": {"data_type": "text"},
                 "action_items": {"data_type": "text"},
                 "recording_url": {"data_type": "text"},
-                "properties": {"data_type": "json"},
                 "url": {"data_type": "text"},
                 "created_time": {"data_type": "timestamp"},
                 "last_edited_time": {"data_type": "timestamp"},
@@ -416,7 +413,6 @@ def run_ingestion():
                     "transcription": m["transcription"],
                     "action_items": m["action_items"],
                     "recording_url": m["recording_url"],
-                    "properties": m["properties"] if isinstance(m["properties"], dict) else {},
                     "url": m["url"],
                     "created_time": m["created_time"],
                     "last_edited_time": m["last_edited_time"],
@@ -431,50 +427,22 @@ def run_ingestion():
     logger.info("Starting dlt pipeline load phase into PostgreSQL schema 's_notion'...")
     dlt_start_time = time.time()
 
-    # Pre-flight: ensure 'properties' column is jsonb in both destination tables.
-    # This migration is idempotent — it's a no-op if the column is already jsonb.
-    # Without this, dlt fails with a type-mismatch error when inserting json data
-    # into a legacy varchar 'properties' column left over from an earlier schema.
-    logger.info("Running pre-flight schema migration: ensuring 'properties' columns are jsonb...")
+    # Pre-flight: drop the legacy 'properties' column from both tables if it exists.
+    # 'properties' was always empty ({}) and caused persistent type-mismatch errors
+    # with dlt's PostgreSQL staging (dlt stages json as text; postgres can't implicitly
+    # cast text → jsonb). Dropping the column is idempotent and eliminates the issue.
+    logger.info("Running pre-flight schema migration: dropping legacy 'properties' column if present...")
     migrate_sql_statements = [
-        """
-        DO $$ BEGIN
-            IF EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_schema = 's_notion'
-                  AND table_name   = 'pages'
-                  AND column_name  = 'properties'
-                  AND data_type   != 'jsonb'
-            ) THEN
-                ALTER TABLE s_notion.pages
-                    ALTER COLUMN properties TYPE jsonb
-                    USING CASE WHEN properties IS NULL OR properties = '' THEN NULL
-                               ELSE properties::jsonb END;
-                RAISE NOTICE 's_notion.pages.properties migrated to jsonb';
-            END IF;
-        END $$;
-        """,
-        """
-        DO $$ BEGIN
-            IF EXISTS (
-                SELECT 1 FROM information_schema.columns
-                WHERE table_schema = 's_notion'
-                  AND table_name   = 'meeting_notes'
-                  AND column_name  = 'properties'
-                  AND data_type   != 'jsonb'
-            ) THEN
-                ALTER TABLE s_notion.meeting_notes
-                    ALTER COLUMN properties TYPE jsonb
-                    USING CASE WHEN properties IS NULL OR properties = '' THEN NULL
-                               ELSE properties::jsonb END;
-                RAISE NOTICE 's_notion.meeting_notes.properties migrated to jsonb';
-            END IF;
-        END $$;
-        """,
+        "ALTER TABLE s_notion.pages DROP COLUMN IF EXISTS properties;",
+        "ALTER TABLE s_notion.meeting_notes DROP COLUMN IF EXISTS properties;",
     ]
     with engine.begin() as conn:
         for stmt in migrate_sql_statements:
-            conn.execute(text(stmt))
+            try:
+                conn.execute(text(stmt))
+            except Exception as migration_err:
+                # Table may not exist yet on first run — that's fine
+                logger.debug(f"Pre-flight migration skipped (table may not exist yet): {migration_err}")
     logger.info("Pre-flight schema migration complete.")
 
     # Drop stale dlt pipeline cache (cached SQL packages from prior failed runs).
