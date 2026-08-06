@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import requests
 import json
 from datetime import datetime, timedelta, timezone
@@ -249,7 +250,9 @@ def parse_page_data(page: dict, blocks: list, db_type: str, now_iso: str):
 
 def run_ingestion():
     os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
-    logger.info("Initializing DB engine to query active Notion databases")
+    pipeline_start_time = time.time()
+    logger.info("Starting Notion Data Ingestion pipeline")
+    logger.info("Initializing DB engine to query active Notion databases...")
     engine = get_db_engine()
     databases = get_active_databases(engine)
     headers = get_notion_headers()
@@ -258,15 +261,20 @@ def run_ingestion():
     now_iso = now.isoformat()
     start_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")
 
+    logger.info(f"Discovered {len(databases)} monitored Notion databases to ingest (filter: last_edited_time >= {start_date})")
+
     pages_list = []
     meeting_notes_list = []
+    api_fetch_start = time.time()
+    total_blocks_count = 0
 
-    for db in databases:
+    for db_index, db in enumerate(databases, 1):
+        db_start_time = time.time()
         db_id = db["database_id"].replace("-", "")
         formatted_db_id = format_uuid(db_id)
         db_name = db["name"]
         db_type = db.get("type", "database")
-        logger.info(f"Ingesting Notion database '{db_name}' ({formatted_db_id}) [type: {db_type}]")
+        logger.info(f"[{db_index}/{len(databases)}] Processing database '{db_name}' ({formatted_db_id}) [type: {db_type}]...")
 
         query_url = f"https://api.notion.com/v1/databases/{formatted_db_id}/query"
         has_more = True
@@ -277,32 +285,45 @@ def run_ingestion():
             },
             "page_size": 100
         }
+        page_batch_num = 0
+        db_items_count = 0
 
         while has_more:
             try:
+                page_batch_num += 1
                 res = requests.post(query_url, headers=headers, json=query_body, timeout=15)
                 if res.status_code != 200:
                     if res.status_code == 404:
-                        logger.warning(f"Could not access database '{db_name}' ({formatted_db_id}) [Status 404]. Please ensure the Notion Integration connection has been added to this database in the Notion UI.")
+                        logger.warning(f"  Could not access database '{db_name}' ({formatted_db_id}) [Status 404]. Please ensure the Notion Integration connection has been added to this database in the Notion UI.")
                     else:
-                        logger.error(f"Failed to query database {formatted_db_id}: Status {res.status_code} - {res.text}")
+                        logger.error(f"  Failed to query database '{db_name}' ({formatted_db_id}): Status {res.status_code} - {res.text}")
                     break
                 data = res.json()
                 pages = data.get("results", [])
                 has_more = data.get("has_more", False)
                 next_cursor = data.get("next_cursor")
+                logger.info(f"  Batch {page_batch_num}: retrieved {len(pages)} page headers (has_more={has_more})")
+
                 if has_more and next_cursor:
                     query_body["start_cursor"] = next_cursor
                 else:
                     has_more = False
 
-                for page in pages:
+                for p_idx, page in enumerate(pages, 1):
                     page_id = page.get("id")
                     if not page_id:
                         continue
+                    b_start = time.time()
                     blocks = fetch_page_blocks(page_id, headers)
+                    b_duration = time.time() - b_start
+                    total_blocks_count += len(blocks)
+
                     item_data = parse_page_data(page, blocks, db_type, now_iso)
                     item_data["database_id"] = db_id
+                    db_items_count += 1
+
+                    page_title = item_data.get("title", "Untitled")[:40]
+                    logger.info(f"    - Page {p_idx}/{len(pages)}: '{page_title}' ({page_id}) -> fetched {len(blocks)} blocks in {b_duration:.2f}s")
 
                     if db_type == "meeting_notes":
                         meeting_notes_list.append(item_data)
@@ -310,13 +331,24 @@ def run_ingestion():
                         pages_list.append(item_data)
 
             except Exception as ex:
-                logger.error(f"Error querying Notion database {db_id}: {ex}")
+                logger.error(f"  Error querying Notion database {db_id}: {ex}")
                 break
+
+        db_duration = time.time() - db_start_time
+        logger.info(f"  --> Completed database '{db_name}': {db_items_count} items fetched in {db_duration:.2f}s")
+
+    api_fetch_duration = time.time() - api_fetch_start
+    logger.info(f"===> Notion API Phase Complete: {len(pages_list)} knowledge pages, {len(meeting_notes_list)} meeting notes, {total_blocks_count} total blocks in {api_fetch_duration:.2f}s")
 
     resources = []
 
     if pages_list:
-        @dlt.resource(name="pages", write_disposition="merge", primary_key="id")
+        @dlt.resource(
+            name="pages",
+            write_disposition="merge",
+            primary_key="id",
+            columns={"properties": {"data_type": "complex"}}
+        )
         def fetch_pages():
             for p in pages_list:
                 yield {
@@ -324,7 +356,7 @@ def run_ingestion():
                     "database_id": p["database_id"],
                     "title": p["title"],
                     "content": p["content"],
-                    "properties": json.dumps(p["properties"]),
+                    "properties": p["properties"],
                     "cover_url": p["cover_url"],
                     "icon": p["icon"],
                     "url": p["url"],
@@ -335,7 +367,12 @@ def run_ingestion():
         resources.append(fetch_pages())
 
     if meeting_notes_list:
-        @dlt.resource(name="meeting_notes", write_disposition="merge", primary_key="id")
+        @dlt.resource(
+            name="meeting_notes",
+            write_disposition="merge",
+            primary_key="id",
+            columns={"properties": {"data_type": "complex"}}
+        )
         def fetch_meeting_notes():
             for m in meeting_notes_list:
                 yield {
@@ -348,7 +385,7 @@ def run_ingestion():
                     "transcription": m["transcription"],
                     "action_items": m["action_items"],
                     "recording_url": m["recording_url"],
-                    "properties": json.dumps(m["properties"]),
+                    "properties": m["properties"],
                     "url": m["url"],
                     "created_time": m["created_time"],
                     "last_edited_time": m["last_edited_time"],
@@ -360,9 +397,14 @@ def run_ingestion():
         logger.warning("No Notion pages or meeting notes fetched to ingest.")
         return None
 
+    logger.info("Starting dlt pipeline load phase into PostgreSQL schema 's_notion'...")
+    dlt_start_time = time.time()
     pipeline = create_postgres_pipeline(pipeline_name="ingest_notion", dataset_name="s_notion")
     info = pipeline.run(resources)
-    logger.info(f"Notion ingestion pipeline completed successfully: {info}")
+    dlt_duration = time.time() - dlt_start_time
+    total_pipeline_duration = time.time() - pipeline_start_time
+
+    logger.info(f"===> Notion Ingestion Pipeline Complete in {total_pipeline_duration:.2f}s (Notion API: {api_fetch_duration:.2f}s, dlt load: {dlt_duration:.2f}s): {info}")
     return info
 
 
