@@ -12,7 +12,9 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
 
 ### Key Functional Domains:
 1. **Entities & Identity Resolution**:
-   - **`cdp.persons`**: Individual contacts and prospect profiles, resolved by primary email or LinkedIn URL.
+   - **`cdp.persons_linkedins`**: Dedicated intake table for raw LinkedIn contact/connection profiles (`s_linkedin.connections`).
+   - **`cdp.persons_manual_substack`**: Dedicated intake table for raw Substack subscriber export contacts (`s_manual`).
+   - **`cdp.persons`**: Consolidated master contact table representing single resolution outcomes resolved across intake sources and meeting note attendees by primary email or LinkedIn URL.
    - **`cdp.client_accounts`**: Target client companies, organizations, and accounts extracted from sources (e.g. LinkedIn connections).
    - **`cdp.person_account_relationships`**: Mapping individual contacts to client accounts with specific roles (e.g. decision maker, job position) and employment status.
 2. **Lead Intake & Opportunity Lifecycle**:
@@ -34,29 +36,34 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
 ```mermaid
 flowchart TD
     subgraph RawSources["Raw Staging Sources (jager DB)"]
-        SLI["s_linkedin.messages"]
+        SLI["s_linkedin.connections"]
         SM["s_manual.*"]
+        NMN["s_notion.meeting_notes"]
     end
 
-    subgraph CDPProcessors["CDP Processors (FastAPI Service)"]
-        PLM["process_linkedin_messages.py"]
-        PMD["process_manual_data.py"]
+    subgraph IntakeTier["CDP Intake Tier (cdp DB)"]
+        PLI["cdp.persons_linkedins"]
+        PMS["cdp.persons_manual_substack"]
+        AMN["cdp.activities_notion_meeting_notes"]
     end
 
-    subgraph CDPStore["CDP Lead Storage (cdp DB)"]
-        LL["cdp.leads_linkedin<br/>(conversation_id primary key)"]
-        LM["cdp.leads_manual<br/>(id UUID primary key)"]
-        L["cdp.leads<br/>(Aggregated Table: source = 'Linkedin' | 'Manual')"]
+    subgraph EntityResolution["Entity Resolution Engine"]
+        ER["entity_resolution.py<br/>(Normalizes email & URL, merges duplicates)"]
     end
 
-    SLI --> PLM
-    SM --> PMD
+    subgraph CDPStore["CDP Master Store (cdp DB)"]
+        P["cdp.persons<br/>(Master Contacts: flags in_linkedin_connections & in_substack_subscriber_export)"]
+    end
 
-    PLM -->|Ingest LinkedIn Leads| LL
-    PLM -->|Sync Aggregated Lead| L
+    SLI -->|Ingest Raw Connections| PLI
+    SM -->|Ingest Substack Subscribers| PMS
+    NMN -->|Ingest Meeting Notes| AMN
 
-    PMD -->|Ingest Manual Leads| LM
-    PMD -->|Sync Aggregated Lead| L
+    PLI --> ER
+    PMS --> ER
+    AMN -->|Extract Attendees| ER
+
+    ER -->|Upsert Master Profiles| P
 ```
 
 ---
@@ -135,10 +142,11 @@ src/cdp/
 ├── main.py                     # FastAPI application endpoints
 ├── utils.py                    # Database connection & logging helpers
 └── processors/                 # Core domain processors & handlers
-    ├── process_linkedin_connections.py  # Normalizes LinkedIn connections into cdp.persons, cdp.client_accounts, and cdp.person_account_relationships
+    ├── entity_resolution.py             # Consolidated identity resolution engine merging intake tables into cdp.persons
+    ├── process_linkedin_connections.py  # Ingests LinkedIn connections into cdp.persons_linkedins, cdp.client_accounts, and triggers entity resolution
     ├── process_linkedin_messages.py     # Processes s_linkedin.messages into cdp.leads_linkedin and cdp.leads
-    ├── process_manual_data.py           # Processes s_manual schema tables into cdp.leads_manual, cdp.leads, cdp.persons, and cdp.client_accounts
-    └── process_notion_meeting_notes.py  # Ingests Notion meeting notes into cdp.activities_notion_meeting_notes and populates cdp.activities
+    ├── process_manual_data.py           # Ingests s_manual tables into cdp.persons_manual_substack, cdp.leads_manual, cdp.leads, and triggers entity resolution
+    └── process_notion_meeting_notes.py  # Ingests Notion meeting notes into cdp.activities_notion_meeting_notes and triggers entity resolution
 ```
 
 ---
