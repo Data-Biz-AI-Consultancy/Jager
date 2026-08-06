@@ -40,7 +40,8 @@ def detect_message_metadata(convo_transcript: str) -> Dict[str, Any]:
         "access your service", "hire you for", "consulting rate", "hourly rate", "data stack audit", 
         "build our data", "project proposal", "freelance proposal", "advice regarding data", 
         "data and analytics", "engineering firm", "snowflake", "pipeline", "audit", "need some advice",
-        "service inquiry", "consulting project"
+        "service inquiry", "consulting project", "exploring ai", "databizaitech", "my new business",
+        "consultancy page", "your site", "security & compliance", "gdpr"
     ]):
         intent = "inbound_service_request"
     elif any(k in text_lower for k in ["recruiting", "recruiter", "talent acquisition", "talent partner", "open for a role", "job opportunity", "hiring"]):

@@ -59,7 +59,7 @@ PERSON_SEGMENT_RULES = {
             SELECT l.person_id FROM cdp.leads l
             WHERE LOWER(COALESCE(l.intent, '')) IN ('inbound_service_request', 'consulting_inquiry', 'project_inquiry')
                OR LOWER(COALESCE(l.status, '')) IN ('in_discussion', 'proposal_sent', 'negotiating', 'offer_accepted', 'won', 'active_client')
-               OR LOWER(COALESCE(l.summary, '')) ~* '\\y(snowflake|migration|freelance|consulting|contract|project|data engineering|calendar invite|client|proposal|quote|project onboarding)\\y'
+               OR LOWER(COALESCE(l.summary, '')) ~* '\\y(snowflake|migration|freelance|consulting|contract|project|data engineering|calendar invite|client|proposal|quote|project onboarding|exploring ai|databizaitech|new business|consultancy page|your site|gdpr)\\y'
         )
     """,
     "former_colleagues_alumni": """
