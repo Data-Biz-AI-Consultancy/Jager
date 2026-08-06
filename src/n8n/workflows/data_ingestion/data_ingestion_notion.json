@@ -47,16 +47,24 @@
     },
     {
       "parameters": {
-        "jsCode": "return [\n  { json: { \"name\": \"Leadership & Management\", \"database_id\": \"b5ad53f72b0e45e3b481e25da2703fd8\", \"type\": \"database\" } },\n  { json: { \"name\": \"Data Science - AIs\", \"database_id\": \"1686e98d4ef8806da4e1c28268b7365e\", \"type\": \"database\" } },\n  { json: { \"name\": \"Data Science\", \"database_id\": \"4cd9498f5b5c48c6864d57bd36f7f82d\", \"type\": \"database\" } },\n  { json: { \"name\": \"data engineering\", \"database_id\": \"32fcdb5f301b4a9c94329dcadeffca15\", \"type\": \"database\" } },\n  { json: { \"name\": \"Data Governance\", \"database_id\": \"f0501c9ac3bf4f0ea8d06b7ed6e40a31\", \"type\": \"database\" } },\n  { json: { \"name\": \"Data Visualization & Reporting\", \"database_id\": \"8fc4f5d17d6644eaa6b199f11cb3bf2b\", \"type\": \"database\" } },\n  { json: { \"name\": \"Product Management\", \"database_id\": \"40906fc76abd4951bd4b283c9717d320\", \"type\": \"database\" } },\n  { json: { \"name\": \"Product Analytics\", \"database_id\": \"2bdfbb81d5c043d0a5fdd3028ad2504f\", \"type\": \"database\" } },\n  { json: { \"name\": \"Software Engineering\", \"database_id\": \"1d362ecd225241c0ab3c0fe4d0ed3cda\", \"type\": \"database\" } },\n  { json: { \"name\": \"Business\", \"database_id\": \"2d56e98d4ef8806ba96cca38539b67e1\", \"type\": \"database\" } },\n  { json: { \"name\": \"Career\", \"database_id\": \"f34619396f3c4be8b96fa64211eb18d7\", \"type\": \"database\" } },\n  { json: { \"name\": \"Interview Meeting notes\", \"database_id\": \"3876e98d4ef8807eab9be1b0b029246c\", \"type\": \"meeting_notes\" } },\n  { json: { \"name\": \"Meetups & Seminars\", \"database_id\": \"3876e98d4ef880a6a61ae99d8912694f\", \"type\": \"meeting_notes\" } },\n  { json: { \"name\": \"FaDi meeting notes\", \"database_id\": \"3a36e98d4ef88084a1aec60052a3cb80\", \"type\": \"meeting_notes\" } }\n];"
+        "operation": "executeQuery",
+        "query": "SELECT database_id, name, COALESCE(type, 'database') AS type FROM s_notion.databases_monitored WHERE active = true;",
+        "options": {}
       },
       "id": "get-active-databases",
       "name": "Get Active Databases",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
       "position": [
         560,
         256
-      ]
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
     },
     {
       "parameters": {
@@ -103,7 +111,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let databaseItem;\n  try {\n    databaseItem = $('Get Active Databases').all()[i].json;\n  } catch (e) {\n    console.error('Could not get active database item:', e.message);\n  }\n  const dbId = databaseItem ? databaseItem.database_id : '';\n  const dbName = databaseItem ? databaseItem.name : '';\n  const dbType = databaseItem ? databaseItem.type : 'database';\n\n  if (item.json.results && Array.isArray(item.json.results)) {\n    for (const page of item.json.results) {\n      results.push({\n        json: {\n          ...page,\n          database_id: dbId,\n          database_name: dbName,\n          database_type: dbType\n        }\n      });\n    }\n  }\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let dbItem;\n  try {\n    dbItem = $('Get Active Databases').all()[i].json;\n  } catch (e) {\n    console.error('Could not get active database item:', e.message);\n  }\n  const dbId = dbItem ? dbItem.database_id : (item.json.database_id || '');\n  const dbName = dbItem ? dbItem.name : (item.json.name || '');\n  const dbType = dbItem ? dbItem.type : (item.json.type || 'database');\n\n  if (item.json.results && Array.isArray(item.json.results)) {\n    for (const page of item.json.results) {\n      results.push({\n        json: {\n          ...page,\n          database_id: dbId,\n          database_name: dbName,\n          database_type: dbType\n        }\n      });\n    }\n  }\n}\nreturn results;"
       },
       "id": "split-pages-list",
       "name": "Split Pages List",
@@ -273,13 +281,6 @@
         [
           {
             "node": "Fetch Monitored Pages",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Update Monitored Databases",
             "type": "main",
             "index": 0
           }

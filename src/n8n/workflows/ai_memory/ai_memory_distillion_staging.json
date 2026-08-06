@@ -45,7 +45,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT id, database_id, title, content, url, created_time, last_edited_time FROM s_notion.pages WHERE last_edited_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' OR created_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';",
+        "query": "SELECT id, database_id, title, content, url, created_time, last_edited_time FROM s_notion.pages WHERE last_edited_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' OR created_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}'\nUNION ALL\nSELECT id, database_id, title, COALESCE(summary || '\n\n' || transcription, content, title) AS content, url, created_time, last_edited_time FROM s_notion.meeting_notes WHERE last_edited_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}' OR created_time >= '{{ $('Ingestion Date Range Parameters').first().json.start_date }}';",
         "options": {}
       },
       "id": "get-unprocessed-raw-notion",
