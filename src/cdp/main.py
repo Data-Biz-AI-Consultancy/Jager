@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException
 from processors.process_linkedin_connections import process_linkedin_connections
 from processors.process_manual_data import process_manual_data
 from processors.process_linkedin_messages import process_linkedin_messages
+from processors.process_notion_meeting_notes import process_notion_meeting_notes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cdp-service")
@@ -46,5 +47,17 @@ def run_process_linkedin_messages():
     except Exception as e:
         logger.error(f"Error processing CDP LinkedIn messages: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/process/notion_meeting_notes")
+def run_process_notion_meeting_notes():
+    logger.info("Triggered CDP Notion meeting notes processing")
+    try:
+        result = process_notion_meeting_notes()
+        return result
+    except Exception as e:
+        logger.error(f"Error processing CDP Notion meeting notes: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 

@@ -155,6 +155,40 @@ CREATE TABLE IF NOT EXISTS cdp.engagements (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS cdp.activities_notion_meeting_notes (
+  page_id VARCHAR(255) PRIMARY KEY,
+  person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+  client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+  database_name VARCHAR(255),
+  title VARCHAR(1024),
+  meeting_date TIMESTAMP WITH TIME ZONE,
+  attendees TEXT,
+  summary_or_content TEXT,
+  to_dos JSONB DEFAULT '[]'::jsonb,
+  url VARCHAR(2048),
+  raw_payload JSONB DEFAULT '{}'::jsonb,
+  intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cdp.activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  activity_type VARCHAR(50) NOT NULL DEFAULT 'meeting_note',
+  source VARCHAR(100) NOT NULL DEFAULT 'notion_meeting_notes',
+  source_id VARCHAR(255) UNIQUE,
+  person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+  client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+  title VARCHAR(1024),
+  activity_date TIMESTAMP WITH TIME ZONE,
+  summary_or_content TEXT,
+  to_dos JSONB DEFAULT '[]'::jsonb,
+  participants TEXT,
+  url VARCHAR(2048),
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS primary_client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN DEFAULT FALSE;
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
