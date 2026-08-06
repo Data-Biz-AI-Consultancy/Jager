@@ -57,9 +57,19 @@ def get_active_databases(engine):
     return databases
 
 
+def format_uuid(raw_id: str) -> str:
+    if not raw_id:
+        return ""
+    cleaned = raw_id.replace("-", "")
+    if len(cleaned) == 32:
+        return f"{cleaned[:8]}-{cleaned[8:12]}-{cleaned[12:16]}-{cleaned[16:20]}-{cleaned[20:]}"
+    return raw_id
+
+
 def fetch_page_blocks(page_id: str, headers: dict):
     blocks = []
-    url = f"https://api.notion.com/v1/blocks/{page_id}/children"
+    formatted_id = format_uuid(page_id)
+    url = f"https://api.notion.com/v1/blocks/{formatted_id}/children"
     has_more = True
     params = {"page_size": 100}
 
@@ -253,11 +263,12 @@ def run_ingestion():
 
     for db in databases:
         db_id = db["database_id"].replace("-", "")
+        formatted_db_id = format_uuid(db_id)
         db_name = db["name"]
         db_type = db.get("type", "database")
-        logger.info(f"Ingesting Notion database '{db_name}' ({db_id}) [type: {db_type}]")
+        logger.info(f"Ingesting Notion database '{db_name}' ({formatted_db_id}) [type: {db_type}]")
 
-        query_url = f"https://api.notion.com/v1/databases/{db_id}/query"
+        query_url = f"https://api.notion.com/v1/databases/{formatted_db_id}/query"
         has_more = True
         query_body = {
             "filter": {
@@ -271,7 +282,10 @@ def run_ingestion():
             try:
                 res = requests.post(query_url, headers=headers, json=query_body, timeout=15)
                 if res.status_code != 200:
-                    logger.error(f"Failed to query database {db_id}: Status {res.status_code}")
+                    if res.status_code == 404:
+                        logger.warning(f"Could not access database '{db_name}' ({formatted_db_id}) [Status 404]. Please ensure the Notion Integration connection has been added to this database in the Notion UI.")
+                    else:
+                        logger.error(f"Failed to query database {formatted_db_id}: Status {res.status_code} - {res.text}")
                     break
                 data = res.json()
                 pages = data.get("results", [])

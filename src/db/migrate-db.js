@@ -662,6 +662,8 @@ ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS properties JSONB DEFAULT '{}
 ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS cover_url VARCHAR(2048);
 ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS icon VARCHAR(1024);
 ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS _dlt_load_id VARCHAR DEFAULT 'legacy';
+ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS _dlt_id VARCHAR DEFAULT 'legacy';
 
 CREATE TABLE IF NOT EXISTS s_notion.meeting_notes (
   id VARCHAR(255) PRIMARY KEY,
@@ -679,6 +681,9 @@ CREATE TABLE IF NOT EXISTS s_notion.meeting_notes (
   last_edited_time TIMESTAMP WITH TIME ZONE,
   processed INTEGER DEFAULT 0
 );
+
+ALTER TABLE s_notion.meeting_notes ADD COLUMN IF NOT EXISTS _dlt_load_id VARCHAR DEFAULT 'legacy';
+ALTER TABLE s_notion.meeting_notes ADD COLUMN IF NOT EXISTS _dlt_id VARCHAR DEFAULT 'legacy';
 
 CREATE TABLE IF NOT EXISTS s_buffer.channels (
   id VARCHAR(255) PRIMARY KEY,
