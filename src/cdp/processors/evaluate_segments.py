@@ -131,12 +131,12 @@ def ensure_seed_segments(conn):
 
 
 def evaluate_person_segments(conn) -> Dict[str, int]:
-    """Evaluates dynamic person segments and updates person_segment_id on cdp.persons."""
+    """Evaluates dynamic person segments and updates person_segment_id, person_segment_name, person_segment_slug on cdp.persons."""
     results = {}
-    segments = conn.execute(text("SELECT id, slug, segment_type, criteria FROM cdp.person_segments")).fetchall()
+    segments = conn.execute(text("SELECT id, slug, name, segment_type, criteria FROM cdp.person_segments")).fetchall()
 
     for seg in segments:
-        seg_id, slug, seg_type, criteria = seg[0], seg[1], seg[2], seg[3] or {}
+        seg_id, slug, seg_name, seg_type, criteria = seg[0], seg[1], seg[2], seg[3], seg[4] or {}
         if seg_type != "dynamic":
             continue
 
@@ -150,8 +150,14 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
 
         if matching_person_ids:
             conn.execute(
-                text("UPDATE cdp.persons SET person_segment_id = :seg_id WHERE id IN :person_ids"),
-                {"seg_id": seg_id, "person_ids": tuple(matching_person_ids)}
+                text("""
+                    UPDATE cdp.persons 
+                    SET person_segment_id = :seg_id,
+                        person_segment_name = :seg_name,
+                        person_segment_slug = :seg_slug
+                    WHERE id IN :person_ids
+                """),
+                {"seg_id": seg_id, "seg_name": seg_name, "seg_slug": slug, "person_ids": tuple(matching_person_ids)}
             )
 
         results[slug] = len(matching_person_ids)
@@ -197,12 +203,12 @@ def evaluate_engagement_temperature(conn) -> Dict[str, int]:
 
 
 def evaluate_lead_segments(conn) -> Dict[str, int]:
-    """Evaluates dynamic lead segments and updates lead_segment_id on cdp.leads."""
+    """Evaluates dynamic lead segments and updates lead_segment_id, lead_segment_name, lead_segment_slug on cdp.leads."""
     results = {}
-    segments = conn.execute(text("SELECT id, slug, segment_type, criteria FROM cdp.lead_segments")).fetchall()
+    segments = conn.execute(text("SELECT id, slug, name, segment_type, criteria FROM cdp.lead_segments")).fetchall()
 
     for seg in segments:
-        seg_id, slug, seg_type, criteria = seg[0], seg[1], seg[2], seg[3] or {}
+        seg_id, slug, seg_name, seg_type, criteria = seg[0], seg[1], seg[2], seg[3], seg[4] or {}
         if seg_type != "dynamic":
             continue
 
@@ -216,8 +222,14 @@ def evaluate_lead_segments(conn) -> Dict[str, int]:
 
         if matching_lead_ids:
             conn.execute(
-                text("UPDATE cdp.leads SET lead_segment_id = :seg_id WHERE id IN :lead_ids"),
-                {"seg_id": seg_id, "lead_ids": tuple(matching_lead_ids)}
+                text("""
+                    UPDATE cdp.leads 
+                    SET lead_segment_id = :seg_id,
+                        lead_segment_name = :seg_name,
+                        lead_segment_slug = :seg_slug
+                    WHERE id IN :lead_ids
+                """),
+                {"seg_id": seg_id, "seg_name": seg_name, "seg_slug": slug, "lead_ids": tuple(matching_lead_ids)}
             )
 
         results[slug] = len(matching_lead_ids)

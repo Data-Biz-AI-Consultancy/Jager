@@ -281,8 +281,13 @@ DROP TABLE IF EXISTS cdp.person_segment_memberships;
 DROP TABLE IF EXISTS cdp.lead_segment_memberships;
 
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_id UUID REFERENCES cdp.person_segments(id) ON DELETE SET NULL;
+ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_name VARCHAR(128);
+ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_slug VARCHAR(64);
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS engagement_temperature VARCHAR(32) DEFAULT 'cold';
+
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_id UUID REFERENCES cdp.lead_segments(id) ON DELETE SET NULL;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_name VARCHAR(128);
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_slug VARCHAR(64);
 
 INSERT INTO cdp.person_segments (slug, name, description, segment_type, criteria) VALUES
 ('clients_and_prospects', 'Clients & Prospects', 'Active or past consulting clients and warm lead opportunities', 'dynamic', '{"rule": "clients_and_prospects"}'::jsonb),

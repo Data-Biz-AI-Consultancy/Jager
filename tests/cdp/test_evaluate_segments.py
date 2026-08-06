@@ -55,8 +55,8 @@ def test_evaluate_person_segments():
     mock_conn.execute.return_value.fetchall.side_effect = [
         # cdp.person_segments fetchall
         [
-            ("p-uuid-1", "clients_and_prospects", "dynamic", {"rule": "clients_and_prospects"}),
-            ("p-uuid-2", "hiring_decision_makers", "dynamic", {"rule": "hiring_decision_makers"}),
+            ("p-uuid-1", "clients_and_prospects", "Clients & Prospects", "dynamic", {"rule": "clients_and_prospects"}),
+            ("p-uuid-2", "hiring_decision_makers", "Hiring Decision-Makers", "dynamic", {"rule": "hiring_decision_makers"}),
         ],
         # rule 1 matching persons
         [("person-123",)],
@@ -69,15 +69,14 @@ def test_evaluate_person_segments():
     assert results["hiring_decision_makers"] == 2
 
 
-
 def test_evaluate_lead_segments():
     mock_conn = MagicMock()
     # Mock lead_segments query
     mock_conn.execute.return_value.fetchall.side_effect = [
         # cdp.lead_segments fetchall
         [
-            ("l-uuid-1", "new_leads_no_followup_7d", "dynamic", {"rule": "new_leads_no_followup_7d"}),
-            ("l-uuid-2", "contract_pending", "dynamic", {"rule": "contract_pending"}),
+            ("l-uuid-1", "new_leads_no_followup_7d", "New Leads No Followup 7d", "dynamic", {"rule": "new_leads_no_followup_7d"}),
+            ("l-uuid-2", "contract_pending", "Contract Pending", "dynamic", {"rule": "contract_pending"}),
         ],
         # rule 1 matching leads
         [("lead-111",)],
