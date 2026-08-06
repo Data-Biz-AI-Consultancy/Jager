@@ -248,19 +248,32 @@ def parse_page_data(page: dict, blocks: list, db_type: str, now_iso: str):
     }
 
 
-def run_ingestion():
+def run_ingestion(target_database_id=None, full_ingestion=False):
     os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
     pipeline_start_time = time.time()
     logger.info("Starting Notion Data Ingestion pipeline")
     logger.info("Initializing DB engine to query active Notion databases...")
     engine = get_db_engine()
     databases = get_active_databases(engine)
+    
+    if target_database_id:
+        target_clean = target_database_id.replace("-", "")
+        databases = [db for db in databases if db["database_id"].replace("-", "") == target_clean]
+        logger.info(f"Targeting single Notion database: {target_database_id} ({len(databases)} match found)")
+
     headers = get_notion_headers()
 
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
+    
+    if full_ingestion:
+        start_date = None
+        filter_msg = "full historical ingestion"
+    else:
+        start_date = (now - timedelta(days=90)).strftime("%Y-%m-%d")
+        filter_msg = f"last_edited_time >= {start_date} (90-day lookback)"
 
-    logger.info(f"Discovered {len(databases)} monitored Notion databases to ingest (full historical ingestion)")
+    logger.info(f"Discovered {len(databases)} monitored Notion databases to ingest ({filter_msg})")
 
     pages_list = []
     meeting_notes_list = []
@@ -280,6 +293,11 @@ def run_ingestion():
         query_body = {
             "page_size": 100
         }
+        if start_date:
+            query_body["filter"] = {
+                "timestamp": "last_edited_time",
+                "last_edited_time": {"on_or_after": start_date}
+            }
         page_batch_num = 0
         db_items_count = 0
 
@@ -462,4 +480,7 @@ def run_ingestion():
 
 
 if __name__ == "__main__":
-    run_ingestion()
+    args = sys.argv[1:]
+    is_full = "--full" in args or "full=true" in args
+    db_id = next((a for a in args if a not in ("--full", "full=true")), None)
+    run_ingestion(db_id, full_ingestion=is_full)

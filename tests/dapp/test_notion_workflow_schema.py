@@ -13,11 +13,13 @@ def test_notion_workflow_json_structure():
     
     node_names = [n.get("name") for n in data.get("nodes", [])]
     assert "Schedule Trigger" in node_names
-    assert "Trigger Notion Ingestion" in node_names
+    assert "Ingest DB - Leadership & Management" in node_names
+    assert "Ingest DB - FaDi meeting notes" in node_names
+    assert len(data.get("nodes", [])) == 15
 
-    trigger_node = next(n for n in data.get("nodes", []) if n.get("name") == "Trigger Notion Ingestion")
-    assert trigger_node["type"] == "n8n-nodes-base.httpRequest"
-    assert "/run/oltp/ingest_notion" in trigger_node["parameters"]["url"]
+    db_node = next(n for n in data.get("nodes", []) if n.get("name") == "Ingest DB - Leadership & Management")
+    assert db_node["type"] == "n8n-nodes-base.httpRequest"
+    assert "/run/oltp/ingest_notion" in db_node["parameters"]["url"]
 
 
 def test_notion_monitored_databases_seeds():

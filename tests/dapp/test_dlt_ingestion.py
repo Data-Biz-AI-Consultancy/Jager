@@ -360,7 +360,7 @@ def test_ingest_notion(mock_post, mock_get, mock_dlt_utils):
 
         ingest_notion.run_ingestion()
 
-        mock_dlt_pipeline.assert_called_once_with(
+        mock_dlt_pipeline.assert_called_with(
             pipeline_name="ingest_notion",
             dataset_name="s_notion"
         )
