@@ -53,13 +53,19 @@ def mock_pandas_read_sql():
         mock_read.return_value = get_mock_df()
         yield mock_read
 
+import importlib.util
+
 # Now import the modules safely with create_engine patched during module load
 with mock.patch('sqlalchemy.create_engine', return_value=mock_engine):
     import train
     import predict
     import backtest
     from fastapi.testclient import TestClient
-    import main
+    
+    ml_main_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src/dapp/ml/main.py'))
+    spec = importlib.util.spec_from_file_location("dapp_ml_main", ml_main_path)
+    main = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(main)
 
 def test_train_model():
     mock_conn = mock.MagicMock()
@@ -120,8 +126,8 @@ def test_api_predict():
     client = TestClient(main.app)
     
     # Mock train_model and generate_predictions
-    with mock.patch('main.train_model') as mock_train, \
-         mock.patch('main.generate_predictions') as mock_predict:
+    with mock.patch.object(main, 'train_model') as mock_train, \
+         mock.patch.object(main, 'generate_predictions') as mock_predict:
          
         mock_train.return_value = (mock.MagicMock(), get_mock_df(), 0.95, 2)
         mock_predict.return_value = [
@@ -137,7 +143,7 @@ def test_api_predict():
 def test_api_backtest():
     client = TestClient(main.app)
     
-    with mock.patch('main.run_backtest') as mock_backtest:
+    with mock.patch.object(main, 'run_backtest') as mock_backtest:
         mock_backtest.return_value = {
             "symbol": "^GSPC",
             "train_records": 2,
@@ -182,7 +188,7 @@ def test_api_evaluate():
     ]
     mock_conn.execute.return_value.fetchone.return_value = (7584.31,)
     
-    with mock.patch('main.engine', mock_engine):
+    with mock.patch.object(main, 'engine', mock_engine):
         response = client.post("/evaluate")
         assert response.status_code == 200
         data = response.json()
@@ -300,7 +306,7 @@ def test_linkedin_timeslot_generate_predictions():
 def test_api_linkedin_timeslot_train_validate():
     client = TestClient(main.app)
     
-    with mock.patch('main.train_and_validate') as mock_train:
+    with mock.patch.object(main, 'train_and_validate') as mock_train:
         mock_train.return_value = {
             "status": "success",
             "results": {
@@ -318,7 +324,7 @@ def test_api_linkedin_timeslot_train_validate():
 def test_api_linkedin_timeslot_predict():
     client = TestClient(main.app)
     
-    with mock.patch('main.generate_linkedin_predictions') as mock_predict:
+    with mock.patch.object(main, 'generate_linkedin_predictions') as mock_predict:
         mock_predict.return_value = {
             "status": "success",
             "results": {
