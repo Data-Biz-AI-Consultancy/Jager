@@ -59,8 +59,8 @@ def resolve_persons(cdp_conn):
         """)
     ).mappings().all()
 
-    # Build entity registry maps in memory
     email_to_person = {}
+    email_prefix_to_person = {}
     url_to_person = {}
     name_to_person = {}
     resolved_persons = []
@@ -68,6 +68,14 @@ def resolve_persons(cdp_conn):
     def find_or_create_person(email, url, first_name="", last_name=""):
         p = None
         name_key = (first_name.strip().lower(), last_name.strip().lower()) if (first_name and last_name) else None
+        
+        # Strip digits from email prefix for fuzzy handle matching e.g. thantrunghieu2002 / thantrunghieu2012215171 -> thantrunghieu
+        email_prefix = None
+        if email and "@" in email:
+            raw_pre = email.split("@")[0].lower()
+            clean_pre = re.sub(r'\d+$', '', raw_pre)
+            if len(clean_pre) >= 5: # Only match meaningful handles >= 5 chars
+                email_prefix = clean_pre
 
         if email and email in email_to_person:
             p = email_to_person[email]
@@ -75,12 +83,15 @@ def resolve_persons(cdp_conn):
             p = url_to_person[url]
         elif name_key and name_key in name_to_person:
             p = name_to_person[name_key]
+        elif email_prefix and email_prefix in email_prefix_to_person:
+            p = email_prefix_to_person[email_prefix]
         
         if not p:
             p = {
                 "first_name": first_name or None,
                 "last_name": last_name or None,
                 "primary_email": email or None,
+                "secondary_emails": [],
                 "primary_phone": None,
                 "linkedin_url": url or None,
                 "city": None,
@@ -96,20 +107,24 @@ def resolve_persons(cdp_conn):
                 url_to_person[url] = p
             if name_key:
                 name_to_person[name_key] = p
+            if email_prefix:
+                email_prefix_to_person[email_prefix] = p
         else:
             # Merge fields if missing
             if not p["first_name"] and first_name:
                 p["first_name"] = first_name
             if not p["last_name"] and last_name:
                 p["last_name"] = last_name
-            if not p["primary_email"] and email:
-                p["primary_email"] = email
+            if email and email != p["primary_email"] and email not in p["secondary_emails"]:
+                p["secondary_emails"].append(email)
                 email_to_person[email] = p
             if not p["linkedin_url"] and url:
                 p["linkedin_url"] = url
                 url_to_person[url] = p
             if name_key and name_key not in name_to_person:
                 name_to_person[name_key] = p
+            if email_prefix and email_prefix not in email_prefix_to_person:
+                email_prefix_to_person[email_prefix] = p
                 
         return p
 
@@ -227,6 +242,8 @@ def resolve_persons(cdp_conn):
                 {"fn": fn, "ln": ln}
             ).fetchone()
 
+        sec_emails = json.dumps({"secondary_emails": p["secondary_emails"]}) if p["secondary_emails"] else "{}"
+
         if existing:
             cdp_conn.execute(
                 text("""
@@ -237,6 +254,7 @@ def resolve_persons(cdp_conn):
                         primary_phone = COALESCE(:primary_phone, cdp.persons.primary_phone),
                         linkedin_url = COALESCE(:linkedin_url, cdp.persons.linkedin_url),
                         country = COALESCE(:country, cdp.persons.country),
+                        attributes = CASE WHEN :attributes != '{}'::jsonb THEN cdp.persons.attributes || CAST(:attributes AS jsonb) ELSE cdp.persons.attributes END,
                         in_linkedin_connections = (cdp.persons.in_linkedin_connections OR :in_linkedin),
                         in_substack_subscriber_export = (cdp.persons.in_substack_subscriber_export OR :in_substack),
                         updated_at = NOW()
@@ -250,6 +268,7 @@ def resolve_persons(cdp_conn):
                     "primary_phone": p["primary_phone"],
                     "linkedin_url": url,
                     "country": p["country"],
+                    "attributes": sec_emails,
                     "in_linkedin": p["in_linkedin_connections"],
                     "in_substack": p["in_substack_subscriber_export"]
                 }
@@ -259,11 +278,11 @@ def resolve_persons(cdp_conn):
                 text("""
                     INSERT INTO cdp.persons (
                         first_name, last_name, primary_email, primary_phone, linkedin_url,
-                        country, in_linkedin_connections, in_substack_subscriber_export,
+                        country, attributes, in_linkedin_connections, in_substack_subscriber_export,
                         created_at, updated_at
                     ) VALUES (
                         :first_name, :last_name, :primary_email, :primary_phone, :linkedin_url,
-                        :country, :in_linkedin, :in_substack,
+                        :country, CAST(:attributes AS jsonb), :in_linkedin, :in_substack,
                         NOW(), NOW()
                     )
                 """),
@@ -274,6 +293,7 @@ def resolve_persons(cdp_conn):
                     "primary_phone": p["primary_phone"],
                     "linkedin_url": url,
                     "country": p["country"],
+                    "attributes": sec_emails,
                     "in_linkedin": p["in_linkedin_connections"],
                     "in_substack": p["in_substack_subscriber_export"]
                 }
