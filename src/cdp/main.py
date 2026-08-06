@@ -4,6 +4,7 @@ from processors.process_linkedin_connections import process_linkedin_connections
 from processors.process_manual_data import process_manual_data
 from processors.process_linkedin_messages import process_linkedin_messages
 from processors.process_notion_meeting_notes import process_notion_meeting_notes
+from processors.evaluate_segments import evaluate_segments
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cdp-service")
@@ -58,6 +59,18 @@ def run_process_notion_meeting_notes():
     except Exception as e:
         logger.error(f"Error processing CDP Notion meeting notes: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/process/evaluate_segments")
+def run_evaluate_segments():
+    logger.info("Triggered CDP segment evaluation processing")
+    try:
+        result = evaluate_segments()
+        return result
+    except Exception as e:
+        logger.error(f"Error evaluating CDP segments: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 

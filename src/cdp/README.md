@@ -189,6 +189,7 @@ src/cdp/
 ├── utils.py                    # Database connection & logging helpers
 └── processors/                 # Core domain processors & handlers
     ├── entity_resolution.py             # Consolidated identity resolution engine merging intake tables into cdp.persons
+    ├── evaluate_segments.py             # Evaluates dynamic segment rules and refreshes person and lead segment memberships
     ├── process_linkedin_connections.py  # Ingests LinkedIn connections into cdp.persons_linkedins, cdp.client_accounts, and triggers entity resolution
     ├── process_linkedin_messages.py     # Processes s_linkedin.messages into cdp.leads_linkedin and cdp.leads
     ├── process_manual_data.py           # Ingests s_manual tables into cdp.persons_manual_substack, cdp.leads_manual, cdp.leads, and triggers entity resolution
@@ -204,6 +205,7 @@ src/cdp/
 * `POST /process/manual_data`: Runs the processor to extract and normalize manual data ingestion tables from `s_manual` schema into `cdp.leads`, `cdp.persons`, and `cdp.client_accounts`.
 * `POST /process/linkedin_messages`: Runs the processor to extract and normalize LinkedIn messages into `cdp.leads_linkedin` and `cdp.leads`.
 * `POST /process/notion_meeting_notes`: Ingests Notion meeting notes from `s_notion.meeting_notes` into `cdp.activities_notion_meeting_notes` and populates `cdp.activities`.
+* `POST /process/evaluate_segments`: Evaluates dynamic rule criteria across `cdp.person_segments` and `cdp.lead_segments` and updates membership junction tables.
 
 ---
 

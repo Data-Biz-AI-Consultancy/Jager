@@ -192,6 +192,62 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
+
+	CREATE TABLE IF NOT EXISTS cdp.person_segments (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		slug VARCHAR(64) UNIQUE NOT NULL,
+		name VARCHAR(128) NOT NULL,
+		description TEXT,
+		segment_type VARCHAR(32) NOT NULL DEFAULT 'dynamic',
+		criteria JSONB DEFAULT '{}'::jsonb,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS cdp.person_segment_memberships (
+		person_id UUID NOT NULL REFERENCES cdp.persons(id) ON DELETE CASCADE,
+		person_segment_id UUID NOT NULL REFERENCES cdp.person_segments(id) ON DELETE CASCADE,
+		assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		source VARCHAR(64) DEFAULT 'dynamic_rule',
+		PRIMARY KEY (person_id, person_segment_id)
+	);
+
+	CREATE TABLE IF NOT EXISTS cdp.lead_segments (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		slug VARCHAR(64) UNIQUE NOT NULL,
+		name VARCHAR(128) NOT NULL,
+		description TEXT,
+		segment_type VARCHAR(32) NOT NULL DEFAULT 'dynamic',
+		criteria JSONB DEFAULT '{}'::jsonb,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS cdp.lead_segment_memberships (
+		lead_id VARCHAR(255) NOT NULL REFERENCES cdp.leads(id) ON DELETE CASCADE,
+		lead_segment_id UUID NOT NULL REFERENCES cdp.lead_segments(id) ON DELETE CASCADE,
+		assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		source VARCHAR(64) DEFAULT 'dynamic_rule',
+		PRIMARY KEY (lead_id, lead_segment_id)
+	);
+
+	-- Seed initial person segments
+	INSERT INTO cdp.person_segments (slug, name, description, segment_type, criteria) VALUES
+	('high_engagement_unconverted', 'High Engagement Unconverted', 'Active contacts across channels with no active lead', 'dynamic', '{"rule": "high_engagement_unconverted"}'::jsonb),
+	('cross_channel_contacts', 'Cross-Channel Contacts', 'Contacts present in both LinkedIn connections and Substack newsletter subscribers', 'dynamic', '{"rule": "cross_channel_contacts"}'::jsonb),
+	('decision_makers', 'Decision Makers', 'Contacts mapped to accounts or holding leadership/executive titles', 'dynamic', '{"rule": "decision_makers"}'::jsonb),
+	('inactive_contacts', 'Inactive Contacts', 'Contacts with zero touchpoints or engagements in the last 90 days', 'dynamic', '{"rule": "inactive_contacts"}'::jsonb),
+	('former_clients_nurture', 'Former Clients Nurture', 'Contacts associated with completed past engagements for periodic nurture', 'dynamic', '{"rule": "former_clients_nurture"}'::jsonb)
+	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+
+	-- Seed initial lead segments
+	INSERT INTO cdp.lead_segments (slug, name, description, segment_type, criteria) VALUES
+	('new_leads_no_followup_7d', 'New Leads No Followup 7d', 'Leads in prospect status created 7+ days ago with zero engagement touchpoints', 'dynamic', '{"rule": "new_leads_no_followup_7d"}'::jsonb),
+	('stale_in_negotiation', 'Stale In Negotiation', 'Leads in negotiating status with no touchpoints in the last 14 days', 'dynamic', '{"rule": "stale_in_negotiation"}'::jsonb),
+	('high_intent_inbound', 'High Intent Inbound', 'Leads flagged with high intent or strong signal strength', 'dynamic', '{"rule": "high_intent_inbound"}'::jsonb),
+	('contract_pending', 'Contract Pending', 'Leads in offer_accepted stage awaiting contract execution', 'dynamic', '{"rule": "contract_pending"}'::jsonb),
+	('re_engagement_prospects', 'Re-engagement Prospects', 'Leads in nurture status whose contact has recent activity in last 30 days', 'dynamic', '{"rule": "re_engagement_prospects"}'::jsonb)
+	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
 EOSQL
 
 
