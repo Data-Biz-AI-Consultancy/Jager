@@ -101,15 +101,15 @@ async function repairVersions() {
       repaired++;
     }
 
-    // 3. Sync activeVersionId for active workflows
-    if (r.active) {
-      await client.query(
-        `UPDATE workflow_entity
-         SET "activeVersionId" = $1
-         WHERE id = $2 AND active = true AND "activeVersionId" != $1`,
-        [versionId, workflowId]
-      );
-    }
+    // 3. Always sync activeVersionId regardless of active state.
+    // Inactive workflows still need activeVersionId set so the n8n Publish
+    // action can resolve the version chain. NULL activeVersionId blocks Publish.
+    await client.query(
+      `UPDATE workflow_entity
+       SET "activeVersionId" = $1
+       WHERE id = $2 AND "activeVersionId" IS DISTINCT FROM $1`,
+      [versionId, workflowId]
+    );
   }
 
   if (repaired > 0) {

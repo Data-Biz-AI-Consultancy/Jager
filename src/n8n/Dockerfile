@@ -1,5 +1,5 @@
-# Use the official N8N image as the base
-FROM n8nio/n8n:latest
+# Use official N8N image pinned to version 2.33.5
+FROM n8nio/n8n:2.33.5
 
 USER root
 
