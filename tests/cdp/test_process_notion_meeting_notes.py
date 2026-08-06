@@ -58,18 +58,18 @@ def test_process_notion_meeting_notes_with_rows():
 
     # s_notion.meeting_notes query returns 1 row
     mock_note = {
-        "page_id": "note-123",
-        "database_name": "FaDi meeting notes",
+        "id": "note-123",
+        "database_id": "FaDi meeting notes",
         "title": "Strategy Sync",
-        "created_time": "2026-08-01T10:00:00Z",
-        "last_edited_time": "2026-08-01T10:00:00Z",
-        "properties": {"Attendees": "Alice, Bob"},
-        "icon": None,
-        "cover_url": None,
+        "meeting_date": "2026-08-01T10:00:00Z",
+        "attendees": "Alice, Bob",
+        "summary": "Discussed roadmap.",
+        "transcription": "Discussed roadmap detail.",
+        "action_items": "Send proposal",
+        "recording_url": None,
         "url": "https://notion.so/note-123",
-        "text_content": "Discussed roadmap.",
-        "to_dos": ["Send proposal"],
-        "fetched_at": "2026-08-01T10:00:00Z"
+        "created_time": "2026-08-01T10:00:00Z",
+        "last_edited_time": "2026-08-01T10:00:00Z"
     }
 
     mock_jager_conn.execute.return_value.mappings.return_value.fetchall.return_value = [mock_note]

@@ -46,18 +46,18 @@ def process_notion_meeting_notes():
         notes = jager_conn.execute(
             text("""
                 SELECT 
-                    page_id,
-                    database_name,
+                    id,
+                    database_id,
                     title,
-                    created_time,
-                    last_edited_time,
-                    properties,
-                    icon,
-                    cover_url,
+                    meeting_date,
+                    attendees,
+                    summary,
+                    transcription,
+                    action_items,
+                    recording_url,
                     url,
-                    text_content,
-                    to_dos,
-                    fetched_at
+                    created_time,
+                    last_edited_time
                 FROM s_notion.meeting_notes
             """)
         ).mappings().fetchall()
@@ -66,30 +66,15 @@ def process_notion_meeting_notes():
 
         # Stage 1: Ingest raw notes into cdp.activities_notion_meeting_notes intake table
         for note in notes:
-            page_id = note.get("page_id")
+            page_id = note.get("id")
             if not page_id:
                 continue
 
-            properties = note.get("properties") or {}
-            if isinstance(properties, str):
-                try:
-                    properties = json.loads(properties)
-                except Exception:
-                    properties = {}
-
-            # Extract attendees & date if present in properties or standard fields
-            attendees = properties.get("Attendees") or properties.get("People") or properties.get("Participants") or ""
-            meeting_date = note.get("created_time")
-            date_prop = properties.get("Date") or properties.get("Meeting Date")
-            if date_prop:
-                meeting_date = date_prop
-
-            to_dos = note.get("to_dos") or []
-            if isinstance(to_dos, str):
-                try:
-                    to_dos = json.loads(to_dos)
-                except Exception:
-                    to_dos = []
+            attendees = note.get("attendees") or ""
+            meeting_date = note.get("meeting_date") or note.get("created_time")
+            summary_or_content = note.get("transcription") or note.get("summary") or ""
+            action_items = note.get("action_items") or ""
+            to_dos = [item.strip() for item in action_items.split("\n") if item.strip()] if action_items else []
 
             cdp_conn.execute(
                 text("""
@@ -131,11 +116,11 @@ def process_notion_meeting_notes():
                 """),
                 {
                     "page_id": page_id,
-                    "database_name": note.get("database_name"),
+                    "database_name": note.get("database_id"),
                     "title": note.get("title") or "Untitled Meeting Note",
                     "meeting_date": meeting_date,
-                    "attendees": str(attendees) if attendees else None,
-                    "summary_or_content": note.get("text_content"),
+                    "attendees": attendees,
+                    "summary_or_content": summary_or_content,
                     "to_dos": json.dumps(to_dos),
                     "url": note.get("url"),
                     "raw_payload": json.dumps(dict(note), default=str)
