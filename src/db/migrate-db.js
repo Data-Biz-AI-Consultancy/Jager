@@ -266,14 +266,6 @@ CREATE TABLE IF NOT EXISTS cdp.person_segments (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS cdp.person_segment_memberships (
-  person_id UUID NOT NULL REFERENCES cdp.persons(id) ON DELETE CASCADE,
-  person_segment_id UUID NOT NULL REFERENCES cdp.person_segments(id) ON DELETE CASCADE,
-  assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  source VARCHAR(64) DEFAULT 'dynamic_rule',
-  PRIMARY KEY (person_id, person_segment_id)
-);
-
 CREATE TABLE IF NOT EXISTS cdp.lead_segments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   slug VARCHAR(64) UNIQUE NOT NULL,
@@ -285,13 +277,11 @@ CREATE TABLE IF NOT EXISTS cdp.lead_segments (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS cdp.lead_segment_memberships (
-  lead_id VARCHAR(255) NOT NULL REFERENCES cdp.leads(id) ON DELETE CASCADE,
-  lead_segment_id UUID NOT NULL REFERENCES cdp.lead_segments(id) ON DELETE CASCADE,
-  assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  source VARCHAR(64) DEFAULT 'dynamic_rule',
-  PRIMARY KEY (lead_id, lead_segment_id)
-);
+DROP TABLE IF EXISTS cdp.person_segment_memberships;
+DROP TABLE IF EXISTS cdp.lead_segment_memberships;
+
+ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_id UUID REFERENCES cdp.person_segments(id) ON DELETE SET NULL;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_id UUID REFERENCES cdp.lead_segments(id) ON DELETE SET NULL;
 
 INSERT INTO cdp.person_segments (slug, name, description, segment_type, criteria) VALUES
 ('high_engagement_unconverted', 'High Engagement Unconverted', 'Active contacts across channels with no active lead', 'dynamic', '{"rule": "high_engagement_unconverted"}'::jsonb),

@@ -26,7 +26,10 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
    - **`cdp.activities`**: Consolidated activity entity table, populated solely from `cdp.activities_notion_meeting_notes` (extensible to future activity sources).
 4. **Client Engagement & Activity Overview**:
    - **`cdp.engagements`**: Activity log tracking touchpoints (emails, calls, meetings, notes, form submissions, LinkedIn messages) for complete client engagement visibility.
-5. **Automation Endpoints**:
+5. **Segmentation Engine**:
+   - **`cdp.person_segments`**: Dimension table for contact/audience segments. `cdp.persons` references its segment via `person_segment_id` FK (mutually exclusive primary classification).
+   - **`cdp.lead_segments`**: Dimension table for opportunity/pipeline segments. `cdp.leads` references its segment via `lead_segment_id` FK (mutually exclusive primary classification).
+6. **Automation Endpoints**:
    - Exposes REST HTTP endpoints consumed by n8n workflows (accessed via `CDP_SERVICE_URL`, e.g. `http://cdp:8000`).
 
 ---

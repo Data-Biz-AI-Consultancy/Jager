@@ -127,7 +127,7 @@ def ensure_seed_segments(conn):
 
 
 def evaluate_person_segments(conn) -> Dict[str, int]:
-    """Evaluates dynamic person segments and updates memberships."""
+    """Evaluates dynamic person segments and updates person_segment_id on cdp.persons."""
     results = {}
     segments = conn.execute(text("SELECT id, slug, segment_type, criteria FROM cdp.person_segments")).fetchall()
 
@@ -144,20 +144,10 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
         matching_person_rows = conn.execute(text(sql_query)).fetchall()
         matching_person_ids = [row[0] for row in matching_person_rows]
 
-        # Replace dynamic memberships for this segment
-        conn.execute(
-            text("DELETE FROM cdp.person_segment_memberships WHERE person_segment_id = :seg_id AND source = 'dynamic_rule'"),
-            {"seg_id": seg_id}
-        )
-
-        for person_id in matching_person_ids:
+        if matching_person_ids:
             conn.execute(
-                text("""
-                    INSERT INTO cdp.person_segment_memberships (person_id, person_segment_id, source)
-                    VALUES (:person_id, :seg_id, 'dynamic_rule')
-                    ON CONFLICT (person_id, person_segment_id) DO NOTHING;
-                """),
-                {"person_id": person_id, "seg_id": seg_id}
+                text("UPDATE cdp.persons SET person_segment_id = :seg_id WHERE id IN :person_ids"),
+                {"seg_id": seg_id, "person_ids": tuple(matching_person_ids)}
             )
 
         results[slug] = len(matching_person_ids)
@@ -166,7 +156,7 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
 
 
 def evaluate_lead_segments(conn) -> Dict[str, int]:
-    """Evaluates dynamic lead segments and updates memberships."""
+    """Evaluates dynamic lead segments and updates lead_segment_id on cdp.leads."""
     results = {}
     segments = conn.execute(text("SELECT id, slug, segment_type, criteria FROM cdp.lead_segments")).fetchall()
 
@@ -183,20 +173,10 @@ def evaluate_lead_segments(conn) -> Dict[str, int]:
         matching_lead_rows = conn.execute(text(sql_query)).fetchall()
         matching_lead_ids = [row[0] for row in matching_lead_rows]
 
-        # Replace dynamic memberships for this segment
-        conn.execute(
-            text("DELETE FROM cdp.lead_segment_memberships WHERE lead_segment_id = :seg_id AND source = 'dynamic_rule'"),
-            {"seg_id": seg_id}
-        )
-
-        for lead_id in matching_lead_ids:
+        if matching_lead_ids:
             conn.execute(
-                text("""
-                    INSERT INTO cdp.lead_segment_memberships (lead_id, lead_segment_id, source)
-                    VALUES (:lead_id, :seg_id, 'dynamic_rule')
-                    ON CONFLICT (lead_id, lead_segment_id) DO NOTHING;
-                """),
-                {"lead_id": lead_id, "seg_id": seg_id}
+                text("UPDATE cdp.leads SET lead_segment_id = :seg_id WHERE id IN :lead_ids"),
+                {"seg_id": seg_id, "lead_ids": tuple(matching_lead_ids)}
             )
 
         results[slug] = len(matching_lead_ids)

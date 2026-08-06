@@ -89,6 +89,7 @@ def test_evaluate_lead_segments():
     assert results["contract_pending"] == 0
 
 
+
 def test_evaluate_segments_full():
     mock_engine = MagicMock()
     mock_conn = MagicMock()
