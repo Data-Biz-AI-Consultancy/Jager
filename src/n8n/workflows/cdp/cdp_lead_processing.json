@@ -32,7 +32,7 @@
       "typeVersion": 4.2,
       "position": [
         224,
-        -144
+        -48
       ],
       "id": "2",
       "name": "Process LinkedIn Connections"
@@ -46,8 +46,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        224,
-        48
+        448,
+        -48
       ],
       "id": "3",
       "name": "Process Manual Data"
@@ -61,8 +61,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        448,
-        48
+        224,
+        144
       ],
       "id": "4",
       "name": "Process LinkedIn Messages"
@@ -76,11 +76,26 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        224,
-        240
+        448,
+        144
       ],
       "id": "5",
       "name": "Process Notion Meeting Notes"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CDP_SERVICE_URL || 'http://cdp:8000' }}/process/evaluate_segments",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        48
+      ],
+      "id": "6",
+      "name": "Evaluate Dynamic Segments"
     }
   ],
   "connections": {
@@ -93,12 +108,18 @@
             "index": 0
           },
           {
-            "node": "Process Manual Data",
+            "node": "Process LinkedIn Messages",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Process LinkedIn Connections": {
+      "main": [
+        [
           {
-            "node": "Process Notion Meeting Notes",
+            "node": "Process Manual Data",
             "type": "main",
             "index": 0
           }
@@ -109,7 +130,29 @@
       "main": [
         [
           {
-            "node": "Process LinkedIn Messages",
+            "node": "Evaluate Dynamic Segments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process LinkedIn Messages": {
+      "main": [
+        [
+          {
+            "node": "Process Notion Meeting Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Notion Meeting Notes": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Dynamic Segments",
             "type": "main",
             "index": 0
           }
@@ -117,7 +160,6 @@
       ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"

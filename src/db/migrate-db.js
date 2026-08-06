@@ -254,6 +254,57 @@ BEGIN
     ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255);
   END IF;
 END $$;
+
+CREATE TABLE IF NOT EXISTS cdp.person_segments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug VARCHAR(64) UNIQUE NOT NULL,
+  name VARCHAR(128) NOT NULL,
+  description TEXT,
+  segment_type VARCHAR(32) NOT NULL DEFAULT 'dynamic',
+  criteria JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS cdp.lead_segments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug VARCHAR(64) UNIQUE NOT NULL,
+  name VARCHAR(128) NOT NULL,
+  description TEXT,
+  segment_type VARCHAR(32) NOT NULL DEFAULT 'dynamic',
+  criteria JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+DROP TABLE IF EXISTS cdp.person_segment_memberships;
+DROP TABLE IF EXISTS cdp.lead_segment_memberships;
+
+ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_id UUID REFERENCES cdp.person_segments(id) ON DELETE SET NULL;
+ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_name VARCHAR(128);
+ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_slug VARCHAR(64);
+ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS engagement_temperature VARCHAR(32) DEFAULT 'cold';
+
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_id UUID REFERENCES cdp.lead_segments(id) ON DELETE SET NULL;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_name VARCHAR(128);
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_slug VARCHAR(64);
+
+INSERT INTO cdp.person_segments (slug, name, description, segment_type, criteria) VALUES
+('clients_and_prospects', 'Clients & Prospects', 'Active or past consulting clients and warm lead opportunities', 'dynamic', '{"rule": "clients_and_prospects"}'::jsonb),
+('hiring_decision_makers', 'Hiring Decision-Makers', 'Founders, CTOs, VPs of Data/Engineering, and hiring decision makers', 'dynamic', '{"rule": "hiring_decision_makers"}'::jsonb),
+('peer_collaborators', 'Peer Collaborators & Agencies', 'Other consultants, agency owners, or freelancers for project referrals/partnerships', 'dynamic', '{"rule": "peer_collaborators"}'::jsonb),
+('ecosystem_tooling_partners', 'Ecosystem & Tooling Partners', 'Founders, maintainers, DevRel, and creators at data/AI tooling platforms (e.g. dltHub, MotherDuck, n8n)', 'dynamic', '{"rule": "ecosystem_tooling_partners"}'::jsonb),
+('former_colleagues_alumni', 'Alumni & Former Colleagues', 'Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)', 'dynamic', '{"rule": "former_colleagues_alumni"}'::jsonb),
+('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', '{"rule": "general_network"}'::jsonb)
+ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+
+INSERT INTO cdp.lead_segments (slug, name, description, segment_type, criteria) VALUES
+('new_leads_no_followup_7d', 'New Leads No Followup 7d', 'Leads in prospect status created 7+ days ago with zero engagement touchpoints', 'dynamic', '{"rule": "new_leads_no_followup_7d"}'::jsonb),
+('stale_in_negotiation', 'Stale In Negotiation', 'Leads in negotiating status with no touchpoints in the last 14 days', 'dynamic', '{"rule": "stale_in_negotiation"}'::jsonb),
+('high_intent_inbound', 'High Intent Inbound', 'Leads flagged with high intent or strong signal strength', 'dynamic', '{"rule": "high_intent_inbound"}'::jsonb),
+('contract_pending', 'Contract Pending', 'Leads in offer_accepted stage awaiting contract execution', 'dynamic', '{"rule": "contract_pending"}'::jsonb),
+('re_engagement_prospects', 'Re-engagement Prospects', 'Leads in nurture status whose contact has recent activity in last 30 days', 'dynamic', '{"rule": "re_engagement_prospects"}'::jsonb)
+ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
 `;
 
 const ddl = `
