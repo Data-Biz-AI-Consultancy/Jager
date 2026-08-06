@@ -2,7 +2,7 @@
 
 The **CDP Service** is a dedicated FastAPI microservice responsible for core Customer/Client Data Platform processing in Jager.
 
-A Customer Data Platform (CDP) acts as the unified system of record for managing all **Leads** (`cdp.leads`, with specialized intake tables `cdp.leads_linkedin` and `cdp.leads_manual`), **Persons/Contacts** (`cdp.persons`), **Client Companies/Accounts** (`cdp.client_accounts`), **Person-Account Relationships** (`cdp.person_account_relationships`), and **Client Engagements** (`cdp.engagements`). Similar to enterprise platforms like Snowplow or Braze, it provides a centralized, 360-degree overview of client interactions and ongoing project engagements.
+A Customer Data Platform (CDP) acts as the unified system of record for managing all **Leads** (`cdp.leads`, with specialized intake tables `cdp.leads_linkedin` and `cdp.leads_manual`), **Persons/Contacts** (`cdp.persons`), **Client Companies/Accounts** (`cdp.client_accounts`), **Person-Account Relationships** (`cdp.person_account_relationships`), and **Client Engagements / Activities** (`cdp.engagements`, `cdp.activities`). Similar to enterprise platforms like Snowplow or Braze, it provides a centralized, 360-degree overview of client interactions and ongoing project engagements.
 
 ---
 
@@ -28,9 +28,9 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
    - **`cdp.engagements`**: Activity log tracking touchpoints (emails, calls, meetings, notes, form submissions, LinkedIn messages) for complete client engagement visibility.
 5. **Segmentation & Engagement Temperature Engine**:
    - **`cdp.person_segments`**: Dimension table for Opportunity-Based contact segments (`clients_and_prospects`, `former_colleagues_alumni`, `recruiters_and_talent`, `hiring_decision_makers`, `peer_collaborators`, `general_network`). Referenced via `cdp.persons.person_segment_id`.
+   - **`cdp.persons.potential_opportunity_types`**: Denormalized opportunity types column describing target collaboration models.
    - **`cdp.persons.engagement_temperature`**: Dynamic engagement score (`hot` [30d], `warm` [90d], `dormant` [>90d], `cold` [no activity]).
    - **`cdp.lead_segments`**: Dimension table for opportunity/pipeline segments. Referenced via `cdp.leads.lead_segment_id`.
-   - *Full documentation available at [Segmentation Architecture](SEGMENTATION.md).*
 6. **Automation Endpoints**:
    - Exposes REST HTTP endpoints consumed by n8n workflows (accessed via `CDP_SERVICE_URL`, e.g. `http://cdp:8000`).
 
@@ -116,6 +116,74 @@ flowchart LR
 5. **Presence Flags**:
    - `in_linkedin_connections`: Dynamically set to `TRUE` if the contact originates from or matches a LinkedIn connection profile.
    - `in_substack_subscriber_export`: Dynamically set to `TRUE` if the contact originates from or matches a Substack subscriber export.
+
+---
+
+## 🎯 CDP Segmentation & Engagement Temperature Architecture
+
+The CDP segmentation engine operates under four core principles tailored for a Data Biz Consultancy network:
+
+1. **Mutually Exclusive Classification**: Every contact in `cdp.persons` has a single primary `person_segment_id` (FK to `cdp.person_segments`), `person_segment_name`, `person_segment_slug`, and `potential_opportunity_types`.
+2. **Zero NULLs Policy**: Unclassified contacts automatically fall back into the `general_network` ("General Network") segment.
+3. **Denormalized Human-Readable Columns**: Direct `person_segment_name`, `person_segment_slug`, `potential_opportunity_types`, `lead_segment_name`, and `lead_segment_slug` columns exist on `cdp.persons` and `cdp.leads` to eliminate required SQL JOINs in quick reporting or downstream applications.
+4. **Strict Priority Hierarchy**: Person segments evaluate in a strict priority cascade so higher-trust or high-intent segments take precedence over broader categories.
+
+### 👥 Person Segments (Opportunity-Based Framework)
+
+`cdp.persons` evaluates across 6 opportunity-based segments in the following priority order:
+
+```mermaid
+graph TD
+    P[Incoming Person Record] --> C1{1. Clients & Prospects?}
+    C1 -- Yes --> S1["clients_and_prospects (6)"]
+    C1 -- No --> C2{2. Alumni Network?}
+    C2 -- Yes --> S2["former_colleagues_alumni (391)"]
+    C2 -- No --> C3{3. Recruiters & TA?}
+    C3 -- Yes --> S3["recruiters_and_talent (85)"]
+    C3 -- No --> C4{4. Hiring Decision-Makers?}
+    C4 -- Yes --> S4["hiring_decision_makers (1,444)"]
+    C4 -- No --> C5{5. Peer Collaborators & Tooling?}
+    C5 -- Yes --> S5["peer_collaborators (136)"]
+    C5 -- No --> S6["general_network (1,231) [Fallback - 0 NULLs]"]
+```
+
+#### Segment Definitions & Rules
+
+| Priority | Slug | Segment Name | Target Persona & Description | Potential Opportunity Types | Live Count |
+| :---: | :--- | :--- | :--- | :--- | :---: |
+| **1** | `clients_and_prospects` | **Clients & Prospects** | Warm consulting lead opportunities & contacts with recorded activities/meetings | Consulting Projects, Advisory, Fractional Data Leadership | **6** |
+| **2** | `former_colleagues_alumni` | **Alumni & Former Colleagues** | High-trust alumni network contacts (Hays, HelloFresh, Delivery Hero, Foodpanda, Vestiaire) | Referrals, Re-hiring, Warm Client Introductions, Partnering | **391** |
+| **3** | `recruiters_and_talent` | **Recruiters & Talent Acquisition** | Talent acquisition managers, recruiters, talent partners, headhunters | Full-Time Employment, Contract Roles, Fractional Opportunities | **85** |
+| **4** | `hiring_decision_makers` | **Hiring Decision-Makers** | C-Level executives, Founders, VPs, Directors, Heads of Data/Eng, Leads, Managers | Consulting Projects, Full-Time Employment, Fractional Leadership | **1,444** |
+| **5** | `peer_collaborators` | **Peer Collaborators & Agencies** | Agency owners, consultants, freelancers, tooling partners (dltHub, MotherDuck, n8n), DevRel | Project Subcontracting, Co-bidding, Client Referrals, Tooling Implementations | **136** |
+| **6** | `general_network` | **General Network** | Fallback segment for all general network contacts & audience members | Brand Awareness, Audience Engagement, Content Reach | **1,231** |
+
+---
+
+### 🌡️ Engagement Temperature Scoring
+
+Every person in `cdp.persons` is dynamically scored with an `engagement_temperature` value:
+
+| Temperature | Icon | Scoring Rules & Criteria | Live Count |
+| :--- | :---: | :--- | :---: |
+| **`hot`** | 🔥 | Recorded touchpoint in `cdp.engagements` or activity in `cdp.activities` within the **last 30 days**. | **0** |
+| **`warm`** | ☀️ | Touchpoint/activity within the **last 90 days** OR active in Substack subscriber export / LinkedIn connections. | **3,124** |
+| **`dormant`** | 💤 | Has recorded past touchpoints/activities, but **no activity in the last 90+ days**. | **0** |
+| **`cold`** | ❄️ | Zero recorded touchpoints or activities. | **169** |
+
+---
+
+### 💼 Lead Segments (Opportunity Pipeline)
+
+`cdp.leads` represents sales pipeline opportunities and incoming service requests, classified into 5 lead segments:
+
+| Slug | Lead Segment Name | Description & Evaluation Rule |
+| :--- | :--- | :--- |
+| `new_leads_no_followup_7d` | **New Leads No Followup 7d** | Leads in `prospect` status created $\ge 7$ days ago with zero touchpoints in `cdp.engagements`. |
+| `stale_in_negotiation` | **Stale In Negotiation** | Leads in `negotiating` status with no touchpoints in the last 14 days. |
+| `high_intent_inbound` | **High Intent Inbound** | Leads flagged with high intent (`high_intent`, `inbound`) or strong signal strength. |
+| `contract_pending` | **Contract Pending** | Leads in `offer_accepted` stage awaiting contract execution. |
+| `re_engagement_prospects` | **Re-engagement Prospects** | Leads in `nurture` status whose associated contact has recent activity in last 30 days. |
 
 ---
 

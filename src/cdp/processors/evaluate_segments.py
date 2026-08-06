@@ -21,11 +21,23 @@ logger = setup_logging("cdp-segment-processor")
 PERSON_SEGMENT_RULES = {
     "clients_and_prospects": """
         SELECT DISTINCT p.id FROM cdp.persons p
-        JOIN cdp.leads l ON p.id = l.person_id
-        WHERE (
-            LOWER(COALESCE(l.intent, '')) IN ('inbound_service_request', 'consulting_inquiry')
-            OR LOWER(COALESCE(l.status, '')) IN ('in_discussion', 'proposal_sent', 'negotiating', 'offer_accepted', 'won', 'active_client')
-            OR LOWER(COALESCE(l.summary, '')) ~* '\\y(consulting rate|freelance proposal|data audit|hourly rate for consulting|data stack build|project quote)\\y'
+        WHERE p.id IN (
+            -- 1. Persons with recorded meeting notes / activities
+            SELECT a.person_id FROM cdp.activities a WHERE a.person_id IS NOT NULL
+            UNION
+            SELECT p2.id FROM cdp.persons p2
+            JOIN cdp.activities a2 ON (
+                (LENGTH(p2.first_name) >= 3 AND LENGTH(p2.last_name) >= 3 
+                 AND a2.title ILIKE '%' || p2.first_name || '%' 
+                 AND a2.title ILIKE '%' || p2.last_name || '%')
+            )
+            WHERE LOWER(p2.first_name) != 'jimmy' AND LOWER(p2.last_name) != 'pang'
+            UNION
+            -- 2. Persons with active consulting/service leads
+            SELECT l.person_id FROM cdp.leads l
+            WHERE LOWER(COALESCE(l.intent, '')) IN ('inbound_service_request', 'consulting_inquiry')
+               OR LOWER(COALESCE(l.status, '')) IN ('in_discussion', 'proposal_sent', 'negotiating', 'offer_accepted', 'won', 'active_client')
+               OR LOWER(COALESCE(l.summary, '')) ~* '\\y(consulting rate|freelance proposal|data audit|hourly rate for consulting|data stack build|project quote|project onboarding)\\y'
         )
     """,
     "former_colleagues_alumni": """
