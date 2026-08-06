@@ -233,10 +233,15 @@ def process_notion_meeting_notes():
 
         logger.info(f"Populated {activities_processed} records in cdp.activities.")
 
+        # Trigger entity resolution into cdp.persons from meeting notes attendees
+        from processors.entity_resolution import resolve_persons
+        persons_resolved = resolve_persons(cdp_conn)
+
     return {
         "status": "success",
         "intake_processed": intake_processed,
-        "activities_processed": activities_processed
+        "activities_processed": activities_processed,
+        "persons_resolved": persons_resolved
     }
 
 
