@@ -19,9 +19,12 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
    - **`cdp.leads_linkedin`**: Intake table for LinkedIn message-derived leads (`s_linkedin.messages`).
    - **`cdp.leads_manual`**: Intake table for manual data-derived leads (`s_manual`).
    - **`cdp.leads`**: Aggregated physical table consolidating LinkedIn and Manual leads, featuring a `source` column (`Linkedin` or `Manual`).
-3. **Client Engagement & Activity Overview**:
+3. **Activities Domain**:
+   - **`cdp.activities_notion_meeting_notes`**: Intake table sourced from Notion meeting notes (`s_notion.meeting_notes`).
+   - **`cdp.activities`**: Consolidated activity entity table, populated solely from `cdp.activities_notion_meeting_notes` (extensible to future activity sources).
+4. **Client Engagement & Activity Overview**:
    - **`cdp.engagements`**: Activity log tracking touchpoints (emails, calls, meetings, notes, form submissions, LinkedIn messages) for complete client engagement visibility.
-4. **Automation Endpoints**:
+5. **Automation Endpoints**:
    - Exposes REST HTTP endpoints consumed by n8n workflows (accessed via `CDP_SERVICE_URL`, e.g. `http://cdp:8000`).
 
 ---
@@ -133,7 +136,9 @@ src/cdp/
 ├── utils.py                    # Database connection & logging helpers
 └── processors/                 # Core domain processors & handlers
     ├── process_linkedin_connections.py  # Normalizes LinkedIn connections into cdp.persons, cdp.client_accounts, and cdp.person_account_relationships
-    └── process_manual_data.py           # Processes s_manual schema tables into cdp.leads, cdp.persons, and cdp.client_accounts
+    ├── process_linkedin_messages.py     # Processes s_linkedin.messages into cdp.leads_linkedin and cdp.leads
+    ├── process_manual_data.py           # Processes s_manual schema tables into cdp.leads_manual, cdp.leads, cdp.persons, and cdp.client_accounts
+    └── process_notion_meeting_notes.py  # Ingests Notion meeting notes into cdp.activities_notion_meeting_notes and populates cdp.activities
 ```
 
 ---
@@ -143,6 +148,8 @@ src/cdp/
 * `GET /health`: Service health check.
 * `POST /process/linkedin_connections`: Runs the processor to normalize raw connections from `s_linkedin.connections` into `cdp.persons`, `cdp.client_accounts`, and `cdp.person_account_relationships`.
 * `POST /process/manual_data`: Runs the processor to extract and normalize manual data ingestion tables from `s_manual` schema into `cdp.leads`, `cdp.persons`, and `cdp.client_accounts`.
+* `POST /process/linkedin_messages`: Runs the processor to extract and normalize LinkedIn messages into `cdp.leads_linkedin` and `cdp.leads`.
+* `POST /process/notion_meeting_notes`: Ingests Notion meeting notes from `s_notion.meeting_notes` into `cdp.activities_notion_meeting_notes` and populates `cdp.activities`.
 
 ---
 
