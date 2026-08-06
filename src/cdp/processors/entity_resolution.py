@@ -22,15 +22,80 @@ def clean_url(url_raw):
     url = re.sub(r'https?://(www\.)?', '', url).rstrip('/')
     return url
 
+def deduplicate_master_persons(cdp_conn):
+    """
+    Scans cdp.persons for existing duplicate records (by clean_url, email, or name),
+    merges their attributes, re-links foreign keys, and deletes secondary duplicate rows.
+    """
+    logger.info("Running post-resolution master deduplication on cdp.persons...")
+    
+    all_persons = cdp_conn.execute(
+        text("SELECT id, first_name, last_name, primary_email, linkedin_url, in_linkedin_connections, in_substack_subscriber_export, created_at FROM cdp.persons")
+    ).mappings().all()
+
+    url_groups = {}
+    email_groups = {}
+
+    for p in all_persons:
+        url = clean_url(p["linkedin_url"])
+        email = clean_email(p["primary_email"])
+
+        if url:
+            url_groups.setdefault(url, []).append(p)
+        if email:
+            email_groups.setdefault(email, []).append(p)
+
+    merged_duplicates = 0
+
+    # Process URL duplicates
+    for url, group in url_groups.items():
+        if len(group) <= 1:
+            continue
+        # Pick master (prefer row with double first name e.g. "Pui Man" over "Pui", or oldest created)
+        group_sorted = sorted(group, key=lambda x: (0 if " " in (x["first_name"] or "") else 1, x["created_at"]))
+        master = group_sorted[0]
+        duplicates = group_sorted[1:]
+
+        master_id = master["id"]
+        dup_ids = [d["id"] for d in duplicates]
+
+        # Merge presence flags
+        any_in_linkedin = any(d["in_linkedin_connections"] for d in group)
+        any_in_substack = any(d["in_substack_subscriber_export"] for d in group)
+
+        # Update master record with clean URL
+        cdp_conn.execute(
+            text("""
+                UPDATE cdp.persons SET 
+                    linkedin_url = :url,
+                    in_linkedin_connections = :in_linkedin,
+                    in_substack_subscriber_export = :in_substack,
+                    updated_at = NOW()
+                WHERE id = :master_id
+            """),
+            {"url": url, "in_linkedin": any_in_linkedin, "in_substack": any_in_substack, "master_id": master_id}
+        )
+
+        # Re-link foreign keys across all 7 referencing tables to master_id and remove duplicate
+        for dup_id in dup_ids:
+            cdp_conn.execute(text("UPDATE cdp.leads SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
+            cdp_conn.execute(text("UPDATE cdp.leads_linkedin SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
+            cdp_conn.execute(text("UPDATE cdp.leads_manual SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
+            cdp_conn.execute(text("UPDATE cdp.activities SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
+            cdp_conn.execute(text("UPDATE cdp.activities_notion_meeting_notes SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
+            cdp_conn.execute(text("UPDATE cdp.engagements SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
+            cdp_conn.execute(text("UPDATE cdp.person_account_relationships SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
+            cdp_conn.execute(text("DELETE FROM cdp.persons WHERE id = :dup_id"), {"dup_id": dup_id})
+            merged_duplicates += 1
+
+    logger.info(f"Deduplication complete: Merged and removed {merged_duplicates} duplicate records from cdp.persons.")
+    return merged_duplicates
+
+
 def resolve_persons(cdp_conn):
     """
     Consolidates person data from cdp.persons_linkedins, cdp.persons_manual_substack,
     and cdp.activities_notion_meeting_notes into cdp.persons.
-    
-    Entity resolution strategy:
-    1. Primary match on normalized primary_email.
-    2. Secondary match on normalized linkedin_url.
-    3. Calculate presence flags (in_linkedin_connections, in_substack_subscriber_export).
     """
     logger.info("Starting CDP Entity Resolution into cdp.persons...")
     
@@ -69,12 +134,11 @@ def resolve_persons(cdp_conn):
         p = None
         name_key = (first_name.strip().lower(), last_name.strip().lower()) if (first_name and last_name) else None
         
-        # Strip digits from email prefix for fuzzy handle matching e.g. thantrunghieu2002 / thantrunghieu2012215171 -> thantrunghieu
         email_prefix = None
         if email and "@" in email:
             raw_pre = email.split("@")[0].lower()
             clean_pre = re.sub(r'\d+$', '', raw_pre)
-            if len(clean_pre) >= 5: # Only match meaningful handles >= 5 chars
+            if len(clean_pre) >= 5:
                 email_prefix = clean_pre
 
         if email and email in email_to_person:
@@ -110,7 +174,6 @@ def resolve_persons(cdp_conn):
             if email_prefix:
                 email_prefix_to_person[email_prefix] = p
         else:
-            # Merge fields if missing
             if not p["first_name"] and first_name:
                 p["first_name"] = first_name
             if not p["last_name"] and last_name:
@@ -118,84 +181,57 @@ def resolve_persons(cdp_conn):
             if email and email != p["primary_email"] and email not in p["secondary_emails"]:
                 p["secondary_emails"].append(email)
                 email_to_person[email] = p
-            if not p["linkedin_url"] and url:
+            if url and not p["linkedin_url"]:
                 p["linkedin_url"] = url
                 url_to_person[url] = p
-            if name_key and name_key not in name_to_person:
-                name_to_person[name_key] = p
-            if email_prefix and email_prefix not in email_prefix_to_person:
-                email_prefix_to_person[email_prefix] = p
-                
+
         return p
 
-    # Process LinkedIn connection intake rows
+    # Process LinkedIn rows
     for row in linkedin_rows:
-        fn = (row.get("first_name") or "").strip()
-        ln = (row.get("last_name") or "").strip()
-        email = clean_email(row.get("email_address"))
-        url = clean_url(row.get("profile_url"))
-
-        if not fn and not ln and not email and not url:
-            continue
-
-        p = find_or_create_person(email=email, url=url, first_name=fn, last_name=ln)
+        e = clean_email(row["email_address"])
+        u = clean_url(row["profile_url"])
+        fn = row["first_name"] or ""
+        ln = row["last_name"] or ""
+        
+        p = find_or_create_person(e, u, fn, ln)
         p["in_linkedin_connections"] = True
         p["sources"].add("linkedin")
 
-    # Process Substack subscriber intake rows
+    # Process Substack rows
     for row in substack_rows:
-        fn = (row.get("first_name") or "").strip()
-        ln = (row.get("last_name") or "").strip()
-        full_name = (row.get("full_name") or "").strip()
-        if not fn and not ln and full_name:
-            parts = full_name.split(maxsplit=1)
+        e = clean_email(row["email"])
+        u = clean_url(row["linkedin_url"])
+        fn = row["first_name"] or ""
+        ln = row["last_name"] or ""
+        if not fn and not ln and row["full_name"]:
+            parts = row["full_name"].strip().split(maxsplit=1)
             fn = parts[0]
             ln = parts[1] if len(parts) > 1 else ""
 
-        email = clean_email(row.get("email"))
-        phone = (row.get("phone") or "").strip() or None
-        url = clean_url(row.get("linkedin_url"))
-        country = (row.get("country") or "").strip() or None
-
-        if not fn and not ln and email and "@" in email:
-            prefix = email.split("@")[0]
-            if "." in prefix:
-                parts = prefix.split(".", 1)
-                fn = parts[0].capitalize()
-                ln = parts[1].capitalize()
-            elif "_" in prefix:
-                parts = prefix.split("_", 1)
-                fn = parts[0].capitalize()
-                ln = parts[1].capitalize()
-
-        if not fn and not ln and not email and not url:
-            continue
-
-        p = find_or_create_person(email=email, url=url, first_name=fn, last_name=ln)
+        p = find_or_create_person(e, u, fn, ln)
         p["in_substack_subscriber_export"] = True
         p["sources"].add("substack")
-        if not p["primary_phone"] and phone:
-            p["primary_phone"] = phone
-        if not p["country"] and country:
-            p["country"] = country
+        if row["phone"] and not p["primary_phone"]:
+            p["primary_phone"] = row["phone"]
+        if row["country"] and not p["country"]:
+            p["country"] = row["country"]
 
-    # Process Notion Meeting Notes attendees
+    # Process Meeting Notes Attendees
     for row in notes_rows:
-        attendees_str = row.get("attendees") or ""
-        names = [n.strip() for n in re.split(r'[\n,]+', attendees_str) if n.strip()]
-        for name in names:
-            if name.lower() == "jimmy pang":
-                continue
-            fn, ln = "", ""
-            parts = name.split(maxsplit=1)
-            fn = parts[0]
-            ln = parts[1] if len(parts) > 1 else ""
-
-            email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', name)
-            email = clean_email(email_match.group(0)) if email_match else None
-            
-            p = find_or_create_person(email=email, url=None, first_name=fn, last_name=ln)
-            p["sources"].add("notion_meeting_notes")
+        raw_att = row["attendees"] or ""
+        attendees = [a.strip() for a in raw_att.replace(';', ',').split(',') if a.strip()]
+        for att in attendees:
+            if "@" in att:
+                e = clean_email(att)
+                p = find_or_create_person(e, None)
+                p["sources"].add("notion_meeting_notes")
+            else:
+                parts = att.split(maxsplit=1)
+                fn = parts[0]
+                ln = parts[1] if len(parts) > 1 else ""
+                p = find_or_create_person(None, None, fn, ln)
+                p["sources"].add("notion_meeting_notes")
 
     logger.info(f"Resolved {len(resolved_persons)} distinct master persons from intake sources.")
 
@@ -300,5 +336,8 @@ def resolve_persons(cdp_conn):
             )
         resolved_count += 1
 
-    logger.info(f"Entity resolution complete: {resolved_count} persons upserted/updated in cdp.persons.")
+    # Execute post-resolution master deduplication cleanup
+    deduplicate_master_persons(cdp_conn)
+
+    logger.info(f"Entity resolution complete: {resolved_count} persons resolved in cdp.persons.")
     return resolved_count
