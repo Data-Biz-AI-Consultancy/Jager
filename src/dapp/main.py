@@ -166,10 +166,12 @@ def run_oltp_ingest_notion_manual():
 
 
 @app.post("/run/oltp/ingest_notion")
-def run_oltp_ingest_notion(database_id: str | None = None, full_ingestion: bool = False):
+def run_oltp_ingest_notion(database_id: str | None = None, full_ingestion: bool = False, lookback_days: int | None = 7):
     cmd = ["python", "oltp/ingest_notion.py"]
     if database_id:
         cmd.append(database_id)
     if full_ingestion:
         cmd.append("--full")
+    if lookback_days is not None:
+        cmd.append(f"--lookback-days={lookback_days}")
     return run_pipeline_command(cmd, "ingest_notion")

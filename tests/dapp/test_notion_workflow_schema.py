@@ -15,7 +15,7 @@ def test_notion_workflow_json_structure():
     assert "Schedule Trigger" in node_names
     assert "Ingest DB - Leadership & Management" in node_names
     assert "Ingest DB - FaDi meeting notes" in node_names
-    assert len(data.get("nodes", [])) == 15
+    assert len(data.get("nodes", [])) == 13
 
     db_node = next(n for n in data.get("nodes", []) if n.get("name") == "Ingest DB - Leadership & Management")
     assert db_node["type"] == "n8n-nodes-base.httpRequest"

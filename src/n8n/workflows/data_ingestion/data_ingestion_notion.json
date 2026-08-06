@@ -25,7 +25,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=b5ad53f72b0e45e3b481e25da2703fd8",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=b5ad53f72b0e45e3b481e25da2703fd8&lookback_days=7",
         "options": {}
       },
       "id": "ingest-leadership-management",
@@ -34,13 +34,13 @@
       "typeVersion": 4.2,
       "position": [
         300,
-        300
+        200
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=1686e98d4ef8806da4e1c28268b7365e",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=1686e98d4ef8806da4e1c28268b7365e&lookback_days=7",
         "options": {}
       },
       "id": "ingest-data-science-ais",
@@ -49,13 +49,13 @@
       "typeVersion": 4.2,
       "position": [
         500,
-        300
+        200
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=4cd9498f5b5c48c6864d57bd36f7f82d",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=4cd9498f5b5c48c6864d57bd36f7f82d&lookback_days=7",
         "options": {}
       },
       "id": "ingest-data-science",
@@ -64,13 +64,13 @@
       "typeVersion": 4.2,
       "position": [
         700,
-        300
+        200
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=32fcdb5f301b4a9c94329dcadeffca15",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=32fcdb5f301b4a9c94329dcadeffca15&lookback_days=7",
         "options": {}
       },
       "id": "ingest-data-engineering",
@@ -79,13 +79,13 @@
       "typeVersion": 4.2,
       "position": [
         900,
-        300
+        200
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=f0501c9ac3bf4f0ea8d06b7ed6e40a31",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=f0501c9ac3bf4f0ea8d06b7ed6e40a31&lookback_days=7",
         "options": {}
       },
       "id": "ingest-data-governance",
@@ -94,13 +94,13 @@
       "typeVersion": 4.2,
       "position": [
         1100,
-        300
+        200
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=8fc4f5d17d6644eaa6b199f11cb3bf2b",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=8fc4f5d17d6644eaa6b199f11cb3bf2b&lookback_days=7",
         "options": {}
       },
       "id": "ingest-data-visualization-reporting",
@@ -109,13 +109,13 @@
       "typeVersion": 4.2,
       "position": [
         1300,
-        300
+        200
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=40906fc76abd4951bd4b283c9717d320",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=40906fc76abd4951bd4b283c9717d320&lookback_days=7",
         "options": {}
       },
       "id": "ingest-product-management",
@@ -124,13 +124,13 @@
       "typeVersion": 4.2,
       "position": [
         1500,
-        300
+        200
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=2bdfbb81d5c043d0a5fdd3028ad2504f",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=2bdfbb81d5c043d0a5fdd3028ad2504f&lookback_days=7",
         "options": {}
       },
       "id": "ingest-product-analytics",
@@ -139,13 +139,13 @@
       "typeVersion": 4.2,
       "position": [
         1700,
-        300
+        200
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=1d362ecd225241c0ab3c0fe4d0ed3cda",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=1d362ecd225241c0ab3c0fe4d0ed3cda&lookback_days=7",
         "options": {}
       },
       "id": "ingest-software-engineering",
@@ -154,43 +154,13 @@
       "typeVersion": 4.2,
       "position": [
         1900,
-        300
+        200
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=2d56e98d4ef8806ba96cca38539b67e1",
-        "options": {}
-      },
-      "id": "ingest-business",
-      "name": "Ingest DB - Business",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2100,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=f34619396f3c4be8b96fa64211eb18d7",
-        "options": {}
-      },
-      "id": "ingest-career",
-      "name": "Ingest DB - Career",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        2300,
-        300
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef8807eab9be1b0b029246c",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef8807eab9be1b0b029246c&lookback_days=7",
         "options": {}
       },
       "id": "ingest-interview-meeting-notes",
@@ -198,14 +168,14 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2500,
-        300
+        300,
+        450
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef880a6a61ae99d8912694f",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef880a6a61ae99d8912694f&lookback_days=7",
         "options": {}
       },
       "id": "ingest-meetups-seminars",
@@ -213,14 +183,14 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2700,
-        300
+        500,
+        450
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3a36e98d4ef88084a1aec60052a3cb80",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3a36e98d4ef88084a1aec60052a3cb80&lookback_days=7",
         "options": {}
       },
       "id": "ingest-fadi-meeting-notes",
@@ -228,8 +198,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2900,
-        300
+        700,
+        450
       ]
     }
   ],
@@ -239,6 +209,11 @@
         [
           {
             "node": "Ingest DB - Leadership & Management",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ingest DB - Interview Meeting notes",
             "type": "main",
             "index": 0
           }
@@ -334,37 +309,7 @@
       ]
     },
     "Ingest DB - Software Engineering": {
-      "main": [
-        [
-          {
-            "node": "Ingest DB - Business",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ingest DB - Business": {
-      "main": [
-        [
-          {
-            "node": "Ingest DB - Career",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ingest DB - Career": {
-      "main": [
-        [
-          {
-            "node": "Ingest DB - Interview Meeting notes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": []
     },
     "Ingest DB - Interview Meeting notes": {
       "main": [

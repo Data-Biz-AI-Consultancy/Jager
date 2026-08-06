@@ -49,8 +49,6 @@ def get_active_databases(engine):
             {"database_id": "40906fc76abd4951bd4b283c9717d320", "name": "Product Management", "type": "database"},
             {"database_id": "2bdfbb81d5c043d0a5fdd3028ad2504f", "name": "Product Analytics", "type": "database"},
             {"database_id": "1d362ecd225241c0ab3c0fe4d0ed3cda", "name": "Software Engineering", "type": "database"},
-            {"database_id": "2d56e98d4ef8806ba96cca38539b67e1", "name": "Business", "type": "database"},
-            {"database_id": "f34619396f3c4be8b96fa64211eb18d7", "name": "Career", "type": "database"},
             {"database_id": "3876e98d4ef8807eab9be1b0b029246c", "name": "Interview Meeting notes", "type": "meeting_notes"},
             {"database_id": "3876e98d4ef880a6a61ae99d8912694f", "name": "Meetups & Seminars", "type": "meeting_notes"},
             {"database_id": "3a36e98d4ef88084a1aec60052a3cb80", "name": "FaDi meeting notes", "type": "meeting_notes"}
@@ -248,7 +246,7 @@ def parse_page_data(page: dict, blocks: list, db_type: str, now_iso: str):
     }
 
 
-def run_ingestion(target_database_id=None, full_ingestion=False):
+def run_ingestion(target_database_id=None, full_ingestion=False, lookback_days=7):
     os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
     pipeline_start_time = time.time()
     logger.info("Starting Notion Data Ingestion pipeline")
@@ -270,8 +268,9 @@ def run_ingestion(target_database_id=None, full_ingestion=False):
         start_date = None
         filter_msg = "full historical ingestion"
     else:
-        start_date = (now - timedelta(days=90)).strftime("%Y-%m-%d")
-        filter_msg = f"last_edited_time >= {start_date} (90-day lookback)"
+        days = int(lookback_days) if lookback_days else 7
+        start_date = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+        filter_msg = f"last_edited_time >= {start_date} ({days}-day lookback)"
 
     logger.info(f"Discovered {len(databases)} monitored Notion databases to ingest ({filter_msg})")
 
@@ -482,5 +481,9 @@ def run_ingestion(target_database_id=None, full_ingestion=False):
 if __name__ == "__main__":
     args = sys.argv[1:]
     is_full = "--full" in args or "full=true" in args
-    db_id = next((a for a in args if a not in ("--full", "full=true")), None)
-    run_ingestion(db_id, full_ingestion=is_full)
+    lookback = 90
+    for a in args:
+        if a.startswith("--lookback-days="):
+            lookback = int(a.split("=")[1])
+    db_id = next((a for a in args if not a.startswith("--") and "full=" not in a), None)
+    run_ingestion(db_id, full_ingestion=is_full, lookback_days=lookback)
