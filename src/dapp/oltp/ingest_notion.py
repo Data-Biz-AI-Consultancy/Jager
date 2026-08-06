@@ -302,7 +302,7 @@ def run_ingestion():
                 pages = data.get("results", [])
                 has_more = data.get("has_more", False)
                 next_cursor = data.get("next_cursor")
-                logger.info(f"  Batch {page_batch_num}: retrieved {len(pages)} page headers (has_more={has_more})")
+                logger.info(f"  [DB: '{db_name}'] Batch {page_batch_num}: retrieved {len(pages)} page headers from database '{db_name}' ({formatted_db_id}) [has_more={has_more}]")
 
                 if has_more and next_cursor:
                     query_body["start_cursor"] = next_cursor
@@ -310,9 +310,11 @@ def run_ingestion():
                     has_more = False
 
                 for p_idx, page in enumerate(pages, 1):
-                    page_id = page.get("id")
+                    page_id = page.get("id", "")
                     if not page_id:
                         continue
+                    formatted_page_id = format_uuid(page_id)
+
                     b_start = time.time()
                     blocks = fetch_page_blocks(page_id, headers)
                     b_duration = time.time() - b_start
@@ -322,8 +324,10 @@ def run_ingestion():
                     item_data["database_id"] = db_id
                     db_items_count += 1
 
-                    page_title = item_data.get("title", "Untitled")[:40]
-                    logger.info(f"    - Page {p_idx}/{len(pages)}: '{page_title}' ({page_id}) -> fetched {len(blocks)} blocks in {b_duration:.2f}s")
+                    page_title = item_data.get("title", "Untitled")
+                    logger.info(
+                        f"    [DB: '{db_name}'] Ingesting Page {p_idx}/{len(pages)}: '{page_title[:60]}' | Page ID: {formatted_page_id} | Blocks: {len(blocks)} (fetched in {b_duration:.2f}s)"
+                    )
 
                     if db_type == "meeting_notes":
                         meeting_notes_list.append(item_data)
