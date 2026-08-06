@@ -77,29 +77,38 @@ flowchart LR
     A["Raw Profile Input"] --> B["Normalizers"]
     B --> C1["clean_email()<br/>Lowercase, trim whitespace, ignore placeholder/@linkedin.user"]
     B --> C2["clean_url()<br/>Strip http(s)://, www., trailing slashes"]
+    B --> C3["Email Handle & Name Extraction<br/>Parse dot/underscore email prefixes (e.g. lok.yau -> Lok Yau)"]
     
     C1 --> D["Match Hierarchy"]
     C2 --> D
+    C3 --> D
     
     D -->|1. Primary Match| E1["Exact Match on primary_email"]
     D -->|2. Secondary Match| E2["URL Variant Match on linkedin_url<br/>(Check handle, full URL, https:// & www. forms)"]
+    D -->|3. Name Fallback| E3["Case-insensitive Match on (first_name, last_name)"]
+    D -->|4. Handle Prefix Match| E4["Numeric-stripped Handle Match<br/>(e.g. thantrunghieu2002 / thantrunghieu2012215171 -> thantrunghieu)"]
     
     E1 --> F["Upsert Master cdp.persons Record"]
     E2 --> F
+    E3 --> F
+    E4 --> F
     
-    F --> G["Calculate Flags"]
+    F --> G["Calculate Flags & Attributes"]
     G --> H1["in_linkedin_connections = TRUE if present in persons_linkedins"]
     G --> H2["in_substack_subscriber_export = TRUE if present in persons_manual_substack"]
+    G --> H3["Track secondary_emails in attributes JSONB column"]
 ```
 
 ### Key Entity Resolution Rules:
-1. **Email Normalization**: Standardizes email addresses (lowercasing, trimming whitespace) and filters out internal placeholder emails (e.g. `@linkedin.user`).
+1. **Email Normalization & Name Extraction**: Standardizes email addresses (lowercasing, trimming whitespace), filters placeholder emails (e.g. `@linkedin.user`), and automatically derives missing first/last names from structured email username prefixes (e.g. `lok.yau@...` -> `Lok Yau`).
 2. **URL Variation Normalization**: Strips `http://`, `https://`, `www.`, and trailing slashes to create a canonical profile handle. Database lookups match across full URL variations (`https://www.linkedin.com/in/...`, `linkedin.com/in/...`).
 3. **Deterministic Match Hierarchy**:
-   - **Primary**: Matches existing contact by `primary_email`.
-   - **Secondary**: Matches existing contact by `linkedin_url` (across all URL variations).
-   - **Merge Strategy**: When a match is found, missing attributes (first name, last name, phone, country) are merged with `COALESCE` without overwriting existing data.
-4. **Presence Flags**:
+   - **Stage 1 (Primary)**: Matches existing contact by `primary_email`.
+   - **Stage 2 (Secondary)**: Matches existing contact by `linkedin_url` (across all URL variations).
+   - **Stage 3 (Name Fallback)**: Matches existing contact by case-insensitive `(first_name, last_name)`.
+   - **Stage 4 (Handle Prefix Match)**: Strips trailing numeric digits from email handles (e.g., `thantrunghieu2002` / `thantrunghieu2012215171` -> `thantrunghieu`) to unify personal and institutional emails belonging to the same individual.
+4. **Attribute Merging & Secondary Emails**: When a match occurs, missing profile attributes (first name, last name, phone, country) are non-destructively merged via `COALESCE`. Additional alternate email addresses are preserved inside the `attributes` JSONB column as `{"secondary_emails": ["..."]}`.
+5. **Presence Flags**:
    - `in_linkedin_connections`: Dynamically set to `TRUE` if the contact originates from or matches a LinkedIn connection profile.
    - `in_substack_subscriber_export`: Dynamically set to `TRUE` if the contact originates from or matches a Substack subscriber export.
 
