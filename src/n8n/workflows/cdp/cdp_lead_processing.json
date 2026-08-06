@@ -32,7 +32,7 @@
       "typeVersion": 4.2,
       "position": [
         224,
-        -144
+        -48
       ],
       "id": "2",
       "name": "Process LinkedIn Connections"
@@ -46,8 +46,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        224,
-        48
+        448,
+        -48
       ],
       "id": "3",
       "name": "Process Manual Data"
@@ -61,8 +61,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        448,
-        48
+        224,
+        144
       ],
       "id": "4",
       "name": "Process LinkedIn Messages"
@@ -76,8 +76,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        224,
-        240
+        448,
+        144
       ],
       "id": "5",
       "name": "Process Notion Meeting Notes"
@@ -108,12 +108,7 @@
             "index": 0
           },
           {
-            "node": "Process Manual Data",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Process Notion Meeting Notes",
+            "node": "Process LinkedIn Messages",
             "type": "main",
             "index": 0
           }
@@ -124,7 +119,7 @@
       "main": [
         [
           {
-            "node": "Evaluate Dynamic Segments",
+            "node": "Process Manual Data",
             "type": "main",
             "index": 0
           }
@@ -135,7 +130,7 @@
       "main": [
         [
           {
-            "node": "Process LinkedIn Messages",
+            "node": "Evaluate Dynamic Segments",
             "type": "main",
             "index": 0
           }
@@ -146,7 +141,7 @@
       "main": [
         [
           {
-            "node": "Evaluate Dynamic Segments",
+            "node": "Process Notion Meeting Notes",
             "type": "main",
             "index": 0
           }
@@ -165,7 +160,6 @@
       ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
