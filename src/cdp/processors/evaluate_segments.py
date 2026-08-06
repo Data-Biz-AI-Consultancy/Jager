@@ -19,36 +19,37 @@ logger = setup_logging("cdp-segment-processor")
 
 
 PERSON_SEGMENT_RULES = {
-    "high_engagement_unconverted": """
-        SELECT p.id FROM cdp.persons p
-        LEFT JOIN cdp.leads l ON p.id = l.person_id AND l.status IN ('negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed')
-        WHERE (p.in_substack_subscriber_export = TRUE OR p.in_linkedin_connections = TRUE OR EXISTS (SELECT 1 FROM cdp.engagements e WHERE e.person_id = p.id))
-          AND l.id IS NULL
+    "clients_and_prospects": """
+        SELECT DISTINCT p.id FROM cdp.persons p
+        JOIN cdp.leads l ON p.id = l.person_id
     """,
-    "cross_channel_contacts": """
-        SELECT p.id FROM cdp.persons p
-        WHERE p.in_linkedin_connections = TRUE AND p.in_substack_subscriber_export = TRUE
-    """,
-    "decision_makers": """
+    "hiring_decision_makers": """
         SELECT DISTINCT p.id FROM cdp.persons p
         LEFT JOIN cdp.person_account_relationships r ON p.id = r.person_id
         WHERE r.id IS NOT NULL
            OR p.id IN (
                SELECT person_id FROM cdp.persons_linkedins 
-               WHERE LOWER(COALESCE(position, '')) ~ '(ceo|cto|cfo|coo|vp|vice president|director|head|founder|owner|partner|chief)'
+               WHERE LOWER(COALESCE(position, '')) ~ '(ceo|cto|cfo|coo|vp|vice president|director|head of|founder|owner|chief|hiring manager)'
            )
     """,
-    "inactive_contacts": """
-        SELECT p.id FROM cdp.persons p
-        LEFT JOIN cdp.engagements e ON p.id = e.person_id AND e.occurred_at >= NOW() - INTERVAL '90 days'
-        LEFT JOIN cdp.activities a ON p.id = a.person_id AND a.activity_date >= NOW() - INTERVAL '90 days'
-        GROUP BY p.id
-        HAVING COUNT(e.id) = 0 AND COUNT(a.id) = 0
-    """,
-    "former_clients_nurture": """
+    "peer_collaborators": """
         SELECT DISTINCT p.id FROM cdp.persons p
-        JOIN cdp.leads l ON p.id = l.person_id
-        WHERE l.status = 'completed'
+        WHERE p.id IN (
+            SELECT person_id FROM cdp.persons_linkedins 
+            WHERE LOWER(COALESCE(position, '')) ~ '(agency|freelance|consultant|partner|advisor|contractor)'
+               OR LOWER(COALESCE(company, '')) ~ '(agency|consulting|advisory|solutions|studio)'
+        )
+    """,
+    "former_colleagues_alumni": """
+        SELECT DISTINCT p.id FROM cdp.persons p
+        WHERE p.id IN (
+            SELECT person_id FROM cdp.persons_linkedins 
+            WHERE LOWER(COALESCE(company, '')) ~ '(hellofresh|delivery hero|foodpanda|vestiaire)'
+        )
+    """,
+    "community_and_audience": """
+        SELECT p.id FROM cdp.persons p
+        WHERE p.in_substack_subscriber_export = TRUE OR p.in_linkedin_connections = TRUE
     """
 }
 
@@ -90,11 +91,11 @@ LEAD_SEGMENT_RULES = {
 def ensure_seed_segments(conn):
     """Ensures built-in seed segments exist in person_segments and lead_segments tables."""
     person_seeds = [
-        ("high_engagement_unconverted", "High Engagement Unconverted", "Active contacts across channels with no active lead", "dynamic", {"rule": "high_engagement_unconverted"}),
-        ("cross_channel_contacts", "Cross-Channel Contacts", "Contacts present in both LinkedIn connections and Substack subscribers", "dynamic", {"rule": "cross_channel_contacts"}),
-        ("decision_makers", "Decision Makers", "Contacts mapped to accounts or holding executive titles", "dynamic", {"rule": "decision_makers"}),
-        ("inactive_contacts", "Inactive Contacts", "Contacts with zero activity or engagement in last 90 days", "dynamic", {"rule": "inactive_contacts"}),
-        ("former_clients_nurture", "Former Clients Nurture", "Contacts associated with past completed engagements", "dynamic", {"rule": "former_clients_nurture"}),
+        ("clients_and_prospects", "Clients & Prospects", "Active or past consulting clients and warm lead opportunities", "dynamic", {"rule": "clients_and_prospects"}),
+        ("hiring_decision_makers", "Hiring Decision-Makers", "Founders, CTOs, VPs of Data/Engineering, and hiring decision makers", "dynamic", {"rule": "hiring_decision_makers"}),
+        ("peer_collaborators", "Peer Collaborators & Agencies", "Other consultants, agency owners, or freelancers for project referrals/partnerships", "dynamic", {"rule": "peer_collaborators"}),
+        ("community_and_audience", "Community & Audience", "Substack readers, LinkedIn connections, and event contacts engaging with content", "dynamic", {"rule": "community_and_audience"}),
+        ("former_colleagues_alumni", "Alumni & Former Colleagues", "Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)", "dynamic", {"rule": "former_colleagues_alumni"}),
     ]
 
     for slug, name, desc, seg_type, criteria in person_seeds:
@@ -155,6 +156,43 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
     return results
 
 
+def evaluate_engagement_temperature(conn) -> Dict[str, int]:
+    """Evaluates engagement temperature for all Persons: hot (30d), warm (90d), dormant (>90d), cold (0 interaction)."""
+    # 1. Reset default to cold
+    conn.execute(text("UPDATE cdp.persons SET engagement_temperature = 'cold'"))
+
+    # 2. Dormant: past touchpoints/activities but none in 90d
+    conn.execute(text("""
+        UPDATE cdp.persons SET engagement_temperature = 'dormant'
+        WHERE (EXISTS (SELECT 1 FROM cdp.engagements e WHERE e.person_id = cdp.persons.id)
+               OR EXISTS (SELECT 1 FROM cdp.activities a WHERE a.person_id = cdp.persons.id))
+          AND NOT EXISTS (SELECT 1 FROM cdp.engagements e WHERE e.person_id = cdp.persons.id AND e.occurred_at >= NOW() - INTERVAL '90 days')
+          AND NOT EXISTS (SELECT 1 FROM cdp.activities a WHERE a.person_id = cdp.persons.id AND a.activity_date >= NOW() - INTERVAL '90 days')
+    """))
+
+    # 3. Warm: touchpoints/activities in 90d OR active in Substack/LinkedIn
+    conn.execute(text("""
+        UPDATE cdp.persons SET engagement_temperature = 'warm'
+        WHERE (EXISTS (SELECT 1 FROM cdp.engagements e WHERE e.person_id = cdp.persons.id AND e.occurred_at >= NOW() - INTERVAL '90 days')
+               OR EXISTS (SELECT 1 FROM cdp.activities a WHERE a.person_id = cdp.persons.id AND a.activity_date >= NOW() - INTERVAL '90 days')
+               OR in_substack_subscriber_export = TRUE OR in_linkedin_connections = TRUE)
+    """))
+
+    # 4. Hot: touchpoints/activities in 30d
+    conn.execute(text("""
+        UPDATE cdp.persons SET engagement_temperature = 'hot'
+        WHERE (EXISTS (SELECT 1 FROM cdp.engagements e WHERE e.person_id = cdp.persons.id AND e.occurred_at >= NOW() - INTERVAL '30 days')
+               OR EXISTS (SELECT 1 FROM cdp.activities a WHERE a.person_id = cdp.persons.id AND a.activity_date >= NOW() - INTERVAL '30 days'))
+    """))
+
+    # Return counts breakdown
+    counts = conn.execute(text("""
+        SELECT engagement_temperature, COUNT(*) FROM cdp.persons GROUP BY engagement_temperature
+    """)).fetchall()
+
+    return {row[0]: row[1] for row in counts}
+
+
 def evaluate_lead_segments(conn) -> Dict[str, int]:
     """Evaluates dynamic lead segments and updates lead_segment_id on cdp.leads."""
     results = {}
@@ -185,19 +223,21 @@ def evaluate_lead_segments(conn) -> Dict[str, int]:
 
 
 def evaluate_segments() -> Dict[str, Any]:
-    """Evaluates all Person and Lead dynamic segments in CDP database."""
-    logger.info("Starting CDP segment evaluation for Persons and Leads...")
+    """Evaluates all Person and Lead dynamic segments and engagement temperatures in CDP database."""
+    logger.info("Starting CDP segment and engagement temperature evaluation for Persons and Leads...")
     cdp_engine = get_db_engine(default_url="postgresql://jager:jager@db:5432/cdp", env_var="DATABASE_URL")
 
     with cdp_engine.begin() as conn:
         ensure_seed_segments(conn)
         person_results = evaluate_person_segments(conn)
+        temperature_results = evaluate_engagement_temperature(conn)
         lead_results = evaluate_lead_segments(conn)
 
-    logger.info(f"CDP segment evaluation completed. Persons: {person_results}, Leads: {lead_results}")
+    logger.info(f"CDP segment evaluation completed. Persons: {person_results}, Temperature: {temperature_results}, Leads: {lead_results}")
     return {
         "status": "success",
         "person_segments": person_results,
+        "engagement_temperatures": temperature_results,
         "lead_segments": lead_results
     }
 

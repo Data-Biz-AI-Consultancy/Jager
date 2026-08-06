@@ -45,7 +45,7 @@ def test_ensure_seed_segments():
     mock_conn = MagicMock()
     ensure_seed_segments(mock_conn)
 
-    # Should execute insert statements for person and lead seeds
+    # Should execute insert statements for person (5) and lead (5) seeds
     assert mock_conn.execute.call_count >= 10
 
 
@@ -55,8 +55,8 @@ def test_evaluate_person_segments():
     mock_conn.execute.return_value.fetchall.side_effect = [
         # cdp.person_segments fetchall
         [
-            ("p-uuid-1", "high_engagement_unconverted", "dynamic", {"rule": "high_engagement_unconverted"}),
-            ("p-uuid-2", "cross_channel_contacts", "dynamic", {"rule": "cross_channel_contacts"}),
+            ("p-uuid-1", "clients_and_prospects", "dynamic", {"rule": "clients_and_prospects"}),
+            ("p-uuid-2", "hiring_decision_makers", "dynamic", {"rule": "hiring_decision_makers"}),
         ],
         # rule 1 matching persons
         [("person-123",)],
@@ -65,8 +65,9 @@ def test_evaluate_person_segments():
     ]
 
     results = evaluate_person_segments(mock_conn)
-    assert results["high_engagement_unconverted"] == 1
-    assert results["cross_channel_contacts"] == 2
+    assert results["clients_and_prospects"] == 1
+    assert results["hiring_decision_makers"] == 2
+
 
 
 def test_evaluate_lead_segments():

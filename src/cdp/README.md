@@ -26,9 +26,10 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
    - **`cdp.activities`**: Consolidated activity entity table, populated solely from `cdp.activities_notion_meeting_notes` (extensible to future activity sources).
 4. **Client Engagement & Activity Overview**:
    - **`cdp.engagements`**: Activity log tracking touchpoints (emails, calls, meetings, notes, form submissions, LinkedIn messages) for complete client engagement visibility.
-5. **Segmentation Engine**:
-   - **`cdp.person_segments`**: Dimension table for contact/audience segments. `cdp.persons` references its segment via `person_segment_id` FK (mutually exclusive primary classification).
-   - **`cdp.lead_segments`**: Dimension table for opportunity/pipeline segments. `cdp.leads` references its segment via `lead_segment_id` FK (mutually exclusive primary classification).
+5. **Segmentation & Engagement Temperature Engine**:
+   - **`cdp.person_segments`**: Dimension table for Opportunity-Based contact segments (`clients_and_prospects`, `hiring_decision_makers`, `peer_collaborators`, `community_and_audience`, `former_colleagues_alumni`). Referenced via `cdp.persons.person_segment_id`.
+   - **`cdp.persons.engagement_temperature`**: Dynamic engagement score (`hot` [30d], `warm` [90d], `dormant` [>90d], `cold` [no activity]).
+   - **`cdp.lead_segments`**: Dimension table for opportunity/pipeline segments. Referenced via `cdp.leads.lead_segment_id`.
 6. **Automation Endpoints**:
    - Exposes REST HTTP endpoints consumed by n8n workflows (accessed via `CDP_SERVICE_URL`, e.g. `http://cdp:8000`).
 

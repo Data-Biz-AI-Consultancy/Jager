@@ -281,14 +281,15 @@ DROP TABLE IF EXISTS cdp.person_segment_memberships;
 DROP TABLE IF EXISTS cdp.lead_segment_memberships;
 
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_id UUID REFERENCES cdp.person_segments(id) ON DELETE SET NULL;
+ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS engagement_temperature VARCHAR(32) DEFAULT 'cold';
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_id UUID REFERENCES cdp.lead_segments(id) ON DELETE SET NULL;
 
 INSERT INTO cdp.person_segments (slug, name, description, segment_type, criteria) VALUES
-('high_engagement_unconverted', 'High Engagement Unconverted', 'Active contacts across channels with no active lead', 'dynamic', '{"rule": "high_engagement_unconverted"}'::jsonb),
-('cross_channel_contacts', 'Cross-Channel Contacts', 'Contacts present in both LinkedIn connections and Substack newsletter subscribers', 'dynamic', '{"rule": "cross_channel_contacts"}'::jsonb),
-('decision_makers', 'Decision Makers', 'Contacts mapped to accounts or holding leadership/executive titles', 'dynamic', '{"rule": "decision_makers"}'::jsonb),
-('inactive_contacts', 'Inactive Contacts', 'Contacts with zero touchpoints or engagements in the last 90 days', 'dynamic', '{"rule": "inactive_contacts"}'::jsonb),
-('former_clients_nurture', 'Former Clients Nurture', 'Contacts associated with completed past engagements for periodic nurture', 'dynamic', '{"rule": "former_clients_nurture"}'::jsonb)
+('clients_and_prospects', 'Clients & Prospects', 'Active or past consulting clients and warm lead opportunities', 'dynamic', '{"rule": "clients_and_prospects"}'::jsonb),
+('hiring_decision_makers', 'Hiring Decision-Makers', 'Founders, CTOs, VPs of Data/Engineering, and hiring decision makers', 'dynamic', '{"rule": "hiring_decision_makers"}'::jsonb),
+('peer_collaborators', 'Peer Collaborators & Agencies', 'Other consultants, agency owners, or freelancers for project referrals/partnerships', 'dynamic', '{"rule": "peer_collaborators"}'::jsonb),
+('community_and_audience', 'Community & Audience', 'Substack readers, LinkedIn connections, and event contacts engaging with content', 'dynamic', '{"rule": "community_and_audience"}'::jsonb),
+('former_colleagues_alumni', 'Alumni & Former Colleagues', 'Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)', 'dynamic', '{"rule": "former_colleagues_alumni"}'::jsonb)
 ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
 
 INSERT INTO cdp.lead_segments (slug, name, description, segment_type, criteria) VALUES
