@@ -62,14 +62,19 @@ def resolve_persons(cdp_conn):
     # Build entity registry maps in memory
     email_to_person = {}
     url_to_person = {}
+    name_to_person = {}
     resolved_persons = []
 
     def find_or_create_person(email, url, first_name="", last_name=""):
         p = None
+        name_key = (first_name.strip().lower(), last_name.strip().lower()) if (first_name and last_name) else None
+
         if email and email in email_to_person:
             p = email_to_person[email]
         elif url and url in url_to_person:
             p = url_to_person[url]
+        elif name_key and name_key in name_to_person:
+            p = name_to_person[name_key]
         
         if not p:
             p = {
@@ -89,6 +94,8 @@ def resolve_persons(cdp_conn):
                 email_to_person[email] = p
             if url:
                 url_to_person[url] = p
+            if name_key:
+                name_to_person[name_key] = p
         else:
             # Merge fields if missing
             if not p["first_name"] and first_name:
@@ -101,6 +108,8 @@ def resolve_persons(cdp_conn):
             if not p["linkedin_url"] and url:
                 p["linkedin_url"] = url
                 url_to_person[url] = p
+            if name_key and name_key not in name_to_person:
+                name_to_person[name_key] = p
                 
         return p
 
@@ -132,6 +141,17 @@ def resolve_persons(cdp_conn):
         phone = (row.get("phone") or "").strip() or None
         url = clean_url(row.get("linkedin_url"))
         country = (row.get("country") or "").strip() or None
+
+        if not fn and not ln and email and "@" in email:
+            prefix = email.split("@")[0]
+            if "." in prefix:
+                parts = prefix.split(".", 1)
+                fn = parts[0].capitalize()
+                ln = parts[1].capitalize()
+            elif "_" in prefix:
+                parts = prefix.split("_", 1)
+                fn = parts[0].capitalize()
+                ln = parts[1].capitalize()
 
         if not fn and not ln and not email and not url:
             continue
@@ -196,6 +216,15 @@ def resolve_persons(cdp_conn):
                     "https_url": f"https://{clean_u}" if clean_u else url,
                     "www_url": f"https://www.{clean_u}" if clean_u else url
                 }
+            ).fetchone()
+        if not existing and fn and ln:
+            existing = cdp_conn.execute(
+                text("""
+                    SELECT id FROM cdp.persons
+                    WHERE LOWER(first_name) = LOWER(:fn) AND LOWER(last_name) = LOWER(:ln)
+                    LIMIT 1
+                """),
+                {"fn": fn, "ln": ln}
             ).fetchone()
 
         if existing:

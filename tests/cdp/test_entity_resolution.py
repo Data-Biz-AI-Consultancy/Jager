@@ -58,4 +58,4 @@ def test_resolve_persons():
     mock_cdp_conn.execute.return_value.fetchone.return_value = None
 
     resolved_count = resolve_persons(mock_cdp_conn)
-    assert resolved_count == 3  # Alice (merged), Bob Jones name entry, and Bob email entry
+    assert resolved_count == 2  # Alice (merged) and Bob Jones (name & email merged)

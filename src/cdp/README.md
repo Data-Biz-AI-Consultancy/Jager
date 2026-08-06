@@ -68,6 +68,43 @@ flowchart TD
 
 ---
 
+## Entity Resolution Mechanism (`entity_resolution.py`)
+
+The CDP Entity Resolution engine consolidates multi-source intake contacts (`cdp.persons_linkedins`, `cdp.persons_manual_substack`, and `cdp.activities_notion_meeting_notes`) into single master entities in `cdp.persons`.
+
+```mermaid
+flowchart LR
+    A["Raw Profile Input"] --> B["Normalizers"]
+    B --> C1["clean_email()<br/>Lowercase, trim whitespace, ignore placeholder/@linkedin.user"]
+    B --> C2["clean_url()<br/>Strip http(s)://, www., trailing slashes"]
+    
+    C1 --> D["Match Hierarchy"]
+    C2 --> D
+    
+    D -->|1. Primary Match| E1["Exact Match on primary_email"]
+    D -->|2. Secondary Match| E2["URL Variant Match on linkedin_url<br/>(Check handle, full URL, https:// & www. forms)"]
+    
+    E1 --> F["Upsert Master cdp.persons Record"]
+    E2 --> F
+    
+    F --> G["Calculate Flags"]
+    G --> H1["in_linkedin_connections = TRUE if present in persons_linkedins"]
+    G --> H2["in_substack_subscriber_export = TRUE if present in persons_manual_substack"]
+```
+
+### Key Entity Resolution Rules:
+1. **Email Normalization**: Standardizes email addresses (lowercasing, trimming whitespace) and filters out internal placeholder emails (e.g. `@linkedin.user`).
+2. **URL Variation Normalization**: Strips `http://`, `https://`, `www.`, and trailing slashes to create a canonical profile handle. Database lookups match across full URL variations (`https://www.linkedin.com/in/...`, `linkedin.com/in/...`).
+3. **Deterministic Match Hierarchy**:
+   - **Primary**: Matches existing contact by `primary_email`.
+   - **Secondary**: Matches existing contact by `linkedin_url` (across all URL variations).
+   - **Merge Strategy**: When a match is found, missing attributes (first name, last name, phone, country) are merged with `COALESCE` without overwriting existing data.
+4. **Presence Flags**:
+   - `in_linkedin_connections`: Dynamically set to `TRUE` if the contact originates from or matches a LinkedIn connection profile.
+   - `in_substack_subscriber_export`: Dynamically set to `TRUE` if the contact originates from or matches a Substack subscriber export.
+
+---
+
 ## Status Lifecycles & State Transitions
 
 ### 1. Lead Opportunity Status Lifecycle (`cdp.leads.status`)
