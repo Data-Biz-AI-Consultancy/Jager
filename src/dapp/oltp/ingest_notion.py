@@ -347,7 +347,19 @@ def run_ingestion():
             name="pages",
             write_disposition="merge",
             primary_key="id",
-            columns={"properties": {"data_type": "complex"}}
+            columns={
+                "id": {"data_type": "text"},
+                "database_id": {"data_type": "text"},
+                "title": {"data_type": "text"},
+                "content": {"data_type": "text"},
+                "properties": {"data_type": "json"},
+                "cover_url": {"data_type": "text"},
+                "icon": {"data_type": "text"},
+                "url": {"data_type": "text"},
+                "created_time": {"data_type": "timestamp"},
+                "last_edited_time": {"data_type": "timestamp"},
+                "processed": {"data_type": "bigint"}
+            }
         )
         def fetch_pages():
             for p in pages_list:
@@ -356,7 +368,7 @@ def run_ingestion():
                     "database_id": p["database_id"],
                     "title": p["title"],
                     "content": p["content"],
-                    "properties": p["properties"],
+                    "properties": p["properties"] if isinstance(p["properties"], dict) else {},
                     "cover_url": p["cover_url"],
                     "icon": p["icon"],
                     "url": p["url"],
@@ -371,7 +383,22 @@ def run_ingestion():
             name="meeting_notes",
             write_disposition="merge",
             primary_key="id",
-            columns={"properties": {"data_type": "complex"}}
+            columns={
+                "id": {"data_type": "text"},
+                "database_id": {"data_type": "text"},
+                "title": {"data_type": "text"},
+                "meeting_date": {"data_type": "timestamp"},
+                "attendees": {"data_type": "text"},
+                "summary": {"data_type": "text"},
+                "transcription": {"data_type": "text"},
+                "action_items": {"data_type": "text"},
+                "recording_url": {"data_type": "text"},
+                "properties": {"data_type": "json"},
+                "url": {"data_type": "text"},
+                "created_time": {"data_type": "timestamp"},
+                "last_edited_time": {"data_type": "timestamp"},
+                "processed": {"data_type": "bigint"}
+            }
         )
         def fetch_meeting_notes():
             for m in meeting_notes_list:
@@ -385,7 +412,7 @@ def run_ingestion():
                     "transcription": m["transcription"],
                     "action_items": m["action_items"],
                     "recording_url": m["recording_url"],
-                    "properties": m["properties"],
+                    "properties": m["properties"] if isinstance(m["properties"], dict) else {},
                     "url": m["url"],
                     "created_time": m["created_time"],
                     "last_edited_time": m["last_edited_time"],
@@ -400,7 +427,18 @@ def run_ingestion():
     logger.info("Starting dlt pipeline load phase into PostgreSQL schema 's_notion'...")
     dlt_start_time = time.time()
     pipeline = create_postgres_pipeline(pipeline_name="ingest_notion", dataset_name="s_notion")
-    info = pipeline.run(resources)
+    
+    try:
+        info = pipeline.run(resources)
+    except Exception as e:
+        logger.warning(f"Initial dlt pipeline run hit schema/package exception: {e}. Forcing dlt to overwrite destination schema with refresh='drop_sources'...")
+        try:
+            pipeline.drop()
+        except Exception:
+            pass
+        pipeline = create_postgres_pipeline(pipeline_name="ingest_notion", dataset_name="s_notion")
+        info = pipeline.run(resources, refresh="drop_sources")
+
     dlt_duration = time.time() - dlt_start_time
     total_pipeline_duration = time.time() - pipeline_start_time
 
