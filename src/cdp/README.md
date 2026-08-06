@@ -151,12 +151,12 @@ graph TD
 
 | Priority | Slug | Segment Name | Target Persona & Description | Potential Opportunity Types | Live Count |
 | :---: | :--- | :--- | :--- | :--- | :---: |
-| **1** | `clients_and_prospects` | **Clients & Prospects** | Warm consulting lead opportunities, project inquiries (e.g. Juned Kadiwala, Jodi Barrow), & meeting contacts | Consulting Projects, Advisory, Fractional Data Leadership | **206** |
+| **1** | `clients_and_prospects` | **Clients & Prospects** | Warm consulting lead opportunities, AI exploration (e.g. Micheala Sawyer, Juned Kadiwala, Jodi Barrow), & meeting contacts | Consulting Projects, Advisory, Fractional Data Leadership | **216** |
 | **2** | `former_colleagues_alumni` | **Alumni & Former Colleagues** | High-trust alumni network contacts (Hays, HelloFresh, Delivery Hero, Foodpanda, Vestiaire) | Referrals, Re-hiring, Warm Client Introductions, Partnering | **385** |
 | **3** | `recruiters_and_talent` | **Recruiters & Talent Acquisition** | Talent acquisition managers, recruiters, HR managers (e.g. Katharina Kern), headhunters | Full-Time Employment, Contract Roles, Fractional Opportunities | **68** |
-| **4** | `hiring_decision_makers` | **Hiring Decision-Makers** | C-Level executives, Founders, VPs, Directors, Heads of Data/Eng, Leads, Managers | Consulting Projects, Full-Time Employment, Fractional Leadership | **1,377** |
-| **5** | `peer_collaborators` | **Peer Collaborators & Agencies** | Agency owners, consultants, freelancers, tooling partners (dltHub, MotherDuck, n8n), DevRel | Project Subcontracting, Co-bidding, Client Referrals, Tooling Implementations | **126** |
-| **6** | `general_network` | **General Network** | Fallback segment for all general network contacts & audience members | Brand Awareness, Audience Engagement, Content Reach | **1,256** |
+| **4** | `hiring_decision_makers` | **Hiring Decision-Makers** | C-Level executives, Founders, VPs, Directors, Heads of Data/Eng, Leads, Managers | Consulting Projects, Full-Time Employment, Fractional Leadership | **1,373** |
+| **5** | `peer_collaborators` | **Peer Collaborators & Agencies** | Agency owners, consultants, freelancers, tooling partners (dltHub, MotherDuck, n8n), DevRel | Project Subcontracting, Co-bidding, Client Referrals, Tooling Implementations | **125** |
+| **6** | `general_network` | **General Network** | Fallback segment for all general network contacts & audience members | Brand Awareness, Audience Engagement, Content Reach | **1,251** |
 
 ---
 
