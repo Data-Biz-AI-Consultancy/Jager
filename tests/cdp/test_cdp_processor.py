@@ -106,12 +106,13 @@ def test_process_linkedin_connections_with_company_rows():
             return mock_jager_engine
         return mock_cdp_engine
 
-    with patch('processors.process_linkedin_connections.get_db_engine', side_effect=mock_get_engine):
+    with patch('processors.process_linkedin_connections.get_db_engine', side_effect=mock_get_engine), \
+         patch('processors.entity_resolution.resolve_persons', return_value=1):
         result = process_linkedin_connections()
         assert result["status"] == "success"
         assert result["processed_count"] == 1
         assert result["accounts_processed"] == 1
-        assert result["relationships_processed"] == 1
+        assert result["persons_resolved"] == 1
 
 
 def test_cdp_utils():
