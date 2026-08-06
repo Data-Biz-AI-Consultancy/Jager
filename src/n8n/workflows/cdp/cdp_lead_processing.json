@@ -31,8 +31,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        224,
-        0
+        250,
+        -150
       ],
       "id": "2",
       "name": "Process LinkedIn Connections"
@@ -46,7 +46,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        448,
+        250,
         0
       ],
       "id": "3",
@@ -61,11 +61,26 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        672,
+        480,
         0
       ],
       "id": "4",
       "name": "Process LinkedIn Messages"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CDP_SERVICE_URL || 'http://cdp:8000' }}/process/notion_meeting_notes",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        250,
+        150
+      ],
+      "id": "5",
+      "name": "Process Notion Meeting Notes"
     }
   ],
   "connections": {
@@ -76,15 +91,14 @@
             "node": "Process LinkedIn Connections",
             "type": "main",
             "index": 0
-          }
-        ]
-      ]
-    },
-    "Process LinkedIn Connections": {
-      "main": [
-        [
+          },
           {
             "node": "Process Manual Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process Notion Meeting Notes",
             "type": "main",
             "index": 0
           }
@@ -103,7 +117,7 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
