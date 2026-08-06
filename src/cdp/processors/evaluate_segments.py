@@ -23,9 +23,9 @@ PERSON_SEGMENT_RULES = {
         SELECT DISTINCT p.id FROM cdp.persons p
         JOIN cdp.leads l ON p.id = l.person_id
         WHERE (
-            LOWER(COALESCE(l.intent, '')) IN ('inbound_service_request', 'consulting', 'hiring', 'freelance', 'contract', 'project_inquiry')
+            LOWER(COALESCE(l.intent, '')) IN ('inbound_service_request', 'consulting_inquiry')
             OR LOWER(COALESCE(l.status, '')) IN ('in_discussion', 'proposal_sent', 'negotiating', 'offer_accepted', 'won', 'active_client')
-            OR LOWER(COALESCE(l.summary, '')) ~ '(consulting|freelance|contract|hourly|rate|audit|build data|data stack|proposal|quote)'
+            OR LOWER(COALESCE(l.summary, '')) ~* '\\y(consulting rate|freelance proposal|data audit|hourly rate for consulting|data stack build|project quote)\\y'
         )
     """,
     "former_colleagues_alumni": """
@@ -36,6 +36,15 @@ PERSON_SEGMENT_RULES = {
             OR (LOWER(TRIM(p.first_name)) = LOWER(TRIM(pli.first_name)) AND LOWER(TRIM(p.last_name)) = LOWER(TRIM(pli.last_name)))
         )
         WHERE LOWER(COALESCE(pli.company, '')) ~ '(hayes|hays|foodpanda|delivery hero|hellofresh|hello fresh|vestiaire)'
+    """,
+    "recruiters_and_talent": """
+        SELECT DISTINCT p.id FROM cdp.persons p
+        JOIN cdp.persons_linkedins pli ON (
+            (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
+            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND pli.profile_url ILIKE '%' || p.linkedin_url || '%')
+            OR (LOWER(TRIM(p.first_name)) = LOWER(TRIM(pli.first_name)) AND LOWER(TRIM(p.last_name)) = LOWER(TRIM(pli.last_name)))
+        )
+        WHERE LOWER(COALESCE(pli.position, '')) ~ '(recruiter|recruiting|talent acquisition|talent partner|headhunter|sourcer|talent specialist|talent manager)'
     """,
     "hiring_decision_makers": """
         SELECT DISTINCT p.id FROM cdp.persons p
@@ -99,7 +108,8 @@ def ensure_seed_segments(conn):
     """Ensures built-in seed segments exist in person_segments and lead_segments tables."""
     person_seeds = [
         ("clients_and_prospects", "Clients & Prospects", "Active or past consulting clients and warm lead opportunities", "dynamic", {"rule": "clients_and_prospects"}),
-        ("hiring_decision_makers", "Hiring Decision-Makers", "Founders, CTOs, VPs of Data/Engineering, and hiring decision makers", "dynamic", {"rule": "hiring_decision_makers"}),
+        ("recruiters_and_talent", "Recruiters & Talent Acquisition", "Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers", "dynamic", {"rule": "recruiters_and_talent"}),
+        ("hiring_decision_makers", "Hiring Decision-Makers", "Founders, CTOs, VPs of Data/Engineering, Heads, and hiring decision makers", "dynamic", {"rule": "hiring_decision_makers"}),
         ("peer_collaborators", "Peer Collaborators & Agencies", "Other consultants, agency owners, freelancers, tooling partners, or DevRel for project referrals/partnerships", "dynamic", {"rule": "peer_collaborators"}),
         ("former_colleagues_alumni", "Alumni & Former Colleagues", "Alumni network contacts from target companies (Hays, HelloFresh, Delivery Hero, Foodpanda, Vestiaire)", "dynamic", {"rule": "former_colleagues_alumni"}),
         ("general_network", "General Network", "General network contacts not belonging to specific opportunity segments", "dynamic", {"rule": "general_network"}),
@@ -146,6 +156,7 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
     segment_priority = [
         "clients_and_prospects",
         "former_colleagues_alumni",
+        "recruiters_and_talent",
         "hiring_decision_makers",
         "peer_collaborators",
     ]

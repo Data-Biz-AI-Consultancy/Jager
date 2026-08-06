@@ -291,7 +291,8 @@ ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_slug VARCHAR(64);
 
 INSERT INTO cdp.person_segments (slug, name, description, segment_type, criteria) VALUES
 ('clients_and_prospects', 'Clients & Prospects', 'Active or past consulting clients and warm lead opportunities', 'dynamic', '{"rule": "clients_and_prospects"}'::jsonb),
-('hiring_decision_makers', 'Hiring Decision-Makers', 'Founders, CTOs, VPs of Data/Engineering, and hiring decision makers', 'dynamic', '{"rule": "hiring_decision_makers"}'::jsonb),
+('recruiters_and_talent', 'Recruiters & Talent Acquisition', 'Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers', 'dynamic', '{"rule": "recruiters_and_talent"}'::jsonb),
+('hiring_decision_makers', 'Hiring Decision-Makers', 'Founders, CTOs, VPs of Data/Engineering, Heads, and hiring decision makers', 'dynamic', '{"rule": "hiring_decision_makers"}'::jsonb),
 ('peer_collaborators', 'Peer Collaborators & Agencies', 'Other consultants, agency owners, freelancers, tooling partners, or DevRel for project referrals/partnerships', 'dynamic', '{"rule": "peer_collaborators"}'::jsonb),
 ('former_colleagues_alumni', 'Alumni & Former Colleagues', 'Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)', 'dynamic', '{"rule": "former_colleagues_alumni"}'::jsonb),
 ('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', '{"rule": "general_network"}'::jsonb)

@@ -43,11 +43,11 @@ def analyze_convo_nlp(convo_text: str):
     opportunity_type = "/".join(opp_types) if opp_types else "general_inquiry"
 
     # 2. Intent Detection
-    if any(k in text_lower for k in ["access your service", "how i can access", "hire you", "work together", "pricing", "quote", "rate"]):
+    if any(k in text_lower for k in ["access your service", "hire you for", "consulting rate", "hourly rate for consulting", "data stack audit", "build our data", "project proposal", "freelance proposal"]):
         intent = "inbound_service_request"
-    elif any(k in text_lower for k in ["recruiting", "talent partner", "open for a role", "job opportunity", "hiring"]):
+    elif any(k in text_lower for k in ["recruiting", "recruiter", "talent acquisition", "talent partner", "open for a role", "job opportunity", "hiring"]):
         intent = "recruitment_inbound"
-    elif any(k in text_lower for k in ["consulting", "advisory", "project"]):
+    elif any(k in text_lower for k in ["consulting", "advisory", "project", "freelance", "contract"]):
         intent = "business_collaboration"
     else:
         intent = "networking_inquiry"
