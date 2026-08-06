@@ -176,6 +176,7 @@ def process_manual_data():
                 is_substack = "substack" in table.lower()
                 is_linkedin = "linkedin" in table.lower()
 
+                person_id = None
                 # 1. Upsert person intake record into cdp.persons_manual_substack if substack table
                 if is_substack and (first_name or last_name or email or linkedin_url):
                     row_id = str(row_dict.get("id") or row_dict.get("notion_id") or uuid.uuid4())

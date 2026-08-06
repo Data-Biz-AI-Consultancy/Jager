@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import json
 from sqlalchemy import text
 
 cdp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -61,17 +62,16 @@ def process_linkedin_connections():
             text("""
                 SELECT id, first_name, last_name, profile_url, email_address, company, position, connected_at
                 FROM s_linkedin.connections
-                WHERE processed = 0
             """)
         ).mappings().all()
 
         if not rows:
-            logger.info("No unprocessed LinkedIn connections found.")
+            logger.info("No LinkedIn connections found.")
             return {
                 "status": "success",
                 "processed_count": 0,
                 "accounts_processed": 0,
-                "relationships_processed": 0
+                "persons_resolved": 0
             }
 
         with cdp_engine.begin() as cdp_conn:
