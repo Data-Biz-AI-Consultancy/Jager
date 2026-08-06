@@ -259,9 +259,8 @@ def run_ingestion():
 
     now = datetime.now(timezone.utc)
     now_iso = now.isoformat()
-    start_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")
 
-    logger.info(f"Discovered {len(databases)} monitored Notion databases to ingest (filter: last_edited_time >= {start_date})")
+    logger.info(f"Discovered {len(databases)} monitored Notion databases to ingest (full historical ingestion)")
 
     pages_list = []
     meeting_notes_list = []
@@ -279,10 +278,6 @@ def run_ingestion():
         query_url = f"https://api.notion.com/v1/databases/{formatted_db_id}/query"
         has_more = True
         query_body = {
-            "filter": {
-                "timestamp": "last_edited_time",
-                "last_edited_time": {"on_or_after": start_date}
-            },
             "page_size": 100
         }
         page_batch_num = 0
