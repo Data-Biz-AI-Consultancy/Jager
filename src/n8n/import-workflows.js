@@ -161,9 +161,14 @@ async function run() {
 }
 
 /**
- * For every workflow_entity row whose versionId does not exist in
- * workflow_published_version, find the latest real workflow_history entry and
- * insert the missing row.  This is idempotent and safe to run on every startup.
+ * For every workflow_entity row, ensure that:
+ * 1. A valid workflow_history row exists for its versionId.
+ * 2. workflow_published_version.publishedVersionId matches workflow_entity.versionId.
+ * 3. If active, workflow_entity.activeVersionId matches workflow_entity.versionId.
+ *
+ * This prevents the n8n UI error: "Workflow could not be published: Version not found"
+ * which occurs when n8n's internal publishing lookup cannot find a matching published
+ * or active versionId in workflow_history or workflow_published_version.
  */
 async function repairPublishedVersions() {
   const n8nTableExists = await client.query(`
@@ -175,53 +180,63 @@ async function repairPublishedVersions() {
   `);
   if (!n8nTableExists.rows[0].exists) return;
 
-  // Find workflows whose current versionId has no published_version record.
-  const broken = await client.query(`
-    SELECT we.id, we."versionId"
-    FROM workflow_entity we
-    LEFT JOIN workflow_published_version wpv ON wpv."workflowId" = we.id
-    WHERE wpv."workflowId" IS NULL
+  const workflows = await client.query(`
+    SELECT id, name, "versionId", active, nodes, connections, settings, description, "nodeGroups"
+    FROM workflow_entity
   `);
 
-  if (broken.rows.length === 0) return;
+  if (workflows.rows.length === 0) return;
 
-  console.log(`Repairing workflow_published_version for ${broken.rows.length} workflow(s)...`);
+  console.log(`Auditing and repairing workflow_published_version for ${workflows.rows.length} workflow(s)...`);
 
-  for (const row of broken.rows) {
-    const workflowId = row.id;
+  const now = new Date().toISOString();
 
-    // Find the latest non-autosaved history entry for this workflow.
-    const histRes = await client.query(`
-      SELECT "versionId" FROM workflow_history
-      WHERE "workflowId" = $1
-      ORDER BY "createdAt" DESC
-      LIMIT 1
-    `, [workflowId]);
+  for (const r of workflows.rows) {
+    const workflowId = r.id;
+    const versionId = r.versionId;
 
-    if (histRes.rows.length === 0) {
-      console.warn(`  Skipping ${workflowId}: no workflow_history entries found.`);
-      continue;
-    }
-
-    const latestVersionId = histRes.rows[0].versionId;
-    const now = new Date().toISOString();
-
-    // Sync workflow_entity.versionId to the real latest history entry.
+    // 1. Ensure workflow_history has an entry for versionId
     await client.query(
-      `UPDATE workflow_entity SET "versionId" = $1 WHERE id = $2`,
-      [latestVersionId, workflowId]
+      `INSERT INTO workflow_history (
+         "versionId", "workflowId", "authors", "createdAt", "updatedAt",
+         "nodes", "connections", "name", "autosaved", "description", "nodeGroups"
+       ) VALUES (
+         $1, $2, '[]', $3, $3,
+         $4, $5, $6, false, $7, $8
+       ) ON CONFLICT ("versionId") DO NOTHING`,
+      [
+        versionId,
+        workflowId,
+        now,
+        JSON.stringify(r.nodes || []),
+        JSON.stringify(r.connections || {}),
+        r.name,
+        r.description || null,
+        JSON.stringify(r.nodeGroups || [])
+      ]
     );
 
-    // Insert the missing workflow_published_version row.
+    // 2. Upsert workflow_published_version to point to versionId
     await client.query(
       `INSERT INTO workflow_published_version ("workflowId", "publishedVersionId", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $3)
-       ON CONFLICT DO NOTHING`,
-      [workflowId, latestVersionId, now]
+       ON CONFLICT ("workflowId")
+       DO UPDATE SET "publishedVersionId" = EXCLUDED."publishedVersionId", "updatedAt" = EXCLUDED."updatedAt"`,
+      [workflowId, versionId, now]
     );
 
-    console.log(`  Repaired ${workflowId} → publishedVersionId=${latestVersionId}`);
+    // 3. If active, sync activeVersionId
+    if (r.active) {
+      await client.query(
+        `UPDATE workflow_entity
+         SET "activeVersionId" = $1
+         WHERE id = $2 AND active = true`,
+        [versionId, workflowId]
+      );
+    }
   }
+
+  console.log(`Successfully repaired version snapshots for ${workflows.rows.length} workflow(s).`);
 }
 
 function importWorkflow(filePath) {
@@ -246,7 +261,7 @@ function importWorkflow(filePath) {
     const needsTemp = (workflowData.tags && workflowData.tags.length > 0) || workflowData.active === true;
     if (needsTemp) {
       const stripped = { ...workflowData, tags: [], active: false };
-      tempPath = filePath + '.tmp.json';
+      tempPath = path.join('/tmp', `${path.basename(filePath)}.tmp.json`);
       fs.writeFileSync(tempPath, JSON.stringify(stripped));
       importPath = tempPath;
     }
