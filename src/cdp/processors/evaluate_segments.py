@@ -22,16 +22,11 @@ PERSON_SEGMENT_RULES = {
     "clients_and_prospects": """
         SELECT DISTINCT p.id FROM cdp.persons p
         JOIN cdp.leads l ON p.id = l.person_id
-    """,
-    "ecosystem_tooling_partners": """
-        SELECT DISTINCT p.id FROM cdp.persons p
-        JOIN cdp.persons_linkedins pli ON (
-            (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
-            OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND pli.profile_url ILIKE '%' || p.linkedin_url || '%')
-            OR (LOWER(TRIM(p.first_name)) = LOWER(TRIM(pli.first_name)) AND LOWER(TRIM(p.last_name)) = LOWER(TRIM(pli.last_name)))
+        WHERE (
+            LOWER(COALESCE(l.intent, '')) IN ('inbound_service_request', 'consulting', 'hiring', 'freelance', 'contract', 'project_inquiry')
+            OR LOWER(COALESCE(l.status, '')) IN ('in_discussion', 'proposal_sent', 'negotiating', 'offer_accepted', 'won', 'active_client')
+            OR LOWER(COALESCE(l.summary, '')) ~ '(consulting|freelance|contract|hourly|rate|audit|build data|data stack|proposal|quote)'
         )
-        WHERE LOWER(COALESCE(pli.company, '')) ~ '(dlthub|dlt|motherduck|n8n|airbyte|dagster|prefect|duckdb|snowflake|databricks|astronomer)'
-           OR LOWER(COALESCE(pli.position, '')) ~ '(devrel|developer advocate|developer relations|maintainer|creator|founding engineer)'
     """,
     "former_colleagues_alumni": """
         SELECT DISTINCT p.id FROM cdp.persons p
@@ -60,8 +55,8 @@ PERSON_SEGMENT_RULES = {
             OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND pli.profile_url ILIKE '%' || p.linkedin_url || '%')
             OR (LOWER(TRIM(p.first_name)) = LOWER(TRIM(pli.first_name)) AND LOWER(TRIM(p.last_name)) = LOWER(TRIM(pli.last_name)))
         )
-        WHERE LOWER(COALESCE(pli.position, '')) ~ '(agency|freelance|consultant|partner|advisor|contractor)'
-           OR LOWER(COALESCE(pli.company, '')) ~ '(agency|consulting|advisory|solutions|studio)'
+        WHERE LOWER(COALESCE(pli.position, '')) ~ '(agency|freelance|consultant|partner|advisor|contractor|devrel|developer advocate|developer relations|maintainer|creator|founding engineer)'
+           OR LOWER(COALESCE(pli.company, '')) ~ '(agency|consulting|advisory|solutions|studio|dlthub|dlt|motherduck|n8n|airbyte|dagster|prefect|duckdb|snowflake|databricks|astronomer)'
     """
 }
 
@@ -105,8 +100,7 @@ def ensure_seed_segments(conn):
     person_seeds = [
         ("clients_and_prospects", "Clients & Prospects", "Active or past consulting clients and warm lead opportunities", "dynamic", {"rule": "clients_and_prospects"}),
         ("hiring_decision_makers", "Hiring Decision-Makers", "Founders, CTOs, VPs of Data/Engineering, and hiring decision makers", "dynamic", {"rule": "hiring_decision_makers"}),
-        ("peer_collaborators", "Peer Collaborators & Agencies", "Other consultants, agency owners, or freelancers for project referrals/partnerships", "dynamic", {"rule": "peer_collaborators"}),
-        ("ecosystem_tooling_partners", "Ecosystem & Tooling Partners", "Founders, maintainers, DevRel, and creators at data/AI tooling platforms (e.g. dltHub, MotherDuck, n8n)", "dynamic", {"rule": "ecosystem_tooling_partners"}),
+        ("peer_collaborators", "Peer Collaborators & Agencies", "Other consultants, agency owners, freelancers, tooling partners, or DevRel for project referrals/partnerships", "dynamic", {"rule": "peer_collaborators"}),
         ("former_colleagues_alumni", "Alumni & Former Colleagues", "Alumni network contacts from target companies (Hays, HelloFresh, Delivery Hero, Foodpanda, Vestiaire)", "dynamic", {"rule": "former_colleagues_alumni"}),
         ("general_network", "General Network", "General network contacts not belonging to specific opportunity segments", "dynamic", {"rule": "general_network"}),
     ]
@@ -121,7 +115,7 @@ def ensure_seed_segments(conn):
             {"slug": slug, "name": name, "desc": desc, "type": seg_type, "criteria": json.dumps(criteria)}
         )
 
-    conn.execute(text("DELETE FROM cdp.person_segments WHERE slug = 'community_and_audience'"))
+    conn.execute(text("DELETE FROM cdp.person_segments WHERE slug IN ('community_and_audience', 'ecosystem_tooling_partners')"))
 
     lead_seeds = [
         ("new_leads_no_followup_7d", "New Leads No Followup 7d", "Leads in prospect status created 7+ days ago with zero engagement", "dynamic", {"rule": "new_leads_no_followup_7d"}),
@@ -151,7 +145,6 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
 
     segment_priority = [
         "clients_and_prospects",
-        "ecosystem_tooling_partners",
         "former_colleagues_alumni",
         "hiring_decision_makers",
         "peer_collaborators",
