@@ -160,7 +160,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef8807eab9be1b0b029246c&lookback_days=7",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef8807eab9be1b0b029246c&lookback_days=90",
         "options": {}
       },
       "id": "ingest-interview-meeting-notes",
@@ -175,7 +175,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef880a6a61ae99d8912694f&lookback_days=7",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef880a6a61ae99d8912694f&lookback_days=90",
         "options": {}
       },
       "id": "ingest-meetups-seminars",
@@ -190,7 +190,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3a36e98d4ef88084a1aec60052a3cb80&lookback_days=7",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3a36e98d4ef88084a1aec60052a3cb80&lookback_days=90",
         "options": {}
       },
       "id": "ingest-fadi-meeting-notes",
