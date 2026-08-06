@@ -477,6 +477,17 @@ def run_ingestion():
             conn.execute(text(stmt))
     logger.info("Pre-flight schema migration complete.")
 
+    # Drop stale dlt pipeline cache (cached SQL packages from prior failed runs).
+    # pipeline.drop() only clears the local working directory/packages — it does NOT
+    # drop destination tables. Without this, dlt re-uses stale SQL packages that were
+    # built with the old column type, causing the type-mismatch error to persist.
+    pipeline = create_postgres_pipeline(pipeline_name="ingest_notion", dataset_name="s_notion")
+    try:
+        pipeline.drop()
+        logger.info("Cleared stale dlt pipeline cache (prior failed packages removed).")
+    except Exception as drop_err:
+        logger.warning(f"Could not drop dlt pipeline cache (non-fatal): {drop_err}")
+
     pipeline = create_postgres_pipeline(pipeline_name="ingest_notion", dataset_name="s_notion")
     info = pipeline.run(resources)
 
