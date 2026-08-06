@@ -47,7 +47,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [\n  {\n    json: {\n      \"name\": \"Leadership & Management\",\n      \"database_id\": \"b5ad53f72b0e45e3b481e25da2703fd8\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Science - AIs\",\n      \"database_id\": \"1686e98d4ef8806da4e1c28268b7365e\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Science\",\n      \"database_id\": \"4cd9498f5b5c48c6864d57bd36f7f82d\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"data engineering\",\n      \"database_id\": \"32fcdb5f301b4a9c94329dcadeffca15\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Governance\",\n      \"database_id\": \"f0501c9ac3bf4f0ea8d06b7ed6e40a31\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Data Visualization & Reporting\",\n      \"database_id\": \"8fc4f5d17d6644eaa6b199f11cb3bf2b\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Product Management\",\n      \"database_id\": \"40906fc76abd4951bd4b283c9717d320\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Product Analytics\",\n      \"database_id\": \"2bdfbb81d5c043d0a5fdd3028ad2504f\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Software Engineering\",\n      \"database_id\": \"1d362ecd225241c0ab3c0fe4d0ed3cda\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Business\",\n      \"database_id\": \"2d56e98d4ef8806ba96cca38539b67e1\",\n      \"type\": \"database\"\n    }\n  },\n  {\n    json: {\n      \"name\": \"Career\",\n      \"database_id\": \"f34619396f3c4be8b96fa64211eb18d7\",\n      \"type\": \"database\"\n    }\n  }\n];"
+        "jsCode": "return [\n  { json: { \"name\": \"Leadership & Management\", \"database_id\": \"b5ad53f72b0e45e3b481e25da2703fd8\", \"type\": \"database\" } },\n  { json: { \"name\": \"Data Science - AIs\", \"database_id\": \"1686e98d4ef8806da4e1c28268b7365e\", \"type\": \"database\" } },\n  { json: { \"name\": \"Data Science\", \"database_id\": \"4cd9498f5b5c48c6864d57bd36f7f82d\", \"type\": \"database\" } },\n  { json: { \"name\": \"data engineering\", \"database_id\": \"32fcdb5f301b4a9c94329dcadeffca15\", \"type\": \"database\" } },\n  { json: { \"name\": \"Data Governance\", \"database_id\": \"f0501c9ac3bf4f0ea8d06b7ed6e40a31\", \"type\": \"database\" } },\n  { json: { \"name\": \"Data Visualization & Reporting\", \"database_id\": \"8fc4f5d17d6644eaa6b199f11cb3bf2b\", \"type\": \"database\" } },\n  { json: { \"name\": \"Product Management\", \"database_id\": \"40906fc76abd4951bd4b283c9717d320\", \"type\": \"database\" } },\n  { json: { \"name\": \"Product Analytics\", \"database_id\": \"2bdfbb81d5c043d0a5fdd3028ad2504f\", \"type\": \"database\" } },\n  { json: { \"name\": \"Software Engineering\", \"database_id\": \"1d362ecd225241c0ab3c0fe4d0ed3cda\", \"type\": \"database\" } },\n  { json: { \"name\": \"Business\", \"database_id\": \"2d56e98d4ef8806ba96cca38539b67e1\", \"type\": \"database\" } },\n  { json: { \"name\": \"Career\", \"database_id\": \"f34619396f3c4be8b96fa64211eb18d7\", \"type\": \"database\" } },\n  { json: { \"name\": \"Interview Meeting notes\", \"database_id\": \"3876e98d4ef8807eab9be1b0b029246c\", \"type\": \"meeting_notes\" } },\n  { json: { \"name\": \"Meetups & Seminars\", \"database_id\": \"3876e98d4ef880a6a61ae99d8912694f\", \"type\": \"meeting_notes\" } },\n  { json: { \"name\": \"FaDi meeting notes\", \"database_id\": \"3a36e98d4ef88084a1aec60052a3cb80\", \"type\": \"meeting_notes\" } }\n];"
       },
       "id": "get-active-databases",
       "name": "Get Active Databases",
@@ -103,7 +103,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let databaseItem;\n  try {\n    databaseItem = $('Get Active Databases').all()[i].json;\n  } catch (e) {\n    console.error('Could not get active database item:', e.message);\n  }\n  const dbId = databaseItem ? databaseItem.database_id : '';\n  const dbName = databaseItem ? databaseItem.name : '';\n\n  if (item.json.results && Array.isArray(item.json.results)) {\n    for (const page of item.json.results) {\n      results.push({\n        json: {\n          ...page,\n          database_id: dbId,\n          database_name: dbName\n        }\n      });\n    }\n  }\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  let databaseItem;\n  try {\n    databaseItem = $('Get Active Databases').all()[i].json;\n  } catch (e) {\n    console.error('Could not get active database item:', e.message);\n  }\n  const dbId = databaseItem ? databaseItem.database_id : '';\n  const dbName = databaseItem ? databaseItem.name : '';\n  const dbType = databaseItem ? databaseItem.type : 'database';\n\n  if (item.json.results && Array.isArray(item.json.results)) {\n    for (const page of item.json.results) {\n      results.push({\n        json: {\n          ...page,\n          database_id: dbId,\n          database_name: dbName,\n          database_type: dbType\n        }\n      });\n    }\n  }\n}\nreturn results;"
       },
       "id": "split-pages-list",
       "name": "Split Pages List",
@@ -157,7 +157,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const blocksResponse = items[i].json;\n  \n  let pageItem;\n  try {\n    pageItem = $('Split Pages List').all()[i].json;\n  } catch (e) {\n    console.error('Could not retrieve parent page item:', e.message);\n    continue;\n  }\n  \n  let database_id = pageItem.database_id || '';\n  if (!database_id && pageItem.parent && pageItem.parent.type === 'database_id') {\n    database_id = pageItem.parent.database_id;\n  }\n\n  if (database_id) {\n    database_id = database_id.replace(/-/g, '');\n  }\n\n  let title = '';\n  if (pageItem.properties) {\n    for (const key of Object.keys(pageItem.properties)) {\n      const prop = pageItem.properties[key];\n      if (prop && prop.type === 'title') {\n        if (prop.title && prop.title.length > 0) {\n          title = prop.title.map(t => t.plain_text).join('');\n        }\n        break;\n      }\n    }\n  }\n  if (!title) {\n    title = pageItem.title || pageItem.name || 'Untitled';\n  }\n\n  const url = pageItem.url || '';\n  const created_time = pageItem.created_time || pageItem.createdTime || new Date().toISOString();\n  const last_edited_time = pageItem.last_edited_time || pageItem.lastEditedTime || new Date().toISOString();\n\n  let textContent = '';\n  if (blocksResponse.results) {\n    for (const block of blocksResponse.results) {\n      const type = block.type;\n      const blockContent = block[type];\n      if (blockContent && blockContent.rich_text) {\n        const text = blockContent.rich_text.map(t => t.plain_text).join('');\n        textContent += text + '\\n';\n      }\n    }\n  }\n  if (!textContent) {\n    textContent = JSON.stringify(pageItem.properties || {});\n  }\n\n  results.push({\n    id: pageItem.id,\n    database_id,\n    title,\n    content: textContent,\n    url,\n    created_time,\n    last_edited_time\n  });\n}\nreturn results;"
+        "jsCode": "const results = [];\nconst items = $input.all();\n\nfor (let i = 0; i < items.length; i++) {\n  const blocksResponse = items[i].json;\n  \n  let pageItem;\n  try {\n    pageItem = $('Split Pages List').all()[i].json;\n  } catch (e) {\n    console.error('Could not retrieve parent page item:', e.message);\n    continue;\n  }\n  \n  let database_id = pageItem.database_id || '';\n  if (!database_id && pageItem.parent && pageItem.parent.type === 'database_id') {\n    database_id = pageItem.parent.database_id;\n  }\n  if (database_id) {\n    database_id = database_id.replace(/-/g, '');\n  }\n\n  const database_type = pageItem.database_type || 'database';\n\n  let title = '';\n  const parsedProps = {};\n  if (pageItem.properties) {\n    for (const key of Object.keys(pageItem.properties)) {\n      const prop = pageItem.properties[key];\n      if (!prop) continue;\n      const type = prop.type;\n      let val = null;\n      if (type === 'title') {\n        if (prop.title && prop.title.length > 0) {\n          val = prop.title.map(t => t.plain_text).join('');\n          title = val;\n        }\n      } else if (type === 'rich_text') {\n        val = prop.rich_text ? prop.rich_text.map(t => t.plain_text).join('') : '';\n      } else if (type === 'number') {\n        val = prop.number;\n      } else if (type === 'select') {\n        val = prop.select ? prop.select.name : null;\n      } else if (type === 'multi_select') {\n        val = prop.multi_select ? prop.multi_select.map(s => s.name).join(', ') : '';\n      } else if (type === 'date') {\n        val = prop.date ? prop.date.start : null;\n      } else if (type === 'checkbox') {\n        val = prop.checkbox;\n      } else if (type === 'url') {\n        val = prop.url;\n      } else if (type === 'email') {\n        val = prop.email;\n      } else if (type === 'phone_number') {\n        val = prop.phone_number;\n      } else if (type === 'people') {\n        val = prop.people ? prop.people.map(p => p.name || p.id).join(', ') : '';\n      }\n      parsedProps[key] = val;\n    }\n  }\n  if (!title) {\n    title = pageItem.title || pageItem.name || 'Untitled';\n  }\n\n  let icon = '';\n  if (pageItem.icon) {\n    icon = pageItem.icon.emoji || (pageItem.icon.external ? pageItem.icon.external.url : (pageItem.icon.file ? pageItem.icon.file.url : ''));\n  }\n\n  let cover_url = '';\n  if (pageItem.cover) {\n    cover_url = pageItem.cover.external ? pageItem.cover.external.url : (pageItem.cover.file ? pageItem.cover.file.url : '');\n  }\n\n  const url = pageItem.url || '';\n  const created_time = pageItem.created_time || pageItem.createdTime || new Date().toISOString();\n  const last_edited_time = pageItem.last_edited_time || pageItem.lastEditedTime || new Date().toISOString();\n\n  let textContent = '';\n  const toDos = [];\n\n  if (blocksResponse && blocksResponse.results) {\n    for (const block of blocksResponse.results) {\n      const btype = block.type;\n      const bcontent = block[btype];\n      if (!bcontent) continue;\n\n      let btext = '';\n      if (bcontent.rich_text) {\n        btext = bcontent.rich_text.map(t => t.plain_text).join('');\n      } else if (btype === 'child_page') {\n        btext = `[Subpage: ${bcontent.title || ''}]`;\n      } else if (btype === 'child_database') {\n        btext = `[Database: ${bcontent.title || ''}]`;\n      }\n\n      if (btype === 'to_do') {\n        const checkedStr = bcontent.checked ? '[x]' : '[ ]';\n        const todoLine = `${checkedStr} ${btext}`;\n        toDos.push(todoLine);\n        textContent += todoLine + '\\n';\n      } else if (btype === 'code') {\n        textContent += `\\`\\`\\`${bcontent.language || ''}\n${btext}\n\\`\\`\\`\n`;\n      } else if (btext) {\n        if (btype.startsWith('heading_')) {\n          textContent += `\n### ${btext}\n`;\n        } else if (btype === 'bulleted_list_item') {\n          textContent += `* ${btext}\n`;\n        } else if (btype === 'numbered_list_item') {\n          textContent += `1. ${btext}\n`;\n        } else if (btype === 'quote') {\n          textContent += `> ${btext}\n`;\n        } else if (btype === 'callout') {\n          textContent += `\ud83d\udca1 ${btext}\n`;\n        } else {\n          textContent += btext + '\n';\n        }\n      }\n    }\n  }\n  if (!textContent.trim()) {\n    textContent = JSON.stringify(parsedProps);\n  }\n\n  let meeting_date = null;\n  let attendees = '';\n  let summary = '';\n  let transcription = '';\n  let action_items = '';\n  let recording_url = '';\n\n  for (const k of Object.keys(parsedProps)) {\n    const lk = k.toLowerCase();\n    const val = parsedProps[k];\n    if (!val) continue;\n    if (lk.includes('date') && !meeting_date) {\n      meeting_date = val;\n    } else if ((lk.includes('attendee') || lk.includes('participant') || lk.includes('who') || lk.includes('people')) && !attendees) {\n      attendees = String(val);\n    } else if ((lk.includes('summary') || lk.includes('tldr') || lk.includes('overview')) && !summary) {\n      summary = String(val);\n    } else if ((lk.includes('transcript') || lk.includes('transcription')) && !transcription) {\n      transcription = String(val);\n    } else if ((lk.includes('action') || lk.includes('next step') || lk.includes('task')) && !action_items) {\n      action_items = String(val);\n    } else if ((lk.includes('recording') || lk.includes('video') || lk.includes('audio') || lk.includes('link')) && !recording_url) {\n      recording_url = String(val);\n    }\n  }\n\n  if (!meeting_date) {\n    meeting_date = created_time;\n  }\n  if (!transcription) {\n    transcription = textContent;\n  }\n  if (!summary) {\n    summary = textContent.slice(0, 500);\n  }\n  if (!action_items && toDos.length > 0) {\n    action_items = toDos.join('\n');\n  }\n\n  const isMeetingNotes = database_type === 'meeting_notes';\n\n  results.push({\n    json: {\n      id: pageItem.id,\n      database_id,\n      database_type,\n      entity_type: isMeetingNotes ? 'meeting_notes' : 'page',\n      title,\n      content: textContent,\n      properties: parsedProps,\n      icon,\n      cover_url,\n      url,\n      created_time,\n      last_edited_time,\n      meeting_date,\n      attendees,\n      summary,\n      transcription,\n      action_items,\n      recording_url\n    }\n  });\n}\nreturn results;"
       },
       "id": "parse-notion-pages",
       "name": "Parse Notion Pages",
@@ -170,8 +170,21 @@
     },
     {
       "parameters": {
+        "jsCode": "const pages = [];\nconst meetingNotes = [];\n\nfor (const item of $input.all()) {\n  if (item.json.entity_type === 'meeting_notes') {\n    meetingNotes.push(item);\n  } else {\n    pages.push(item);\n  }\n}\n\nreturn [pages, meetingNotes];"
+      },
+      "id": "route-entity-type",
+      "name": "Route Entity Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        352
+      ]
+    },
+    {
+      "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO s_notion.pages (id, database_id, title, content, url, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.database_id }}',\n  '{{ $json.title.replace(/'/g, \"''\") }}',\n  '{{ $json.content.replace(/'/g, \"''\") }}',\n  '{{ $json.url }}',\n  '{{ $json.created_time }}',\n  '{{ $json.last_edited_time }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;",
+        "query": "INSERT INTO s_notion.pages (id, database_id, title, content, properties, cover_url, icon, url, created_time, last_edited_time, updated_at, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.database_id }}',\n  '{{ ($json.title || \"\").replace(/'/g, \"''\") }}',\n  '{{ ($json.content || \"\").replace(/'/g, \"''\") }}',\n  '{{ JSON.stringify($json.properties || {}).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.cover_url || \"\" }}',\n  '{{ $json.icon || \"\" }}',\n  '{{ $json.url || \"\" }}',\n  '{{ $json.created_time }}',\n  '{{ $json.last_edited_time }}',\n  NOW(),\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  content = EXCLUDED.content,\n  properties = EXCLUDED.properties,\n  cover_url = EXCLUDED.cover_url,\n  icon = EXCLUDED.icon,\n  last_edited_time = EXCLUDED.last_edited_time,\n  updated_at = NOW()\nRETURNING id;",
         "options": {}
       },
       "id": "insert-notion-pages",
@@ -179,8 +192,29 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        1680,
-        352
+        1904,
+        256
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO s_notion.meeting_notes (id, database_id, title, meeting_date, attendees, summary, transcription, action_items, recording_url, properties, url, created_time, last_edited_time, processed)\nVALUES (\n  '{{ $json.id }}',\n  '{{ $json.database_id }}',\n  '{{ ($json.title || \"\").replace(/'/g, \"''\") }}',\n  {{ $json.meeting_date ? \"'\" + $json.meeting_date + \"'\" : \"NULL\" }},\n  '{{ ($json.attendees || \"\").replace(/'/g, \"''\") }}',\n  '{{ ($json.summary || \"\").replace(/'/g, \"''\") }}',\n  '{{ ($json.transcription || \"\").replace(/'/g, \"''\") }}',\n  '{{ ($json.action_items || \"\").replace(/'/g, \"''\") }}',\n  '{{ $json.recording_url || \"\" }}',\n  '{{ JSON.stringify($json.properties || {}).replace(/'/g, \"''\") }}'::jsonb,\n  '{{ $json.url || \"\" }}',\n  '{{ $json.created_time }}',\n  '{{ $json.last_edited_time }}',\n  0\n)\nON CONFLICT (id) \nDO UPDATE SET \n  title = EXCLUDED.title, \n  meeting_date = EXCLUDED.meeting_date,\n  attendees = EXCLUDED.attendees,\n  summary = EXCLUDED.summary,\n  transcription = EXCLUDED.transcription,\n  action_items = EXCLUDED.action_items,\n  recording_url = EXCLUDED.recording_url,\n  properties = EXCLUDED.properties,\n  last_edited_time = EXCLUDED.last_edited_time\nRETURNING id;",
+        "options": {}
+      },
+      "id": "insert-notion-meeting-notes",
+      "name": "Insert/Upsert Notion Meeting Notes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1904,
+        448
       ],
       "credentials": {
         "postgres": {
@@ -241,7 +275,9 @@
             "node": "Fetch Monitored Pages",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
             "node": "Update Monitored Databases",
             "type": "main",
@@ -287,7 +323,25 @@
       "main": [
         [
           {
+            "node": "Route Entity Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Entity Type": {
+      "main": [
+        [
+          {
             "node": "Insert/Upsert Notion Pages",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert/Upsert Notion Meeting Notes",
             "type": "main",
             "index": 0
           }

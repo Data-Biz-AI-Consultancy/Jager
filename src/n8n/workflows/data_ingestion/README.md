@@ -45,3 +45,14 @@ This directory contains N8N workflows responsible for ingesting external data (S
 
 > Additional manual export sources (e.g. LinkedIn exports) will be added under the same Notion parent page and picked up automatically by this pipeline.
 
+---
+
+## 5. Notion Data Ingestion
+* **File:** [data_ingestion_notion.json](data_ingestion_notion.json)
+* **Schedule:** Daily at **00:00 UTC**
+* **Description:** Ingests pages, blocks, and structured database properties from monitored Notion databases into PostgreSQL under the `s_notion` schema.
+* **Dual Destination Architecture:**
+  * **Knowledge Databases:** Standard workspace knowledge databases (Leadership, Data Science, Product, Engineering, Business, etc.) are ingested into `s_notion.pages` (with `properties` JSONB, `cover_url`, `icon`, and `content`).
+  * **Meeting Notes Databases:** Dedicated meeting databases (Interview Meeting notes, Meetups & Seminars, FaDi meeting notes) are routed to `s_notion.meeting_notes` with explicit columns for `meeting_date`, `attendees`, `summary`, `transcription`, `action_items`, `recording_url`, and `properties` JSONB.
+
+

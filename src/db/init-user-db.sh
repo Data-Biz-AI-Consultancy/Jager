@@ -554,6 +554,32 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		database_id VARCHAR(255) REFERENCES s_notion.databases_monitored(database_id) ON DELETE CASCADE,
 		title VARCHAR(1024),
 		content TEXT,
+		properties JSONB DEFAULT '{}'::jsonb,
+		cover_url VARCHAR(2048),
+		icon VARCHAR(1024),
+		url VARCHAR(2048),
+		created_time TIMESTAMP WITH TIME ZONE,
+		last_edited_time TIMESTAMP WITH TIME ZONE,
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		processed INTEGER DEFAULT 0
+	);
+
+	ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS properties JSONB DEFAULT '{}'::jsonb;
+	ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS cover_url VARCHAR(2048);
+	ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS icon VARCHAR(1024);
+	ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+	CREATE TABLE IF NOT EXISTS s_notion.meeting_notes (
+		id VARCHAR(255) PRIMARY KEY,
+		database_id VARCHAR(255) REFERENCES s_notion.databases_monitored(database_id) ON DELETE CASCADE,
+		title VARCHAR(1024),
+		meeting_date TIMESTAMP WITH TIME ZONE,
+		attendees TEXT,
+		summary TEXT,
+		transcription TEXT,
+		action_items TEXT,
+		recording_url VARCHAR(2048),
+		properties JSONB DEFAULT '{}'::jsonb,
 		url VARCHAR(2048),
 		created_time TIMESTAMP WITH TIME ZONE,
 		last_edited_time TIMESTAMP WITH TIME ZONE,
