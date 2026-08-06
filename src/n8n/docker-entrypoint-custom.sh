@@ -33,6 +33,13 @@ if [ -f /etc/n8n/import-workflows.js ]; then
   node /etc/n8n/import-workflows.js
 fi
 
+# Launch post-startup version repair in background.
+# This runs AFTER n8n is fully up and has activated all workflows,
+# catching any versionId drift that n8n's own activation phase introduces.
+if [ -f /etc/n8n/repair-versions.sh ]; then
+  sh /etc/n8n/repair-versions.sh &
+fi
+
 # Execute the default n8n entrypoint
 echo "Starting N8N..."
 exec /docker-entrypoint.sh "$@"
