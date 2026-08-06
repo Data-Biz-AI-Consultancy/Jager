@@ -14,6 +14,9 @@ COPY src/n8n/credentials.json /etc/n8n/credentials.json
 COPY src/n8n/import-credentials.js /etc/n8n/import-credentials.js
 COPY src/n8n/agents/ /etc/n8n/agents/
 COPY src/n8n/import-workflows.js /etc/n8n/import-workflows.js
+COPY src/n8n/post-startup-repair.js /etc/n8n/post-startup-repair.js
+COPY src/n8n/repair-versions.sh /etc/n8n/repair-versions.sh
+RUN chmod +x /etc/n8n/repair-versions.sh
 COPY src/db/migrate-db.js /etc/n8n/migrate-db.js
 
 
@@ -23,4 +26,3 @@ RUN chown -R node:node /etc/n8n /docker-entrypoint-custom.sh
 USER node
 
 ENTRYPOINT ["tini", "--", "/docker-entrypoint-custom.sh"]
-
