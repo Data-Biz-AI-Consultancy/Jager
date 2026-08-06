@@ -294,8 +294,8 @@ INSERT INTO cdp.person_segments (slug, name, description, segment_type, criteria
 ('hiring_decision_makers', 'Hiring Decision-Makers', 'Founders, CTOs, VPs of Data/Engineering, and hiring decision makers', 'dynamic', '{"rule": "hiring_decision_makers"}'::jsonb),
 ('peer_collaborators', 'Peer Collaborators & Agencies', 'Other consultants, agency owners, or freelancers for project referrals/partnerships', 'dynamic', '{"rule": "peer_collaborators"}'::jsonb),
 ('ecosystem_tooling_partners', 'Ecosystem & Tooling Partners', 'Founders, maintainers, DevRel, and creators at data/AI tooling platforms (e.g. dltHub, MotherDuck, n8n)', 'dynamic', '{"rule": "ecosystem_tooling_partners"}'::jsonb),
-('community_and_audience', 'Community & Audience', 'Substack readers, LinkedIn connections, and event contacts engaging with content', 'dynamic', '{"rule": "community_and_audience"}'::jsonb),
-('former_colleagues_alumni', 'Alumni & Former Colleagues', 'Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)', 'dynamic', '{"rule": "former_colleagues_alumni"}'::jsonb)
+('former_colleagues_alumni', 'Alumni & Former Colleagues', 'Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)', 'dynamic', '{"rule": "former_colleagues_alumni"}'::jsonb),
+('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', '{"rule": "general_network"}'::jsonb)
 ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
 
 INSERT INTO cdp.lead_segments (slug, name, description, segment_type, criteria) VALUES

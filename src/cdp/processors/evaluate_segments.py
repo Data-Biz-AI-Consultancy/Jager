@@ -58,10 +58,6 @@ PERSON_SEGMENT_RULES = {
             OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND p.linkedin_url ILIKE '%' || pli.profile_url || '%')
         )
         WHERE LOWER(COALESCE(pli.company, '')) ~ '(hellofresh|delivery hero|foodpanda|vestiaire)'
-    """,
-    "community_and_audience": """
-        SELECT p.id FROM cdp.persons p
-        WHERE p.in_substack_subscriber_export = TRUE OR p.in_linkedin_connections = TRUE
     """
 }
 
@@ -107,8 +103,8 @@ def ensure_seed_segments(conn):
         ("hiring_decision_makers", "Hiring Decision-Makers", "Founders, CTOs, VPs of Data/Engineering, and hiring decision makers", "dynamic", {"rule": "hiring_decision_makers"}),
         ("peer_collaborators", "Peer Collaborators & Agencies", "Other consultants, agency owners, or freelancers for project referrals/partnerships", "dynamic", {"rule": "peer_collaborators"}),
         ("ecosystem_tooling_partners", "Ecosystem & Tooling Partners", "Founders, maintainers, DevRel, and creators at data/AI tooling platforms (e.g. dltHub, MotherDuck, n8n)", "dynamic", {"rule": "ecosystem_tooling_partners"}),
-        ("community_and_audience", "Community & Audience", "Substack readers, LinkedIn connections, and event contacts engaging with content", "dynamic", {"rule": "community_and_audience"}),
         ("former_colleagues_alumni", "Alumni & Former Colleagues", "Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)", "dynamic", {"rule": "former_colleagues_alumni"}),
+        ("general_network", "General Network", "General network contacts not belonging to specific opportunity segments", "dynamic", {"rule": "general_network"}),
     ]
 
     for slug, name, desc, seg_type, criteria in person_seeds:
@@ -120,6 +116,9 @@ def ensure_seed_segments(conn):
             """),
             {"slug": slug, "name": name, "desc": desc, "type": seg_type, "criteria": json.dumps(criteria)}
         )
+
+    # Delete obsolete community_and_audience segment if present
+    conn.execute(text("DELETE FROM cdp.person_segments WHERE slug = 'community_and_audience'"))
 
     lead_seeds = [
         ("new_leads_no_followup_7d", "New Leads No Followup 7d", "Leads in prospect status created 7+ days ago with zero engagement", "dynamic", {"rule": "new_leads_no_followup_7d"}),
@@ -143,7 +142,11 @@ def ensure_seed_segments(conn):
 def evaluate_person_segments(conn) -> Dict[str, int]:
     """Evaluates dynamic person segments and updates person_segment_id, person_segment_name, person_segment_slug on cdp.persons."""
     results = {}
-    segments = conn.execute(text("SELECT id, slug, name, segment_type, criteria FROM cdp.person_segments")).fetchall()
+    
+    # 1. Reset segment fields
+    conn.execute(text("UPDATE cdp.persons SET person_segment_id = NULL, person_segment_name = NULL, person_segment_slug = NULL"))
+
+    segments = conn.execute(text("SELECT id, slug, name, segment_type, criteria FROM cdp.person_segments WHERE slug != 'general_network'")).fetchall()
 
     for seg in segments:
         seg_id, slug, seg_name, seg_type, criteria = seg[0], seg[1], seg[2], seg[3], seg[4] or {}
@@ -171,6 +174,18 @@ def evaluate_person_segments(conn) -> Dict[str, int]:
             )
 
         results[slug] = len(matching_person_ids)
+
+    # 2. Fallback unclassified contacts to 'general_network' (No NULLs)
+    gen_seg = conn.execute(text("SELECT id, slug, name FROM cdp.person_segments WHERE slug = 'general_network'")).fetchone()
+    if gen_seg:
+        unassigned = conn.execute(text("""
+            UPDATE cdp.persons 
+            SET person_segment_id = :seg_id,
+                person_segment_name = :seg_name,
+                person_segment_slug = :seg_slug
+            WHERE person_segment_id IS NULL
+        """), {"seg_id": gen_seg[0], "seg_name": gen_seg[2], "seg_slug": gen_seg[1]}).rowcount
+        results["general_network"] = unassigned
 
     return results
 

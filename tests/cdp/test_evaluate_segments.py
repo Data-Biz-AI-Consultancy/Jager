@@ -63,6 +63,7 @@ def test_evaluate_person_segments():
         # rule 2 matching persons
         [("person-456",), ("person-789",)],
     ]
+    mock_conn.execute.return_value.fetchone.return_value = ("p-uuid-gen", "general_network", "General Network")
 
     results = evaluate_person_segments(mock_conn)
     assert results["clients_and_prospects"] == 1
