@@ -12,19 +12,12 @@ def test_notion_workflow_json_structure():
     assert data.get("name") == "Data Ingestion - Notion"
     
     node_names = [n.get("name") for n in data.get("nodes", [])]
-    assert "Get Active Databases" in node_names
-    assert "Fetch Monitored Pages" in node_names
-    assert "Parse Notion Pages" in node_names
-    assert "Route Entity Type" in node_names
-    assert "Insert/Upsert Notion Pages" in node_names
-    assert "Insert/Upsert Notion Meeting Notes" in node_names
+    assert "Schedule Trigger" in node_names
+    assert "Trigger Notion Ingestion" in node_names
 
-    # Verify Get Active Databases queries s_notion.databases_monitored
-    get_dbs_node = next(n for n in data.get("nodes", []) if n.get("name") == "Get Active Databases")
-    assert get_dbs_node["type"] == "n8n-nodes-base.postgres"
-    query = get_dbs_node["parameters"]["query"]
-    assert "s_notion.databases_monitored" in query
-    assert "active = true" in query
+    trigger_node = next(n for n in data.get("nodes", []) if n.get("name") == "Trigger Notion Ingestion")
+    assert trigger_node["type"] == "n8n-nodes-base.httpRequest"
+    assert "/run/oltp/ingest_notion" in trigger_node["parameters"]["url"]
 
 
 def test_notion_monitored_databases_seeds():

@@ -321,6 +321,52 @@ def test_ingest_notion_manual(mock_post, mock_get, mock_dlt_utils):
         mock_pipeline_inst.run.assert_called_once()
 
 
+@patch('requests.get')
+@patch('requests.post')
+def test_ingest_notion(mock_post, mock_get, mock_dlt_utils):
+    from oltp import ingest_notion
+
+    mock_dlt_utils['connection'].execute.return_value = []
+
+    mock_get_resp = MagicMock()
+    mock_get_resp.status_code = 200
+    mock_get_resp.json.return_value = {"results": [], "has_more": False}
+    mock_get.return_value = mock_get_resp
+
+    mock_post_resp = MagicMock()
+    mock_post_resp.status_code = 200
+    mock_post_resp.json.return_value = {
+        "results": [
+            {
+                "id": "page-notion-1",
+                "url": "https://notion.so/page-1",
+                "created_time": "2026-07-30T10:00:00Z",
+                "last_edited_time": "2026-07-30T12:00:00Z",
+                "properties": {
+                    "Title": {
+                        "type": "title",
+                        "title": [{"plain_text": "Sample Notion Page"}]
+                    }
+                }
+            }
+        ],
+        "has_more": False
+    }
+    mock_post.return_value = mock_post_resp
+
+    with patch('oltp.ingest_notion.create_postgres_pipeline') as mock_dlt_pipeline:
+        mock_pipeline_inst = MagicMock()
+        mock_dlt_pipeline.return_value = mock_pipeline_inst
+
+        ingest_notion.run_ingestion()
+
+        mock_dlt_pipeline.assert_called_once_with(
+            pipeline_name="ingest_notion",
+            dataset_name="s_notion"
+        )
+        mock_pipeline_inst.run.assert_called_once()
+
+
 def test_derive_table_name_notion_prefix():
     """Table names for Notion manual ingestion must use notion__ tool prefix."""
     from oltp.ingest_notion_manual import derive_table_name
