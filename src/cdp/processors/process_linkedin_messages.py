@@ -1,7 +1,7 @@
 import os
 import sys
-import json
-import uuid
+import re
+from typing import Dict, Any
 from sqlalchemy import text
 
 cdp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -18,44 +18,42 @@ except ImportError:
 logger = setup_logging("cdp-linkedin-messages-processor")
 
 
-def analyze_convo_nlp(convo_text: str):
+def detect_message_metadata(convo_transcript: str) -> Dict[str, Any]:
     """
-    Simple heuristic NLP rule engine to detect intent, signal strength, and opportunity type from conversation history.
+    Analyzes conversation transcript text to extract opportunity_type, intent, and signal_strength.
     """
-    if not convo_text:
-        return {
-            "intent": "general_inquiry",
-            "signal_strength": "low",
-            "opportunity_type": "unknown"
-        }
-
-    text_lower = convo_text.lower()
+    text_lower = convo_transcript.lower() if convo_transcript else ""
 
     # 1. Opportunity Type Detection
     opp_types = []
-    if any(k in text_lower for k in ["freelance", "freelancer", "contract", "contractor", "interim", "project-based"]):
+    if any(k in text_lower for k in ["consulting", "advisory", "fractional", "audit", "data stack", "snowflake", "data engineering", "pipeline"]):
+        opp_types.append("consulting_project")
+    if any(k in text_lower for k in ["freelance", "contract", "interim", "subcontract"]):
         opp_types.append("freelance_contract")
-    if any(k in text_lower for k in ["consulting", "advisory", "adviser", "consultant", "services", "access your service"]):
-        opp_types.append("consulting_advisory")
     if any(k in text_lower for k in ["full time", "full-time", "permanent", "head of", "director", "lead", "hiring", "recruit", "talent partner"]):
         opp_types.append("full_time_job")
 
     opportunity_type = "/".join(opp_types) if opp_types else "general_inquiry"
 
     # 2. Intent Detection
-    if any(k in text_lower for k in ["access your service", "hire you for", "consulting rate", "hourly rate for consulting", "data stack audit", "build our data", "project proposal", "freelance proposal"]):
+    if any(k in text_lower for k in [
+        "access your service", "hire you for", "consulting rate", "hourly rate", "data stack audit", 
+        "build our data", "project proposal", "freelance proposal", "advice regarding data", 
+        "data and analytics", "engineering firm", "snowflake", "pipeline", "audit", "need some advice",
+        "service inquiry", "consulting project"
+    ]):
         intent = "inbound_service_request"
     elif any(k in text_lower for k in ["recruiting", "recruiter", "talent acquisition", "talent partner", "open for a role", "job opportunity", "hiring"]):
         intent = "recruitment_inbound"
-    elif any(k in text_lower for k in ["consulting", "advisory", "project", "freelance", "contract"]):
+    elif any(k in text_lower for k in ["consulting", "advisory", "project", "freelance", "contract", "work together", "call", "meeting"]):
         intent = "business_collaboration"
     else:
         intent = "networking_inquiry"
 
     # 3. Signal Strength Detection
-    if any(k in text_lower for k in ["access your service", "pricing", "rate", "quote", "proposal", "call next week", "call this week", "phone number"]):
+    if any(k in text_lower for k in ["access your service", "pricing", "rate", "quote", "proposal", "call next week", "call this week", "phone number", "calendar invite", "google meet"]):
         signal_strength = "high"
-    elif any(k in text_lower for k in ["opportunity", "hiring", "role", "project", "freelance", "contract"]):
+    elif any(k in text_lower for k in ["opportunity", "hiring", "role", "project", "freelance", "contract", "advice"]):
         signal_strength = "medium"
     else:
         signal_strength = "low"
@@ -80,7 +78,7 @@ def process_linkedin_messages():
     persons_created = 0
 
     with jager_engine.begin() as jager_conn, cdp_engine.begin() as cdp_conn:
-        # Group s_linkedin.messages by conversation_id, filtering for business opportunity signals
+        # Group s_linkedin.messages by conversation_id
         conversations_query = text("""
             SELECT 
                 conversation_id,
@@ -118,22 +116,6 @@ def process_linkedin_messages():
                 ) as convo_transcript
             FROM s_linkedin.messages m
             GROUP BY conversation_id
-            HAVING BOOL_OR(
-                content ILIKE '%access%service%'
-                OR content ILIKE '%how%access%'
-                OR content ILIKE '%your service%'
-                OR content ILIKE '%consulting%'
-                OR content ILIKE '%advisory%'
-                OR content ILIKE '%pricing%'
-                OR content ILIKE '%rate%'
-                OR content ILIKE '%quote%'
-                OR content ILIKE '%proposal%'
-                OR content ILIKE '%freelance%'
-                OR content ILIKE '%contractor%'
-                OR content ILIKE '%opportunity%'
-                OR content ILIKE '%hire%you%'
-                OR content ILIKE '%work together%'
-            )
         """)
 
         conv_rows = jager_conn.execute(conversations_query).mappings().all()
@@ -141,29 +123,31 @@ def process_linkedin_messages():
 
         for conv in conv_rows:
             conv_id = conv["conversation_id"]
-            full_name = (conv["counterparty_name"] or "Unknown Contact").strip()
+            raw_name = conv["counterparty_name"] or "Unknown Contact"
+            full_name = " ".join(raw_name.split())
             profile_url = conv["counterparty_url"]
-            first_sent = conv["first_sent_at"]
-            last_sent = conv["last_sent_at"]
-            snippet = conv["latest_snippet"] or ""
-            convo_transcript = conv["convo_transcript"] or ""
+            transcript = conv["convo_transcript"] or ""
+            latest_snippet = conv["latest_snippet"] or ""
             msg_count = conv["msg_count"]
 
             parts = full_name.split(maxsplit=1)
-            fname = parts[0]
+            fname = parts[0] if parts else ""
             lname = parts[1] if len(parts) > 1 else ""
 
             # 1. Match or Create Person in cdp.persons
             person_id = None
             if full_name and full_name != "Unknown Contact":
+                # Normalize handle for profile URL matching
+                clean_url = profile_url.replace("https://", "").replace("http://", "").replace("www.", "").rstrip("/") if profile_url else ""
+
                 person_res = cdp_conn.execute(
                     text("""
                         SELECT id FROM cdp.persons 
-                        WHERE (linkedin_url IS NOT NULL AND linkedin_url = :profile_url)
-                           OR (first_name = :fname AND last_name = :lname)
+                        WHERE (linkedin_url IS NOT NULL AND (linkedin_url = :profile_url OR linkedin_url ILIKE '%' || :clean_url || '%'))
+                           OR (LOWER(TRIM(first_name)) = LOWER(TRIM(:fname)) AND LOWER(TRIM(last_name)) = LOWER(TRIM(:lname)))
                         LIMIT 1
                     """),
-                    {"profile_url": profile_url, "fname": fname, "lname": lname}
+                    {"profile_url": profile_url, "clean_url": clean_url, "fname": fname, "lname": lname}
                 ).scalar()
 
                 if person_res:
@@ -184,124 +168,85 @@ def process_linkedin_messages():
                     person_id = ins_person.scalar()
                     persons_created += 1
 
-            # 2. Insert Lead grouped by conversation_id into cdp.leads
-            raw_payload = json.dumps({
-                "conversation_id": conv_id,
-                "msg_count": msg_count,
-                "first_sent_at": str(first_sent),
-                "last_sent_at": str(last_sent),
-                "latest_snippet": snippet,
-                "convo_transcript": convo_transcript,
-                "counterparty_url": profile_url
-            })
+            # 2. Detect Metadata & Signals
+            meta = detect_message_metadata(transcript)
+            intent = meta["intent"]
+            signal_strength = meta["signal_strength"]
+            opportunity_type = meta["opportunity_type"]
+            summary_text = f"LinkedIn Conversation Summary ({msg_count} messages, {conv['first_sent_at'].strftime('%Y-%m-%d') if conv['first_sent_at'] else ''} to {conv['last_sent_at'].strftime('%Y-%m-%d') if conv['last_sent_at'] else ''}):\n{transcript[:400]}"
 
-            # Build a structured summary of the conversation history for description column
-            if convo_transcript:
-                first_date_str = str(first_sent.date()) if first_sent else "N/A"
-                last_date_str = str(last_sent.date()) if last_sent else "N/A"
-                
-                # Take up to the 3 most key messages (first message & recent messages)
-                lines = [line.strip() for line in convo_transcript.split('\n') if line.strip()]
-                if len(lines) <= 4:
-                    summary_excerpt = "\n".join(lines)
-                else:
-                    summary_excerpt = f"{lines[0]}\n...\n" + "\n".join(lines[-3:])
-
-                description_text = (
-                    f"LinkedIn Conversation Summary ({msg_count} messages, {first_date_str} to {last_date_str}):\n"
-                    f"{summary_excerpt}"
-                )
-            else:
-                description_text = f"LinkedIn Conversation with {full_name} ({msg_count} messages)."
-
-            summary_text = description_text
-            nlp_result = analyze_convo_nlp(convo_transcript)
-
-            # Insert/Update Lead in cdp.leads_linkedin
+            # 3. Upsert into cdp.leads_linkedin
             cdp_conn.execute(
                 text("""
                     INSERT INTO cdp.leads_linkedin (
-                        conversation_id, person_id, full_name, description, message_count, summary, convo_history, intent, signal_strength, opportunity_type, status, raw_payload, intake_at, updated_at
-                    )
-                    VALUES (
-                        :conv_id, :person_id, :full_name, :description, :message_count, :summary, :convo_history, :intent, :signal_strength, :opportunity_type, 'prospect', CAST(:raw_payload AS jsonb), :intake_at, NOW()
+                        conversation_id, person_id, full_name, description, message_count,
+                        summary, convo_history, intent, signal_strength, opportunity_type, status,
+                        intake_at, updated_at
+                    ) VALUES (
+                        :conv_id, :person_id, :full_name, :description, :msg_count,
+                        :summary, :transcript, :intent, :signal_strength, :opportunity_type, 'prospect',
+                        NOW(), NOW()
                     )
                     ON CONFLICT (conversation_id) DO UPDATE SET
-                        description = EXCLUDED.description,
+                        person_id = EXCLUDED.person_id,
+                        full_name = EXCLUDED.full_name,
                         message_count = EXCLUDED.message_count,
                         summary = EXCLUDED.summary,
                         convo_history = EXCLUDED.convo_history,
                         intent = EXCLUDED.intent,
                         signal_strength = EXCLUDED.signal_strength,
                         opportunity_type = EXCLUDED.opportunity_type,
-                        raw_payload = EXCLUDED.raw_payload,
                         updated_at = NOW();
                 """),
                 {
                     "conv_id": conv_id,
                     "person_id": person_id,
                     "full_name": full_name,
-                    "description": description_text,
-                    "message_count": msg_count,
+                    "description": f"LinkedIn conversation with {full_name} ({msg_count} messages)",
+                    "msg_count": msg_count,
                     "summary": summary_text,
-                    "convo_history": convo_transcript,
-                    "intent": nlp_result["intent"],
-                    "signal_strength": nlp_result["signal_strength"],
-                    "opportunity_type": nlp_result["opportunity_type"],
-                    "intake_at": last_sent or first_sent,
-                    "raw_payload": raw_payload
+                    "transcript": transcript,
+                    "intent": intent,
+                    "signal_strength": signal_strength,
+                    "opportunity_type": opportunity_type
                 }
             )
 
-            # Insert/Update Lead in aggregated cdp.leads table
+            # 4. Upsert into Consolidated cdp.leads Table
             cdp_conn.execute(
                 text("""
                     INSERT INTO cdp.leads (
-                        id, person_id, full_name, description, message_count, summary, convo_history, intent, signal_strength, opportunity_type, status, source, raw_payload, intake_at, updated_at
-                    )
-                    VALUES (
-                        :conv_id, :person_id, :full_name, :description, :message_count, :summary, :convo_history, :intent, :signal_strength, :opportunity_type, 'prospect', 'Linkedin', CAST(:raw_payload AS jsonb), :intake_at, NOW()
+                        id, person_id, source, summary, intent, status, signal_strength, intake_at, updated_at
+                    ) VALUES (
+                        :lead_id, :person_id, 'Linkedin', :summary, :intent, 'prospect', :signal_strength, NOW(), NOW()
                     )
                     ON CONFLICT (id) DO UPDATE SET
-                        description = EXCLUDED.description,
-                        message_count = EXCLUDED.message_count,
+                        person_id = EXCLUDED.person_id,
                         summary = EXCLUDED.summary,
-                        convo_history = EXCLUDED.convo_history,
                         intent = EXCLUDED.intent,
                         signal_strength = EXCLUDED.signal_strength,
-                        opportunity_type = EXCLUDED.opportunity_type,
-                        source = EXCLUDED.source,
-                        raw_payload = EXCLUDED.raw_payload,
                         updated_at = NOW();
                 """),
                 {
-                    "conv_id": conv_id,
+                    "lead_id": f"2-{conv_id}_100",
                     "person_id": person_id,
-                    "full_name": full_name,
-                    "description": description_text,
-                    "message_count": msg_count,
                     "summary": summary_text,
-                    "convo_history": convo_transcript,
-                    "intent": nlp_result["intent"],
-                    "signal_strength": nlp_result["signal_strength"],
-                    "opportunity_type": nlp_result["opportunity_type"],
-                    "intake_at": last_sent or first_sent,
-                    "raw_payload": raw_payload
+                    "intent": intent,
+                    "signal_strength": signal_strength
                 }
             )
+
             leads_processed += 1
 
-    logger.info(
-        f"LinkedIn messages processing complete: {leads_processed} leads created across "
-        f"{len(conv_rows)} conversations ({persons_created} new persons created)."
-    )
-
+    logger.info(f"LinkedIn messages processing complete: {leads_processed} leads created across {len(conv_rows)} conversations ({persons_created} new persons created).")
     return {
         "status": "success",
+        "conversations_found": len(conv_rows),
         "leads_processed": leads_processed,
         "persons_created": persons_created
     }
 
 
 if __name__ == "__main__":
-    process_linkedin_messages()
+    res = process_linkedin_messages()
+    print(res)

@@ -22,8 +22,10 @@ PERSON_SEGMENT_RULES = {
     "clients_and_prospects": """
         SELECT DISTINCT p.id FROM cdp.persons p
         WHERE p.id IN (
-            -- 1. Persons with recorded meeting notes / activities
+            -- 1. Persons linked to cdp.activities or cdp.activities_notion_meeting_notes (excluding recruiters/HR contacts)
             SELECT a.person_id FROM cdp.activities a WHERE a.person_id IS NOT NULL
+            UNION
+            SELECT amn.person_id FROM cdp.activities_notion_meeting_notes amn WHERE amn.person_id IS NOT NULL
             UNION
             SELECT p2.id FROM cdp.persons p2
             JOIN cdp.activities a2 ON (
@@ -31,13 +33,33 @@ PERSON_SEGMENT_RULES = {
                  AND a2.title ILIKE '%' || p2.first_name || '%' 
                  AND a2.title ILIKE '%' || p2.last_name || '%')
             )
+            LEFT JOIN cdp.persons_linkedins pli2 ON (
+                (p2.primary_email IS NOT NULL AND p2.primary_email = pli2.email_address)
+                OR (p2.linkedin_url IS NOT NULL AND pli2.profile_url IS NOT NULL AND pli2.profile_url ILIKE '%' || p2.linkedin_url || '%')
+                OR (LOWER(TRIM(p2.first_name)) = LOWER(TRIM(pli2.first_name)) AND LOWER(TRIM(p2.last_name)) = LOWER(TRIM(pli2.last_name)))
+            )
             WHERE LOWER(p2.first_name) != 'jimmy' AND LOWER(p2.last_name) != 'pang'
+              AND LOWER(COALESCE(pli2.position, '')) !~ '(recruiter|recruiting|talent acquisition|talent partner|talent manager|talent management|hr manager|headhunter|sourcer)'
             UNION
-            -- 2. Persons with active consulting/service leads
+            SELECT p3.id FROM cdp.persons p3
+            JOIN cdp.activities_notion_meeting_notes amn2 ON (
+                (LENGTH(p3.first_name) >= 3 AND LENGTH(p3.last_name) >= 3 
+                 AND amn2.title ILIKE '%' || p3.first_name || '%' 
+                 AND amn2.title ILIKE '%' || p3.last_name || '%')
+            )
+            LEFT JOIN cdp.persons_linkedins pli3 ON (
+                (p3.primary_email IS NOT NULL AND p3.primary_email = pli3.email_address)
+                OR (p3.linkedin_url IS NOT NULL AND pli3.profile_url IS NOT NULL AND pli3.profile_url ILIKE '%' || p3.linkedin_url || '%')
+                OR (LOWER(TRIM(p3.first_name)) = LOWER(TRIM(pli3.first_name)) AND LOWER(TRIM(p3.last_name)) = LOWER(TRIM(pli3.last_name)))
+            )
+            WHERE LOWER(p3.first_name) != 'jimmy' AND LOWER(p3.last_name) != 'pang'
+              AND LOWER(COALESCE(pli3.position, '')) !~ '(recruiter|recruiting|talent acquisition|talent partner|talent manager|talent management|hr manager|headhunter|sourcer)'
+            UNION
+            -- 2. Persons with active consulting/service/project/business collaboration leads
             SELECT l.person_id FROM cdp.leads l
-            WHERE LOWER(COALESCE(l.intent, '')) IN ('inbound_service_request', 'consulting_inquiry')
+            WHERE LOWER(COALESCE(l.intent, '')) IN ('inbound_service_request', 'consulting_inquiry', 'project_inquiry')
                OR LOWER(COALESCE(l.status, '')) IN ('in_discussion', 'proposal_sent', 'negotiating', 'offer_accepted', 'won', 'active_client')
-               OR LOWER(COALESCE(l.summary, '')) ~* '\\y(consulting rate|freelance proposal|data audit|hourly rate for consulting|data stack build|project quote|project onboarding)\\y'
+               OR LOWER(COALESCE(l.summary, '')) ~* '\\y(snowflake|migration|freelance|consulting|contract|project|data engineering|calendar invite|client|proposal|quote|project onboarding)\\y'
         )
     """,
     "former_colleagues_alumni": """
@@ -56,7 +78,7 @@ PERSON_SEGMENT_RULES = {
             OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND pli.profile_url ILIKE '%' || p.linkedin_url || '%')
             OR (LOWER(TRIM(p.first_name)) = LOWER(TRIM(pli.first_name)) AND LOWER(TRIM(p.last_name)) = LOWER(TRIM(pli.last_name)))
         )
-        WHERE LOWER(COALESCE(pli.position, '')) ~ '(recruiter|recruiting|talent acquisition|talent partner|headhunter|sourcer|talent specialist|talent manager)'
+        WHERE LOWER(COALESCE(pli.position, '')) ~ '(recruiter|recruiting|talent acquisition|talent partner|talent manager|talent management|hr manager|headhunter|sourcer|talent specialist)'
     """,
     "hiring_decision_makers": """
         SELECT DISTINCT p.id FROM cdp.persons p
