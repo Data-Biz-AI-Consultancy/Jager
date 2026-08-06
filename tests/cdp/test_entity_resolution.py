@@ -53,7 +53,8 @@ def test_resolve_persons():
     mock_cdp_conn.execute.return_value.mappings.return_value.all.side_effect = [
         linkedin_rows,
         substack_rows,
-        notes_rows
+        notes_rows,
+        []
     ]
     mock_cdp_conn.execute.return_value.fetchone.return_value = None
 
