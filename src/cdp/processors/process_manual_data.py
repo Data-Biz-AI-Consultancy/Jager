@@ -176,60 +176,45 @@ def process_manual_data():
                 is_substack = "substack" in table.lower()
                 is_linkedin = "linkedin" in table.lower()
 
-                # 1. Cross-check / Upsert person into cdp.persons (FULL OUTER JOIN behavior)
-                # Matches existing person by primary_email or linkedin_url, merging attributes if matched
                 person_id = None
-                if first_name or last_name or email or linkedin_url:
-                    person_res = cdp_conn.execute(
+                # 1. Upsert person intake record into cdp.persons_manual_substack if substack table
+                if is_substack and (first_name or last_name or email or linkedin_url):
+                    row_id = str(row_dict.get("id") or row_dict.get("notion_id") or uuid.uuid4())
+                    cdp_conn.execute(
                         text("""
-                            WITH existing_person AS (
-                              SELECT id FROM cdp.persons
-                              WHERE (primary_email IS NOT NULL AND primary_email = :email AND :email != '')
-                                 OR (linkedin_url IS NOT NULL AND linkedin_url = :linkedin_url AND :linkedin_url != '')
-                              LIMIT 1
-                            ),
-                            upserted_person AS (
-                              INSERT INTO cdp.persons (
-                                  first_name, last_name, primary_email, primary_phone, linkedin_url, country,
-                                  in_substack_subscriber_export, in_linkedin_connections, status, created_at, updated_at
-                              )
-                              SELECT
-                                  :first_name, :last_name, NULLIF(:email, ''), NULLIF(:phone, ''), NULLIF(:linkedin_url, ''), NULLIF(:country, ''),
-                                  :is_substack, :is_linkedin, 'active', NOW(), NOW()
-                              WHERE NOT EXISTS (SELECT 1 FROM existing_person)
-                              RETURNING id
-                            ),
-                            updated_person AS (
-                              UPDATE cdp.persons
-                              SET
-                                first_name = COALESCE(NULLIF(:first_name, ''), cdp.persons.first_name),
-                                last_name = COALESCE(NULLIF(:last_name, ''), cdp.persons.last_name),
-                                primary_email = COALESCE(NULLIF(:email, ''), cdp.persons.primary_email),
-                                primary_phone = COALESCE(NULLIF(:phone, ''), cdp.persons.primary_phone),
-                                linkedin_url = COALESCE(NULLIF(:linkedin_url, ''), cdp.persons.linkedin_url),
-                                country = COALESCE(NULLIF(:country, ''), cdp.persons.country),
-                                in_substack_subscriber_export = CASE WHEN :is_substack THEN TRUE ELSE cdp.persons.in_substack_subscriber_export END,
-                                in_linkedin_connections = CASE WHEN :is_linkedin THEN TRUE ELSE cdp.persons.in_linkedin_connections END,
-                                updated_at = NOW()
-                              WHERE id = (SELECT id FROM existing_person)
-                              RETURNING id
+                            INSERT INTO cdp.persons_manual_substack (
+                                id, email, first_name, last_name, full_name, phone, linkedin_url, country,
+                                source_table, raw_payload, intake_at, updated_at
+                            ) VALUES (
+                                :id, :email, :first_name, :last_name, :full_name, :phone, :linkedin_url, :country,
+                                :source_table, CAST(:raw_payload AS jsonb), NOW(), NOW()
                             )
-                            SELECT id FROM upserted_person UNION ALL SELECT id FROM updated_person;
+                            ON CONFLICT (id) DO UPDATE SET
+                                email = EXCLUDED.email,
+                                first_name = EXCLUDED.first_name,
+                                last_name = EXCLUDED.last_name,
+                                full_name = EXCLUDED.full_name,
+                                phone = EXCLUDED.phone,
+                                linkedin_url = EXCLUDED.linkedin_url,
+                                country = EXCLUDED.country,
+                                source_table = EXCLUDED.source_table,
+                                raw_payload = EXCLUDED.raw_payload,
+                                updated_at = NOW();
                         """),
                         {
+                            "id": row_id,
+                            "email": email or None,
                             "first_name": first_name or None,
                             "last_name": last_name or None,
-                            "email": email or "",
-                            "phone": phone or "",
-                            "linkedin_url": linkedin_url or "",
-                            "country": country or "",
-                            "is_substack": is_substack,
-                            "is_linkedin": is_linkedin
+                            "full_name": raw_name or None,
+                            "phone": phone or None,
+                            "linkedin_url": linkedin_url or None,
+                            "country": country or None,
+                            "source_table": table,
+                            "raw_payload": json.dumps(row_dict, default=str)
                         }
                     )
-                    person_id = person_res.scalar()
-                    if person_id:
-                        persons_processed += 1
+                    persons_processed += 1
 
                 # 2. Process company into cdp.client_accounts if present
                 client_account_id = None
@@ -341,15 +326,22 @@ def process_manual_data():
                             {"row_id": row_dict["notion_id"]}
                         )
 
+        # Trigger unified entity resolution into cdp.persons
+        from processors.entity_resolution import resolve_persons
+        with cdp_engine.begin() as cdp_conn:
+            persons_resolved = resolve_persons(cdp_conn)
+
     logger.info(
         f"s_manual data processing complete: {leads_processed} leads, "
-        f"{persons_processed} persons, {accounts_processed} client accounts processed."
+        f"{persons_processed} manual persons ingested, {accounts_processed} client accounts processed, "
+        f"{persons_resolved} master persons resolved."
     )
     return {
         "status": "success",
         "leads_processed": leads_processed,
         "persons_processed": persons_processed,
-        "accounts_processed": accounts_processed
+        "accounts_processed": accounts_processed,
+        "persons_resolved": persons_resolved
     }
 
 

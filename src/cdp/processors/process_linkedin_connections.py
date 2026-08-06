@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import json
 from sqlalchemy import text
 
 cdp_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -61,17 +62,16 @@ def process_linkedin_connections():
             text("""
                 SELECT id, first_name, last_name, profile_url, email_address, company, position, connected_at
                 FROM s_linkedin.connections
-                WHERE processed = 0
             """)
         ).mappings().all()
 
         if not rows:
-            logger.info("No unprocessed LinkedIn connections found.")
+            logger.info("No LinkedIn connections found.")
             return {
                 "status": "success",
                 "processed_count": 0,
                 "accounts_processed": 0,
-                "relationships_processed": 0
+                "persons_resolved": 0
             }
 
         with cdp_engine.begin() as cdp_conn:
@@ -96,43 +96,37 @@ def process_linkedin_connections():
                     )
                     continue
 
-                # 1. Upsert person into cdp.persons
-                person_res = cdp_conn.execute(
+                # 1. Upsert intake record into cdp.persons_linkedins
+                cdp_conn.execute(
                     text("""
-                        WITH existing_person AS (
-                          SELECT id FROM cdp.persons
-                          WHERE (linkedin_url IS NOT NULL AND linkedin_url = :profile_url)
-                             OR (primary_email IS NOT NULL AND primary_email = :email)
-                          LIMIT 1
-                        ),
-                        upserted_person AS (
-                          INSERT INTO cdp.persons (first_name, last_name, primary_email, linkedin_url, in_linkedin_connections, status, created_at, updated_at)
-                          SELECT :first_name, :last_name, :email, :profile_url, TRUE, 'active', NOW(), NOW()
-                          WHERE NOT EXISTS (SELECT 1 FROM existing_person)
-                          RETURNING id
-                        ),
-                        updated_person AS (
-                          UPDATE cdp.persons
-                          SET
-                            first_name = COALESCE(:first_name, cdp.persons.first_name),
-                            last_name = COALESCE(:last_name, cdp.persons.last_name),
-                            primary_email = COALESCE(:email, cdp.persons.primary_email),
-                            linkedin_url = COALESCE(:profile_url, cdp.persons.linkedin_url),
-                            in_linkedin_connections = TRUE,
-                            updated_at = NOW()
-                          WHERE id = (SELECT id FROM existing_person)
-                          RETURNING id
+                        INSERT INTO cdp.persons_linkedins (
+                            connection_id, first_name, last_name, profile_url, email_address, company, position, connected_at, raw_payload, intake_at, updated_at
+                        ) VALUES (
+                            :conn_id, :first_name, :last_name, :profile_url, :email, :company, :position, :connected_at, :raw_payload, NOW(), NOW()
                         )
-                        SELECT id FROM upserted_person UNION ALL SELECT id FROM updated_person;
+                        ON CONFLICT (connection_id) DO UPDATE SET
+                            first_name = EXCLUDED.first_name,
+                            last_name = EXCLUDED.last_name,
+                            profile_url = EXCLUDED.profile_url,
+                            email_address = EXCLUDED.email_address,
+                            company = EXCLUDED.company,
+                            position = EXCLUDED.position,
+                            connected_at = EXCLUDED.connected_at,
+                            raw_payload = EXCLUDED.raw_payload,
+                            updated_at = NOW();
                     """),
                     {
+                        "conn_id": str(conn_id),
                         "first_name": first_name,
                         "last_name": last_name,
+                        "profile_url": profile_url,
                         "email": email,
-                        "profile_url": profile_url
+                        "company": company,
+                        "position": position,
+                        "connected_at": row.get("connected_at"),
+                        "raw_payload": json.dumps(dict(row), default=str)
                     }
                 )
-                person_id = person_res.scalar()
 
                 # 2. Process company into cdp.client_accounts if present
                 client_account_id = None
@@ -172,56 +166,30 @@ def process_linkedin_connections():
                     if client_account_id:
                         accounts_processed += 1
 
-                        # Link primary client account to person if not set
-                        if person_id:
-                            cdp_conn.execute(
-                                text("""
-                                    UPDATE cdp.persons
-                                    SET primary_client_account_id = COALESCE(primary_client_account_id, :account_id),
-                                        updated_at = NOW()
-                                    WHERE id = :person_id;
-                                """),
-                                {"account_id": client_account_id, "person_id": person_id}
-                            )
-
-                # 3. Create person_account_relationship if both person and client_account exist
-                if person_id and client_account_id:
-                    cdp_conn.execute(
-                        text("""
-                            INSERT INTO cdp.person_account_relationships (
-                                person_id, client_account_id, job_title, role_type, is_primary, status, created_at, updated_at
-                            )
-                            VALUES (:person_id, :client_account_id, :job_title, 'decision_maker', TRUE, 'active', NOW(), NOW())
-                            ON CONFLICT (person_id, client_account_id, role_type) DO UPDATE SET
-                                job_title = COALESCE(EXCLUDED.job_title, cdp.person_account_relationships.job_title),
-                                updated_at = NOW();
-                        """),
-                        {
-                            "person_id": person_id,
-                            "client_account_id": client_account_id,
-                            "job_title": position
-                        }
-                    )
-                    relationships_processed += 1
-
-                # 4. Mark s_linkedin.connections row as processed in jager DB
+                # 3. Mark s_linkedin.connections row as processed in jager DB
                 jager_conn.execute(
                     text("UPDATE s_linkedin.connections SET processed = 1 WHERE id = :conn_id"),
                     {"conn_id": conn_id}
                 )
                 processed_count += 1
 
+        # 4. Trigger unified entity resolution into cdp.persons
+        from processors.entity_resolution import resolve_persons
+        with cdp_engine.begin() as cdp_conn:
+            persons_resolved = resolve_persons(cdp_conn)
+
     logger.info(
-        f"CDP processing complete: {processed_count} persons, "
-        f"{accounts_processed} accounts, {relationships_processed} relationships processed."
+        f"CDP processing complete: {processed_count} connections ingested into cdp.persons_linkedins, "
+        f"{accounts_processed} accounts processed, {persons_resolved} master persons resolved."
     )
     return {
         "status": "success",
         "processed_count": processed_count,
         "accounts_processed": accounts_processed,
-        "relationships_processed": relationships_processed
+        "persons_resolved": persons_resolved
     }
 
 
 if __name__ == "__main__":
     process_linkedin_connections()
+

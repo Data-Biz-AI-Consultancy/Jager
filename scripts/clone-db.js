@@ -318,6 +318,34 @@ async function cloneDatabase(dbName, prodUrl) {
               `created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
               `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
             `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.persons_linkedins (` +
+              `connection_id VARCHAR(255) PRIMARY KEY, ` +
+              `first_name VARCHAR(255), ` +
+              `last_name VARCHAR(255), ` +
+              `profile_url VARCHAR(2048), ` +
+              `email_address VARCHAR(255), ` +
+              `company VARCHAR(255), ` +
+              `position VARCHAR(255), ` +
+              `connected_at TIMESTAMP WITH TIME ZONE, ` +
+              `raw_payload JSONB DEFAULT '{}'::jsonb, ` +
+              `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.persons_manual_substack (` +
+              `id VARCHAR(255) PRIMARY KEY, ` +
+              `email VARCHAR(255), ` +
+              `first_name VARCHAR(255), ` +
+              `last_name VARCHAR(255), ` +
+              `full_name VARCHAR(255), ` +
+              `phone VARCHAR(100), ` +
+              `linkedin_url VARCHAR(2048), ` +
+              `country VARCHAR(100), ` +
+              `subscribed_at TIMESTAMP WITH TIME ZONE, ` +
+              `source_table VARCHAR(255), ` +
+              `raw_payload JSONB DEFAULT '{}'::jsonb, ` +
+              `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
             `CREATE TABLE IF NOT EXISTS cdp.leads_linkedin (` +
               `conversation_id VARCHAR(255) PRIMARY KEY, ` +
               `person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL, ` +
