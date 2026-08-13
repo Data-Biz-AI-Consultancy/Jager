@@ -6,5 +6,9 @@ models:
     columns:
       - name: person_segment_id
         description: "Primary key of the person segment."
+        tests:
+          - unique
+          - not_null
       - name: slug
         description: "Slug identifier of the person segment."
+
