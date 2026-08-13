@@ -114,7 +114,7 @@ services:
       - NOTION_MANUAL_INGESTION_PAGE_ID=${NOTION_MANUAL_INGESTION_PAGE_ID}
     depends_on:
       db:
-        condition: service_healthy
+        condition: service_started
 
 
   cdp:
@@ -140,7 +140,7 @@ services:
       - NOTION_MANUAL_INGESTION_PAGE_ID=${NOTION_MANUAL_INGESTION_PAGE_ID}
     depends_on:
       db:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - ./src/cdp:/app
       - ./src/shared:/app/src/shared
