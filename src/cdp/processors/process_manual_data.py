@@ -216,22 +216,22 @@ def process_manual_data():
                     )
                     persons_processed += 1
 
-                # 2. Process company into cdp.client_accounts if present
-                client_account_id = None
+                # 2. Process company into cdp.companies if present
+                company_id = None
                 if company:
                     domain = generate_company_domain(company)
                     account_res = cdp_conn.execute(
                         text("""
                             WITH existing_account AS (
-                              SELECT id FROM cdp.client_accounts
+                              SELECT id FROM cdp.companies
                               WHERE company_name = :company
                               LIMIT 1
                             ),
                             upserted_account AS (
-                              INSERT INTO cdp.client_accounts (company_name, domain, status, created_at, updated_at)
+                              INSERT INTO cdp.companies (company_name, domain, status, created_at, updated_at)
                               SELECT
                                 :company,
-                                CASE WHEN EXISTS (SELECT 1 FROM cdp.client_accounts WHERE domain = :domain) THEN NULL ELSE :domain END,
+                                CASE WHEN EXISTS (SELECT 1 FROM cdp.companies WHERE domain = :domain) THEN NULL ELSE :domain END,
                                 'prospect',
                                 NOW(),
                                 NOW()
@@ -239,7 +239,7 @@ def process_manual_data():
                               RETURNING id
                             ),
                             updated_account AS (
-                              UPDATE cdp.client_accounts
+                              UPDATE cdp.companies
                               SET updated_at = NOW()
                               WHERE id = (SELECT id FROM existing_account)
                               RETURNING id
@@ -248,8 +248,8 @@ def process_manual_data():
                         """),
                         {"company": company, "domain": domain}
                     )
-                    client_account_id = account_res.scalar()
-                    if client_account_id:
+                    company_id = account_res.scalar()
+                    if company_id:
                         accounts_processed += 1
 
                 # 3. Create lead record in cdp.leads_manual and cdp.leads
@@ -260,14 +260,14 @@ def process_manual_data():
                 cdp_conn.execute(
                     text("""
                         INSERT INTO cdp.leads_manual (
-                            id, person_id, client_account_id, full_name, description, status, source, raw_payload, intake_at, updated_at
+                            id, person_id, company_id, full_name, description, status, source, raw_payload, intake_at, updated_at
                         )
                         VALUES (
-                            :id, :person_id, :client_account_id, :full_name, :description, 'prospect', :source, CAST(:raw_payload AS jsonb), NOW(), NOW()
+                            :id, :person_id, :company_id, :full_name, :description, 'prospect', :source, CAST(:raw_payload AS jsonb), NOW(), NOW()
                         )
                         ON CONFLICT (id) DO UPDATE SET
                             person_id = COALESCE(EXCLUDED.person_id, cdp.leads_manual.person_id),
-                            client_account_id = COALESCE(EXCLUDED.client_account_id, cdp.leads_manual.client_account_id),
+                            company_id = COALESCE(EXCLUDED.company_id, cdp.leads_manual.company_id),
                             full_name = EXCLUDED.full_name,
                             description = EXCLUDED.description,
                             source = EXCLUDED.source,
@@ -277,7 +277,7 @@ def process_manual_data():
                     {
                         "id": lead_id,
                         "person_id": person_id,
-                        "client_account_id": client_account_id,
+                        "company_id": company_id,
                         "full_name": full_lead_name,
                         "description": f"Manual lead ingested from s_manual.{table}",
                         "source": f"manual:{table}",
@@ -288,14 +288,14 @@ def process_manual_data():
                 cdp_conn.execute(
                     text("""
                         INSERT INTO cdp.leads (
-                            id, person_id, client_account_id, full_name, description, status, source, raw_payload, intake_at, updated_at
+                            id, person_id, company_id, full_name, description, status, source, raw_payload, intake_at, updated_at
                         )
                         VALUES (
-                            :id, :person_id, :client_account_id, :full_name, :description, 'prospect', 'Manual', CAST(:raw_payload AS jsonb), NOW(), NOW()
+                            :id, :person_id, :company_id, :full_name, :description, 'prospect', 'Manual', CAST(:raw_payload AS jsonb), NOW(), NOW()
                         )
                         ON CONFLICT (id) DO UPDATE SET
                             person_id = COALESCE(EXCLUDED.person_id, cdp.leads.person_id),
-                            client_account_id = COALESCE(EXCLUDED.client_account_id, cdp.leads.client_account_id),
+                            company_id = COALESCE(EXCLUDED.company_id, cdp.leads.company_id),
                             full_name = EXCLUDED.full_name,
                             description = EXCLUDED.description,
                             source = EXCLUDED.source,
@@ -305,7 +305,7 @@ def process_manual_data():
                     {
                         "id": lead_id,
                         "person_id": person_id,
-                        "client_account_id": client_account_id,
+                        "company_id": company_id,
                         "full_name": full_lead_name,
                         "description": f"Manual lead ingested from s_manual.{table}",
                         "raw_payload": serialized_json

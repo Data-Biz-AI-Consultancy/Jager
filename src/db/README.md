@@ -10,7 +10,7 @@ For detailed status definitions and stage transition diagrams, see [CDP Status L
 
 ```mermaid
 erDiagram
-    CLIENT_ACCOUNTS {
+    COMPANIES {
         uuid id PK
         string company_name
         string domain UK
@@ -29,7 +29,7 @@ erDiagram
         string linkedin_url
         string city
         string country
-        uuid primary_client_account_id FK
+        uuid primary_company_id FK
         string status
         jsonb attributes
         timestamp_tz created_at
@@ -52,7 +52,7 @@ erDiagram
     PERSON_ACCOUNT_RELATIONSHIPS {
         uuid id PK
         uuid person_id FK
-        uuid client_account_id FK
+        uuid company_id FK
         string job_title
         string department
         string role_type
@@ -67,7 +67,7 @@ erDiagram
     ENGAGEMENTS {
         uuid id PK
         uuid person_id FK
-        uuid client_account_id FK
+        uuid company_id FK
         string engagement_type
         string direction
         string subject
@@ -80,19 +80,19 @@ erDiagram
         timestamp_tz updated_at
     }
 
-    PERSONS }|--o| CLIENT_ACCOUNTS : "primary_client_account_id"
+    PERSONS }|--o| COMPANIES : "primary_company_id"
     LEADS }|--o| PERSONS : "person_id"
-    LEADS }|--o| CLIENT_ACCOUNTS : "client_account_id"
+    LEADS }|--o| COMPANIES : "company_id"
     PERSONS ||--o{ PERSON_ACCOUNT_RELATIONSHIPS : "person_id"
-    CLIENT_ACCOUNTS ||--o{ PERSON_ACCOUNT_RELATIONSHIPS : "client_account_id"
+    COMPANIES ||--o{ PERSON_ACCOUNT_RELATIONSHIPS : "company_id"
     PERSONS ||--o{ ENGAGEMENTS : "person_id"
-    CLIENT_ACCOUNTS ||--o{ ENGAGEMENTS : "client_account_id"
+    COMPANIES ||--o{ ENGAGEMENTS : "company_id"
 ```
 
 ## Schema & Tables Overview
 
-- **`cdp.client_accounts`**: Accounts / organizations profiles.
-- **`cdp.persons`**: Individual profiles (prospects, leads, contacts) with optional `primary_client_account_id` foreign key.
+- **`cdp.companies`**: Accounts / organizations profiles.
+- **`cdp.persons`**: Individual profiles (prospects, leads, contacts) with optional `primary_company_id` foreign key.
 - **`cdp.leads_linkedin`**: Intake table for LinkedIn message-derived leads (`s_linkedin.messages`).
 - **`cdp.leads_manual`**: Intake table for manual data-derived leads (`s_manual`).
 - **`cdp.leads`**: Aggregated table for inbound leads, featuring a `source` column stating if the lead is from `Linkedin` or `Manual`.

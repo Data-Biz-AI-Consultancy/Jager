@@ -14,8 +14,8 @@ EOSQL
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	CREATE SCHEMA IF NOT EXISTS cdp;
 
-	-- Client Account status lifecycle: 'prospect', 'reached', 'decision_maker_reached', 'contract_signed', 'engaging', 'completed'
-	CREATE TABLE IF NOT EXISTS cdp.client_accounts (
+	-- Company status lifecycle: 'prospect', 'reached', 'decision_maker_reached', 'contract_signed', 'engaging', 'completed'
+	CREATE TABLE IF NOT EXISTS cdp.companies (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		company_name VARCHAR(255) NOT NULL,
 		domain VARCHAR(255) UNIQUE,
@@ -35,7 +35,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		linkedin_url VARCHAR(2048),
 		city VARCHAR(100),
 		country VARCHAR(100),
-		primary_client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+		primary_company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL,
 		status VARCHAR(50) DEFAULT 'active',
 		attributes JSONB DEFAULT '{}'::jsonb,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -97,7 +97,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	CREATE TABLE IF NOT EXISTS cdp.leads_manual (
 		id VARCHAR(255) PRIMARY KEY,
 		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
-		client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+		company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL,
 		full_name VARCHAR(255),
 		description TEXT,
 		rate VARCHAR(100),
@@ -112,7 +112,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	CREATE TABLE IF NOT EXISTS cdp.leads (
 		id VARCHAR(255) PRIMARY KEY,
 		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
-		client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+		company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL,
 		full_name VARCHAR(255),
 		description TEXT,
 		message_count INTEGER DEFAULT 0,
@@ -128,11 +128,11 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
-	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS primary_client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS primary_company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
 	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN DEFAULT FALSE;
 	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT;
@@ -162,7 +162,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	CREATE TABLE IF NOT EXISTS cdp.activities_notion_meeting_notes (
 		page_id VARCHAR(255) PRIMARY KEY,
 		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
-		client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+		company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL,
 		database_name VARCHAR(255),
 		title VARCHAR(1024),
 		meeting_date TIMESTAMP WITH TIME ZONE,
@@ -181,7 +181,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		source VARCHAR(100) NOT NULL DEFAULT 'notion_meeting_notes',
 		source_id VARCHAR(255) UNIQUE,
 		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
-		client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+		company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL,
 		title VARCHAR(1024),
 		activity_date TIMESTAMP WITH TIME ZONE,
 		summary_or_content TEXT,
