@@ -6,5 +6,8 @@ models:
     columns:
       - name: relationship_id
         description: "Primary key of the relationship record."
+        tests:
+          - unique
+          - not_null
       - name: job_title
         description: "Job title of the person at the company."
