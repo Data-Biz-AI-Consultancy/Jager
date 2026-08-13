@@ -146,7 +146,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS rate VARCHAR(100);
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFAULT 'Manual';
 
-	DO $$
+	DO \$\$
 	BEGIN
 		IF EXISTS (
 			SELECT 1 FROM information_schema.tables 
@@ -223,7 +223,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		) THEN
 			ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255);
 		END IF;
-	END $$;
+	END \$\$;
 
 
 	CREATE TABLE IF NOT EXISTS cdp.person_company_relationships (
@@ -1171,12 +1171,12 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	ALTER TABLE m_embeddings.linkedin_posts ADD COLUMN IF NOT EXISTS source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED;
 
 	CREATE OR REPLACE FUNCTION m_staging.delete_old_notion_embeddings()
-	RETURNS TRIGGER AS $$
+	RETURNS TRIGGER AS \$\$
 	BEGIN
 		DELETE FROM m_embeddings.notion_pages WHERE source_id = OLD.id;
 		RETURN NEW;
 	END;
-	$$ LANGUAGE plpgsql;
+	\$\$ LANGUAGE plpgsql;
 
 	DROP TRIGGER IF EXISTS trg_delete_old_notion_embeddings ON m_staging.notion_pages;
 	CREATE TRIGGER trg_delete_old_notion_embeddings
@@ -1186,12 +1186,12 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	EXECUTE FUNCTION m_staging.delete_old_notion_embeddings();
 
 	CREATE OR REPLACE FUNCTION m_staging.delete_old_substack_embeddings()
-	RETURNS TRIGGER AS $$
+	RETURNS TRIGGER AS \$\$
 	BEGIN
 		DELETE FROM m_embeddings.substack_posts WHERE source_id = OLD.id;
 		RETURN NEW;
 	END;
-	$$ LANGUAGE plpgsql;
+	\$\$ LANGUAGE plpgsql;
 
 	DROP TRIGGER IF EXISTS trg_delete_old_substack_embeddings ON m_staging.substack_posts;
 	CREATE TRIGGER trg_delete_old_substack_embeddings
@@ -1201,12 +1201,12 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	EXECUTE FUNCTION m_staging.delete_old_substack_embeddings();
 
 	CREATE OR REPLACE FUNCTION m_staging.delete_old_linkedin_embeddings()
-	RETURNS TRIGGER AS $$
+	RETURNS TRIGGER AS \$\$
 	BEGIN
 		DELETE FROM m_embeddings.linkedin_posts WHERE source_id = OLD.id;
 		RETURN NEW;
 	END;
-	$$ LANGUAGE plpgsql;
+	\$\$ LANGUAGE plpgsql;
 
 	DROP TRIGGER IF EXISTS trg_delete_old_linkedin_embeddings ON m_staging.linkedin_posts;
 	CREATE TRIGGER trg_delete_old_linkedin_embeddings
