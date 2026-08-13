@@ -88,7 +88,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 60
-      start_period: 120s
+      start_period: 60s
 
   dapp:
     build:
