@@ -223,6 +223,9 @@ BEGIN
 	IF EXISTS (
 		SELECT 1 FROM information_schema.columns 
 		WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships' AND column_name = 'client_account_id'
+	) AND NOT EXISTS (
+		SELECT 1 FROM information_schema.columns 
+		WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships' AND column_name = 'company_id'
 	) THEN
 		ALTER TABLE cdp.person_company_relationships RENAME COLUMN client_account_id TO company_id;
 	END IF;
@@ -230,6 +233,9 @@ BEGIN
 	IF EXISTS (
 		SELECT 1 FROM information_schema.columns 
 		WHERE table_schema = 'cdp' AND table_name = 'persons' AND column_name = 'primary_client_account_id'
+	) AND NOT EXISTS (
+		SELECT 1 FROM information_schema.columns 
+		WHERE table_schema = 'cdp' AND table_name = 'persons' AND column_name = 'primary_company_id'
 	) THEN
 		ALTER TABLE cdp.persons RENAME COLUMN primary_client_account_id TO primary_company_id;
 	END IF;
@@ -237,6 +243,9 @@ BEGIN
 	IF EXISTS (
 		SELECT 1 FROM information_schema.columns 
 		WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'client_account_id'
+	) AND NOT EXISTS (
+		SELECT 1 FROM information_schema.columns 
+		WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'company_id'
 	) THEN
 		ALTER TABLE cdp.leads RENAME COLUMN client_account_id TO company_id;
 	END IF;
@@ -244,6 +253,9 @@ BEGIN
 	IF EXISTS (
 		SELECT 1 FROM information_schema.columns 
 		WHERE table_schema = 'cdp' AND table_name = 'leads_manual' AND column_name = 'client_account_id'
+	) AND NOT EXISTS (
+		SELECT 1 FROM information_schema.columns 
+		WHERE table_schema = 'cdp' AND table_name = 'leads_manual' AND column_name = 'company_id'
 	) THEN
 		ALTER TABLE cdp.leads_manual RENAME COLUMN client_account_id TO company_id;
 	END IF;
@@ -251,6 +263,9 @@ BEGIN
 	IF EXISTS (
 		SELECT 1 FROM information_schema.columns 
 		WHERE table_schema = 'cdp' AND table_name = 'activities_notion_meeting_notes' AND column_name = 'client_account_id'
+	) AND NOT EXISTS (
+		SELECT 1 FROM information_schema.columns 
+		WHERE table_schema = 'cdp' AND table_name = 'activities_notion_meeting_notes' AND column_name = 'company_id'
 	) THEN
 		ALTER TABLE cdp.activities_notion_meeting_notes RENAME COLUMN client_account_id TO company_id;
 	END IF;
@@ -258,6 +273,9 @@ BEGIN
 	IF EXISTS (
 		SELECT 1 FROM information_schema.columns 
 		WHERE table_schema = 'cdp' AND table_name = 'activities' AND column_name = 'client_account_id'
+	) AND NOT EXISTS (
+		SELECT 1 FROM information_schema.columns 
+		WHERE table_schema = 'cdp' AND table_name = 'activities' AND column_name = 'company_id'
 	) THEN
 		ALTER TABLE cdp.activities RENAME COLUMN client_account_id TO company_id;
 	END IF;
