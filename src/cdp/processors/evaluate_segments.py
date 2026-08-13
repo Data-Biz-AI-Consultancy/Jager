@@ -139,7 +139,7 @@ LEAD_SEGMENT_RULES = {
 
 
 def ensure_seed_segments(conn):
-    """Ensures built-in seed segments exist in person_segments and lead_segments tables."""
+    """Ensures built-in seed segments exist in person_segments and lead_statuses tables."""
     person_seeds = [
         ("clients_and_prospects", "Clients & Prospects", "Active or past consulting clients and warm lead opportunities", "dynamic", "Consulting Projects, Advisory, Fractional Data Leadership", {"rule": "clients_and_prospects"}),
         ("recruiters_and_talent", "Recruiters & Talent Acquisition", "Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers", "dynamic", "Full-Time Employment, Contract Roles, Fractional Opportunities", {"rule": "recruiters_and_talent"}),
@@ -172,7 +172,7 @@ def ensure_seed_segments(conn):
     for slug, name, desc, seg_type, criteria in lead_seeds:
         conn.execute(
             text("""
-                INSERT INTO cdp.lead_segments (slug, name, description, segment_type, criteria)
+                INSERT INTO cdp.lead_statuses (slug, name, description, segment_type, criteria)
                 VALUES (:slug, :name, :desc, :type, :criteria)
                 ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
             """),
@@ -280,10 +280,10 @@ def evaluate_engagement_temperature(conn) -> Dict[str, int]:
     return {row[0]: row[1] for row in counts}
 
 
-def evaluate_lead_segments(conn) -> Dict[str, int]:
-    """Evaluates dynamic lead segments and updates lead_segment_id, lead_segment_name, lead_segment_slug on cdp.leads."""
+def evaluate_lead_statuses(conn) -> Dict[str, int]:
+    """Evaluates dynamic lead statuses and updates lead_status_id, lead_status_name, lead_status_slug on cdp.leads."""
     results = {}
-    segments = conn.execute(text("SELECT id, slug, name, segment_type, criteria FROM cdp.lead_segments")).fetchall()
+    segments = conn.execute(text("SELECT id, slug, name, segment_type, criteria FROM cdp.lead_statuses")).fetchall()
 
     for seg in segments:
         seg_id, slug, seg_name, seg_type, criteria = seg[0], seg[1], seg[2], seg[3], seg[4] or {}
@@ -302,9 +302,9 @@ def evaluate_lead_segments(conn) -> Dict[str, int]:
             conn.execute(
                 text("""
                     UPDATE cdp.leads 
-                    SET lead_segment_id = :seg_id,
-                        lead_segment_name = :seg_name,
-                        lead_segment_slug = :seg_slug
+                    SET lead_status_id = :seg_id,
+                        lead_status_name = :seg_name,
+                        lead_status_slug = :seg_slug
                     WHERE id IN :lead_ids
                 """),
                 {"seg_id": seg_id, "seg_name": seg_name, "seg_slug": slug, "lead_ids": tuple(matching_lead_ids)}
@@ -316,22 +316,22 @@ def evaluate_lead_segments(conn) -> Dict[str, int]:
 
 
 def evaluate_segments() -> Dict[str, Any]:
-    """Evaluates all Person and Lead dynamic segments and engagement temperatures in CDP database."""
-    logger.info("Starting CDP segment and engagement temperature evaluation for Persons and Leads...")
+    """Evaluates all Person dynamic segments, Lead statuses, and engagement temperatures in CDP database."""
+    logger.info("Starting CDP segment, status, and engagement temperature evaluation for Persons and Leads...")
     cdp_engine = get_db_engine(default_url="postgresql://jager:jager@db:5432/cdp", env_var="DATABASE_URL")
 
     with cdp_engine.begin() as conn:
         ensure_seed_segments(conn)
         person_results = evaluate_person_segments(conn)
         temperature_results = evaluate_engagement_temperature(conn)
-        lead_results = evaluate_lead_segments(conn)
+        lead_results = evaluate_lead_statuses(conn)
 
-    logger.info(f"CDP segment evaluation completed. Persons: {person_results}, Temperature: {temperature_results}, Leads: {lead_results}")
+    logger.info(f"CDP evaluation completed. Persons: {person_results}, Temperature: {temperature_results}, Lead Statuses: {lead_results}")
     return {
         "status": "success",
         "person_segments": person_results,
         "engagement_temperatures": temperature_results,
-        "lead_segments": lead_results
+        "lead_statuses": lead_results
     }
 
 

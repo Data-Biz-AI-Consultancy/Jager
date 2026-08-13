@@ -30,7 +30,10 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
    - **`cdp.person_segments`**: Dimension table for Opportunity-Based contact segments (`clients_and_prospects`, `former_colleagues_alumni`, `recruiters_and_talent`, `hiring_decision_makers`, `peer_collaborators`, `general_network`). Referenced via `cdp.persons.person_segment_id`.
    - **`cdp.persons.potential_opportunity_types`**: Denormalized opportunity types column describing target collaboration models.
    - **`cdp.persons.engagement_temperature`**: Dynamic engagement score (`hot` [30d], `warm` [90d], `dormant` [>90d], `cold` [no activity]).
-   - **`cdp.lead_segments`**: Dimension table for opportunity/pipeline segments. Referenced via `cdp.leads.lead_segment_id`.
+   - **`cdp.person_segments`**: Dimension table for Opportunity-Based contact segments (`clients_and_prospects`, `former_colleagues_alumni`, `recruiters_and_talent`, `hiring_decision_makers`, `peer_collaborators`, `general_network`). Referenced via `cdp.persons.person_segment_id`.
+   - **`cdp.persons.potential_opportunity_types`**: Denormalized opportunity types column describing target collaboration models.
+   - **`cdp.persons.engagement_temperature`**: Dynamic engagement score (`hot` [30d], `warm` [90d], `dormant` [>90d], `cold` [no activity]).
+   - **`cdp.lead_statuses`**: Dimension table for opportunity/pipeline statuses. Referenced via `cdp.leads.lead_status_id`.
 6. **Automation Endpoints**:
    - Exposes REST HTTP endpoints consumed by n8n workflows (accessed via `CDP_SERVICE_URL`, e.g. `http://cdp:8000`).
 
@@ -125,7 +128,7 @@ The CDP segmentation engine operates under four core principles tailored for a D
 
 1. **Mutually Exclusive Classification**: Every contact in `cdp.persons` has a single primary `person_segment_id` (FK to `cdp.person_segments`), `person_segment_name`, `person_segment_slug`, and `potential_opportunity_types`.
 2. **Zero NULLs Policy**: Unclassified contacts automatically fall back into the `general_network` ("General Network") segment.
-3. **Denormalized Human-Readable Columns**: Direct `person_segment_name`, `person_segment_slug`, `potential_opportunity_types`, `lead_segment_name`, and `lead_segment_slug` columns exist on `cdp.persons` and `cdp.leads` to eliminate required SQL JOINs in quick reporting or downstream applications.
+3. **Denormalized Human-Readable Columns**: Direct `person_segment_name`, `person_segment_slug`, `potential_opportunity_types`, `lead_status_name`, and `lead_status_slug` columns exist on `cdp.persons` and `cdp.leads` to eliminate required SQL JOINs in quick reporting or downstream applications.
 4. **Strict Priority Hierarchy**: Person segments evaluate in a strict priority cascade so higher-trust or high-intent segments take precedence over broader categories.
 
 ### 👥 Person Segments (Opportunity-Based Framework)

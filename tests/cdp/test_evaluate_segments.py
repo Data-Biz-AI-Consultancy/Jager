@@ -19,7 +19,7 @@ from processors.evaluate_segments import (
     evaluate_segments,
     ensure_seed_segments,
     evaluate_person_segments,
-    evaluate_lead_segments,
+    evaluate_lead_statuses,
     PERSON_SEGMENT_RULES,
     LEAD_SEGMENT_RULES,
 )
@@ -71,11 +71,11 @@ def test_evaluate_person_segments():
     assert results["hiring_decision_makers"] == 2
 
 
-def test_evaluate_lead_segments():
+def test_evaluate_lead_statuses():
     mock_conn = MagicMock()
-    # Mock lead_segments query
+    # Mock lead_statuses query
     mock_conn.execute.return_value.fetchall.side_effect = [
-        # cdp.lead_segments fetchall
+        # cdp.lead_statuses fetchall
         [
             ("l-uuid-1", "new_leads_no_followup_7d", "New Leads No Followup 7d", "dynamic", {"rule": "new_leads_no_followup_7d"}),
             ("l-uuid-2", "contract_pending", "Contract Pending", "dynamic", {"rule": "contract_pending"}),
@@ -86,7 +86,7 @@ def test_evaluate_lead_segments():
         [],
     ]
 
-    results = evaluate_lead_segments(mock_conn)
+    results = evaluate_lead_statuses(mock_conn)
     assert results["new_leads_no_followup_7d"] == 1
     assert results["contract_pending"] == 0
 
@@ -103,7 +103,7 @@ def test_evaluate_segments_full():
         result = evaluate_segments()
         assert result["status"] == "success"
         assert "person_segments" in result
-        assert "lead_segments" in result
+        assert "lead_statuses" in result
 
 
 def test_evaluate_segments_api_endpoint():

@@ -266,7 +266,7 @@ CREATE TABLE IF NOT EXISTS cdp.person_segments (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS cdp.lead_segments (
+CREATE TABLE IF NOT EXISTS cdp.lead_statuses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   slug VARCHAR(64) UNIQUE NOT NULL,
   name VARCHAR(128) NOT NULL,
@@ -278,7 +278,7 @@ CREATE TABLE IF NOT EXISTS cdp.lead_segments (
 );
 
 DROP TABLE IF EXISTS cdp.person_segment_memberships;
-DROP TABLE IF EXISTS cdp.lead_segment_memberships;
+DROP TABLE IF EXISTS cdp.lead_status_memberships;
 
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_id UUID REFERENCES cdp.person_segments(id) ON DELETE SET NULL;
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_name VARCHAR(128);
@@ -286,9 +286,9 @@ ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_slug VARCHAR(64)
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS potential_opportunity_types TEXT;
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS engagement_temperature VARCHAR(32) DEFAULT 'cold';
 
-ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_id UUID REFERENCES cdp.lead_segments(id) ON DELETE SET NULL;
-ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_name VARCHAR(128);
-ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_slug VARCHAR(64);
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_id UUID REFERENCES cdp.lead_statuses(id) ON DELETE SET NULL;
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_name VARCHAR(128);
+ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_slug VARCHAR(64);
 
 ALTER TABLE cdp.person_segments ADD COLUMN IF NOT EXISTS potential_opportunity_types TEXT;
 
@@ -301,7 +301,7 @@ INSERT INTO cdp.person_segments (slug, name, description, segment_type, potentia
 ('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', 'Brand Awareness, Audience Engagement, Content Reach', '{"rule": "general_network"}'::jsonb)
 ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, potential_opportunity_types = EXCLUDED.potential_opportunity_types, criteria = EXCLUDED.criteria, updated_at = NOW();
 
-INSERT INTO cdp.lead_segments (slug, name, description, segment_type, criteria) VALUES
+INSERT INTO cdp.lead_statuses (slug, name, description, segment_type, criteria) VALUES
 ('new_leads_no_followup_7d', 'New Leads No Followup 7d', 'Leads in prospect status created 7+ days ago with zero engagement touchpoints', 'dynamic', '{"rule": "new_leads_no_followup_7d"}'::jsonb),
 ('stale_in_negotiation', 'Stale In Negotiation', 'Leads in negotiating status with no touchpoints in the last 14 days', 'dynamic', '{"rule": "stale_in_negotiation"}'::jsonb),
 ('high_intent_inbound', 'High Intent Inbound', 'Leads flagged with high intent or strong signal strength', 'dynamic', '{"rule": "high_intent_inbound"}'::jsonb),
