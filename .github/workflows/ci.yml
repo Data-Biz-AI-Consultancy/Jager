@@ -56,6 +56,14 @@ jobs:
       - name: Start services
         run: docker compose --profile app up -d db n8n
 
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          echo "=== DB logs ==="
+          docker compose logs db --tail 50
+          echo "=== N8N logs ==="
+          docker compose logs n8n --tail 50
+
       - name: Wait for n8n to become healthy
         timeout-minutes: 5
         run: |

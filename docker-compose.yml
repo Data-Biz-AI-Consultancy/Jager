@@ -17,6 +17,7 @@ services:
       POSTGRES_DB: jager
       POSTGRES_USER: jager
       POSTGRES_PASSWORD: jager
+      CI: ${CI:-false}
     ports:
       - "5432:5432"
     volumes:
@@ -27,7 +28,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
-      start_period: 5s
+      start_period: 60s
 
   n8n:
     build:
@@ -46,6 +47,7 @@ services:
       - "5678"
     environment:
       - N8N_ENV=${N8N_ENV:-production}
+      - CI=${CI:-false}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=db
       - DB_POSTGRESDB_PORT=5432
