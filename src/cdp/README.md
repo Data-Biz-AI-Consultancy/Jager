@@ -2,7 +2,7 @@
 
 The **CDP Service** is a dedicated FastAPI microservice responsible for core Customer/Client Data Platform processing in Jager.
 
-A Customer Data Platform (CDP) acts as the unified system of record for managing all **Leads** (`cdp.leads`, with specialized intake tables `cdp.leads_linkedin` and `cdp.leads_manual`), **Persons/Contacts** (`cdp.persons`), **Client Companies/Accounts** (`cdp.client_accounts`), **Person-Account Relationships** (`cdp.person_account_relationships`), and **Client Engagements / Activities** (`cdp.engagements`, `cdp.activities`). Similar to enterprise platforms like Snowplow or Braze, it provides a centralized, 360-degree overview of client interactions and ongoing project engagements.
+A Customer Data Platform (CDP) acts as the unified system of record for managing all **Leads** (`cdp.leads`, with specialized intake tables `cdp.leads_linkedin` and `cdp.leads_manual`), **Persons/Contacts** (`cdp.persons`), **Companies** (`cdp.companies`), **Person-Company Relationships** (`cdp.person_company_relationships`), and **Client Engagements / Activities** (`cdp.engagements`, `cdp.activities`). Similar to enterprise platforms like Snowplow or Braze, it provides a centralized, 360-degree overview of client interactions and ongoing project engagements.
 
 ---
 
@@ -15,8 +15,8 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
    - **`cdp.persons_linkedins`**: Dedicated intake table for raw LinkedIn contact/connection profiles (`s_linkedin.connections`).
    - **`cdp.persons_manual_substack`**: Dedicated intake table for raw Substack subscriber export contacts (`s_manual`).
    - **`cdp.persons`**: Consolidated master contact table representing single resolution outcomes resolved across intake sources and meeting note attendees by primary email or LinkedIn URL.
-   - **`cdp.client_accounts`**: Target client companies, organizations, and accounts extracted from sources (e.g. LinkedIn connections).
-   - **`cdp.person_account_relationships`**: Mapping individual contacts to client accounts with specific roles (e.g. decision maker, job position) and employment status.
+   - **`cdp.companies`**: Target client companies, organizations, and accounts extracted from sources (e.g. LinkedIn connections).
+   - **`cdp.person_company_relationships`**: Mapping individual contacts to client accounts with specific roles (e.g. decision maker, job position) and employment status.
 2. **Lead Intake & Opportunity Lifecycle**:
    - **`cdp.leads_linkedin`**: Intake table for LinkedIn message-derived leads (`s_linkedin.messages`).
    - **`cdp.leads_manual`**: Intake table for manual data-derived leads (`s_manual`).
@@ -231,9 +231,9 @@ stateDiagram-v2
 
 ---
 
-### 2. Client Account Status Lifecycle (`cdp.client_accounts.status`)
+### 2. Company Status Lifecycle (`cdp.companies.status`)
 
-The `cdp.client_accounts` table represents target organizations. It follows a streamlined 6-stage lifecycle tracking the overall company-level relationship.
+The `cdp.companies` table represents target organizations. It follows a streamlined 6-stage lifecycle tracking the overall company-level relationship.
 
 ```mermaid
 stateDiagram-v2
@@ -245,7 +245,7 @@ stateDiagram-v2
     engaging --> completed : Client Engagement Concluded
 ```
 
-#### Client Account Stage Definitions (`cdp.client_accounts.status`)
+#### Company Stage Definitions (`cdp.companies.status`)
 
 | Status Value | Stage Name | Description & Trigger Criteria |
 | :--- | :--- | :--- |
@@ -269,7 +269,7 @@ src/cdp/
 └── processors/                 # Core domain processors & handlers
     ├── entity_resolution.py             # Consolidated identity resolution engine merging intake tables into cdp.persons
     ├── evaluate_segments.py             # Evaluates dynamic segment rules and refreshes person and lead segment memberships
-    ├── process_linkedin_connections.py  # Ingests LinkedIn connections into cdp.persons_linkedins, cdp.client_accounts, and triggers entity resolution
+    ├── process_linkedin_connections.py  # Ingests LinkedIn connections into cdp.persons_linkedins, cdp.companies, and triggers entity resolution
     ├── process_linkedin_messages.py     # Processes s_linkedin.messages into cdp.leads_linkedin and cdp.leads
     ├── process_manual_data.py           # Ingests s_manual tables into cdp.persons_manual_substack, cdp.leads_manual, cdp.leads, and triggers entity resolution
     └── process_notion_meeting_notes.py  # Ingests Notion meeting notes into cdp.activities_notion_meeting_notes and triggers entity resolution
@@ -280,8 +280,8 @@ src/cdp/
 ## API Endpoints
 
 * `GET /health`: Service health check.
-* `POST /process/linkedin_connections`: Runs the processor to normalize raw connections from `s_linkedin.connections` into `cdp.persons`, `cdp.client_accounts`, and `cdp.person_account_relationships`.
-* `POST /process/manual_data`: Runs the processor to extract and normalize manual data ingestion tables from `s_manual` schema into `cdp.leads`, `cdp.persons`, and `cdp.client_accounts`.
+* `POST /process/linkedin_connections`: Runs the processor to normalize raw connections from `s_linkedin.connections` into `cdp.persons`, `cdp.companies`, and `cdp.person_company_relationships`.
+* `POST /process/manual_data`: Runs the processor to extract and normalize manual data ingestion tables from `s_manual` schema into `cdp.leads`, `cdp.persons`, and `cdp.companies`.
 * `POST /process/linkedin_messages`: Runs the processor to extract and normalize LinkedIn messages into `cdp.leads_linkedin` and `cdp.leads`.
 * `POST /process/notion_meeting_notes`: Ingests Notion meeting notes from `s_notion.meeting_notes` into `cdp.activities_notion_meeting_notes` and populates `cdp.activities`.
 * `POST /process/evaluate_segments`: Evaluates dynamic rule criteria across `cdp.person_segments` and `cdp.lead_segments` and updates membership junction tables.

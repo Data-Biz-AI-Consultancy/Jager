@@ -46,10 +46,10 @@ def generate_company_domain(company_name: str) -> str:
 def process_linkedin_connections():
     """
     Reads unprocessed LinkedIn connections from s_linkedin.connections (processed = 0) in jager DB,
-    normalizes profiles into cdp.persons, extracts company accounts into cdp.client_accounts,
-    and maps relationships in cdp.person_account_relationships in cdp DB.
+    normalizes profiles into cdp.persons, extracts company accounts into cdp.companies,
+    and maps relationships in cdp.person_company_relationships in cdp DB.
     """
-    logger.info("Starting processing of LinkedIn connections into cdp.persons and cdp.client_accounts...")
+    logger.info("Starting processing of LinkedIn connections into cdp.persons and cdp.companies...")
     jager_engine = get_db_engine(default_url="postgresql://jager:jager@db:5432/jager", env_var="JAGER_DATABASE_URL")
     cdp_engine = get_db_engine(default_url="postgresql://jager:jager@db:5432/cdp", env_var="DATABASE_URL")
 
@@ -62,21 +62,19 @@ def process_linkedin_connections():
             text("""
                 SELECT id, first_name, last_name, profile_url, email_address, company, position, connected_at
                 FROM s_linkedin.connections
+                WHERE processed = 0 OR processed IS NULL
             """)
         ).mappings().all()
 
         if not rows:
-            logger.info("No LinkedIn connections found.")
-            return {
-                "status": "success",
-                "processed_count": 0,
-                "accounts_processed": 0,
-                "persons_resolved": 0
-            }
+            logger.info("No unprocessed LinkedIn connections found.")
+            return {"status": "success", "processed_count": 0, "accounts_processed": 0, "persons_resolved": 0}
+
+        logger.info(f"Fetched {len(rows)} unprocessed LinkedIn connections.")
 
         with cdp_engine.begin() as cdp_conn:
             for row in rows:
-                conn_id = row.get("id")
+                conn_id = str(row["id"])
                 first_name = (row.get("first_name") or "").strip() or None
                 last_name = (row.get("last_name") or "").strip() or None
                 profile_url = (row.get("profile_url") or "").strip() or None
@@ -96,13 +94,16 @@ def process_linkedin_connections():
                     )
                     continue
 
-                # 1. Upsert intake record into cdp.persons_linkedins
+                # 1. Upsert into cdp.persons_linkedins intake table
                 cdp_conn.execute(
                     text("""
                         INSERT INTO cdp.persons_linkedins (
-                            connection_id, first_name, last_name, profile_url, email_address, company, position, connected_at, raw_payload, intake_at, updated_at
-                        ) VALUES (
-                            :conn_id, :first_name, :last_name, :profile_url, :email, :company, :position, :connected_at, :raw_payload, NOW(), NOW()
+                            connection_id, first_name, last_name, profile_url, email_address,
+                            company, position, connected_at, raw_payload, intake_at, updated_at
+                        )
+                        VALUES (
+                            :connection_id, :first_name, :last_name, :profile_url, :email,
+                            :company, :position, :connected_at, :raw_payload, NOW(), NOW()
                         )
                         ON CONFLICT (connection_id) DO UPDATE SET
                             first_name = EXCLUDED.first_name,
@@ -113,10 +114,10 @@ def process_linkedin_connections():
                             position = EXCLUDED.position,
                             connected_at = EXCLUDED.connected_at,
                             raw_payload = EXCLUDED.raw_payload,
-                            updated_at = NOW();
+                            updated_at = NOW()
                     """),
                     {
-                        "conn_id": str(conn_id),
+                        "connection_id": conn_id,
                         "first_name": first_name,
                         "last_name": last_name,
                         "profile_url": profile_url,
@@ -128,23 +129,23 @@ def process_linkedin_connections():
                     }
                 )
 
-                # 2. Process company into cdp.client_accounts if present
-                client_account_id = None
+                # 2. Process company into cdp.companies if present
+                company_id = None
                 if company:
                     company_clean = company.strip()
                     domain = generate_company_domain(company_clean)
                     account_res = cdp_conn.execute(
                         text("""
                             WITH existing_account AS (
-                              SELECT id FROM cdp.client_accounts
+                              SELECT id FROM cdp.companies
                               WHERE company_name = :company
                               LIMIT 1
                             ),
                             upserted_account AS (
-                              INSERT INTO cdp.client_accounts (company_name, domain, status, created_at, updated_at)
+                              INSERT INTO cdp.companies (company_name, domain, status, created_at, updated_at)
                               SELECT
                                 :company,
-                                CASE WHEN EXISTS (SELECT 1 FROM cdp.client_accounts WHERE domain = :domain) THEN NULL ELSE :domain END,
+                                CASE WHEN EXISTS (SELECT 1 FROM cdp.companies WHERE domain = :domain) THEN NULL ELSE :domain END,
                                 'prospect',
                                 NOW(),
                                 NOW()
@@ -152,7 +153,7 @@ def process_linkedin_connections():
                               RETURNING id
                             ),
                             updated_account AS (
-                              UPDATE cdp.client_accounts
+                              UPDATE cdp.companies
                               SET
                                 updated_at = NOW()
                               WHERE id = (SELECT id FROM existing_account)
@@ -162,8 +163,8 @@ def process_linkedin_connections():
                         """),
                         {"company": company_clean, "domain": domain}
                     )
-                    client_account_id = account_res.scalar()
-                    if client_account_id:
+                    company_id = account_res.scalar()
+                    if company_id:
                         accounts_processed += 1
 
                 # 3. Mark s_linkedin.connections row as processed in jager DB

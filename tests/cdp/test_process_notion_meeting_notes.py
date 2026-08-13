@@ -78,7 +78,7 @@ def test_process_notion_meeting_notes_with_rows():
     mock_intake = {
         "page_id": "note-123",
         "person_id": None,
-        "client_account_id": None,
+        "company_id": None,
         "database_name": "FaDi meeting notes",
         "title": "Strategy Sync",
         "meeting_date": "2026-08-01T10:00:00Z",

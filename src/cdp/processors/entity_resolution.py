@@ -84,7 +84,7 @@ def deduplicate_master_persons(cdp_conn):
             cdp_conn.execute(text("UPDATE cdp.activities SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
             cdp_conn.execute(text("UPDATE cdp.activities_notion_meeting_notes SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
             cdp_conn.execute(text("UPDATE cdp.engagements SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
-            cdp_conn.execute(text("UPDATE cdp.person_account_relationships SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
+            cdp_conn.execute(text("UPDATE cdp.person_company_relationships SET person_id = :master_id WHERE person_id = :dup_id"), {"master_id": master_id, "dup_id": dup_id})
             cdp_conn.execute(text("DELETE FROM cdp.persons WHERE id = :dup_id"), {"dup_id": dup_id})
             merged_duplicates += 1
 
