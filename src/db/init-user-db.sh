@@ -133,9 +133,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.person_company_relationships ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE CASCADE;
-	ALTER TABLE cdp.activities ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.engagements ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+	ALTER TABLE IF EXISTS cdp.person_company_relationships ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE CASCADE;
+	ALTER TABLE IF EXISTS cdp.activities ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+	ALTER TABLE IF EXISTS cdp.engagements ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
 
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
