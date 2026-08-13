@@ -226,6 +226,10 @@ ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+ALTER TABLE cdp.person_company_relationships ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE CASCADE;
+ALTER TABLE cdp.activities ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+ALTER TABLE cdp.engagements ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT;
@@ -237,6 +241,68 @@ ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFA
 
 DO $$
 BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'cdp' AND table_name = 'client_accounts'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'cdp' AND table_name = 'companies'
+  ) THEN
+    ALTER TABLE cdp.client_accounts RENAME TO companies;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'cdp' AND table_name = 'person_account_relationships'
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships'
+  ) THEN
+    ALTER TABLE cdp.person_account_relationships RENAME TO person_company_relationships;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships' AND column_name = 'client_account_id'
+  ) THEN
+    ALTER TABLE cdp.person_company_relationships RENAME COLUMN client_account_id TO company_id;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'persons' AND column_name = 'primary_client_account_id'
+  ) THEN
+    ALTER TABLE cdp.persons RENAME COLUMN primary_client_account_id TO primary_company_id;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'client_account_id'
+  ) THEN
+    ALTER TABLE cdp.leads RENAME COLUMN client_account_id TO company_id;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'leads_manual' AND column_name = 'client_account_id'
+  ) THEN
+    ALTER TABLE cdp.leads_manual RENAME COLUMN client_account_id TO company_id;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'activities_notion_meeting_notes' AND column_name = 'client_account_id'
+  ) THEN
+    ALTER TABLE cdp.activities_notion_meeting_notes RENAME COLUMN client_account_id TO company_id;
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'cdp' AND table_name = 'activities' AND column_name = 'client_account_id'
+  ) THEN
+    ALTER TABLE cdp.activities RENAME COLUMN client_account_id TO company_id;
+  END IF;
+
   IF EXISTS (
     SELECT 1 FROM information_schema.columns 
     WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'conversation_id'
@@ -254,6 +320,7 @@ BEGIN
     ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255);
   END IF;
 END $$;
+
 
 CREATE TABLE IF NOT EXISTS cdp.person_segments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1362,27 +1429,35 @@ async function run() {
   console.log('Application database migrations and data transfers completed successfully.');
   await client.end();
 
-  // Run CDP database migrations
-  const cdpClient = new Client({
-    host: process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db',
-    port: parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10),
-    database: 'cdp',
-    user: process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager',
-    password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',
-  });
+  let cdpConfig;
+  if (process.env.CDP_DATABASE_URL) {
+    cdpConfig = { connectionString: process.env.CDP_DATABASE_URL };
+  } else if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('/jager')) {
+    cdpConfig = { connectionString: process.env.DATABASE_URL.replace('/jager', '/cdp') };
+  } else {
+    const host = process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db';
+    const port = parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10);
+    const user = process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager';
+    const password = process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager';
+    cdpConfig = { host, port, database: 'cdp', user, password };
+  }
+  const cdpClient = new Client(cdpConfig);
   try {
     console.log('Connecting to cdp database for migrations...');
     await cdpClient.connect();
   } catch (err) {
     if (err.code === '3D000') {
-      // Database does not exist, create it via admin client connection to postgres DB
-      const adminClient = new Client({
-        host: process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db',
-        port: parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10),
-        database: 'jager',
-        user: process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager',
-        password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',
-      });
+      const adminClient = new Client(
+        process.env.DATABASE_URL
+          ? { connectionString: process.env.DATABASE_URL }
+          : {
+              host: process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db',
+              port: parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10),
+              database: 'jager',
+              user: process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager',
+              password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',
+            }
+      );
       await adminClient.connect();
       await adminClient.query('CREATE DATABASE cdp');
       await adminClient.end();
@@ -1391,6 +1466,7 @@ async function run() {
       throw err;
     }
   }
+
   console.log('Applying cdp database schema DDL...');
   await cdpClient.query(cdpDdl);
   console.log('CDP database migrations completed successfully.');

@@ -133,6 +133,10 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.person_company_relationships ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE CASCADE;
+	ALTER TABLE cdp.activities ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.engagements ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT;
@@ -144,6 +148,68 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 
 	DO $$
 	BEGIN
+		IF EXISTS (
+			SELECT 1 FROM information_schema.tables 
+			WHERE table_schema = 'cdp' AND table_name = 'client_accounts'
+		) AND NOT EXISTS (
+			SELECT 1 FROM information_schema.tables 
+			WHERE table_schema = 'cdp' AND table_name = 'companies'
+		) THEN
+			ALTER TABLE cdp.client_accounts RENAME TO companies;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.tables 
+			WHERE table_schema = 'cdp' AND table_name = 'person_account_relationships'
+		) AND NOT EXISTS (
+			SELECT 1 FROM information_schema.tables 
+			WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships'
+		) THEN
+			ALTER TABLE cdp.person_account_relationships RENAME TO person_company_relationships;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships' AND column_name = 'client_account_id'
+		) THEN
+			ALTER TABLE cdp.person_company_relationships RENAME COLUMN client_account_id TO company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'persons' AND column_name = 'primary_client_account_id'
+		) THEN
+			ALTER TABLE cdp.persons RENAME COLUMN primary_client_account_id TO primary_company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'client_account_id'
+		) THEN
+			ALTER TABLE cdp.leads RENAME COLUMN client_account_id TO company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'leads_manual' AND column_name = 'client_account_id'
+		) THEN
+			ALTER TABLE cdp.leads_manual RENAME COLUMN client_account_id TO company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'activities_notion_meeting_notes' AND column_name = 'client_account_id'
+		) THEN
+			ALTER TABLE cdp.activities_notion_meeting_notes RENAME COLUMN client_account_id TO company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'activities' AND column_name = 'client_account_id'
+		) THEN
+			ALTER TABLE cdp.activities RENAME COLUMN client_account_id TO company_id;
+		END IF;
+
 		IF EXISTS (
 			SELECT 1 FROM information_schema.columns 
 			WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'conversation_id'
@@ -158,6 +224,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 			ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255);
 		END IF;
 	END $$;
+
 
 	CREATE TABLE IF NOT EXISTS cdp.person_company_relationships (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
