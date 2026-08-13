@@ -2,7 +2,7 @@
 
 # Wait for PostgreSQL port to be ready
 echo "Waiting for PostgreSQL database to be ready..."
-while ! nc -z db 5432; do
+until (echo > /dev/tcp/db/5432) 2>/dev/null; do
   sleep 1
 done
 echo "PostgreSQL is ready!"
