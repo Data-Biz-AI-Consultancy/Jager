@@ -162,24 +162,24 @@ def ensure_seed_segments(conn):
     conn.execute(text("DELETE FROM cdp.person_segments WHERE slug IN ('community_and_audience', 'ecosystem_tooling_partners')"))
 
     lead_seeds = [
-        ("prospect", "Prospect", "awareness", "Default state upon lead intake/ingestion. No negotiation initiated yet.", {"rule": "prospect"}),
-        ("nurture", "Nurture", "awareness", "Long-term follow up or delayed opportunity.", {"rule": "nurture"}),
-        ("negotiating", "Negotiating", "consideration", "Rates, scope, or ROE discussions underway.", {"rule": "negotiating"}),
-        ("offer_accepted", "Offer Accepted", "consideration", "Rates and terms agreed; awaiting contract execution.", {"rule": "offer_accepted"}),
-        ("contract_signed", "Contract Signed", "conversion", "Contract fully executed and signed.", {"rule": "contract_signed"}),
-        ("engaging", "Engaging", "conversion", "Active project work period.", {"rule": "engaging"}),
-        ("completed", "Completed", "conversion", "Project or consulting engagement successfully finished.", {"rule": "completed"}),
-        ("disqualified", "Disqualified", "archived", "Unresponsive, poor fit, or lost opportunity.", {"rule": "disqualified"}),
+        ("prospect", "Prospect", "awareness", False, "Default state upon lead intake/ingestion. No negotiation initiated yet.", {"rule": "prospect"}),
+        ("nurture", "Nurture", "awareness", False, "Long-term follow up or delayed opportunity.", {"rule": "nurture"}),
+        ("negotiating", "Negotiating", "consideration", False, "Rates, scope, or ROE discussions underway.", {"rule": "negotiating"}),
+        ("offer_accepted", "Offer Accepted", "consideration", False, "Rates and terms agreed; awaiting contract execution.", {"rule": "offer_accepted"}),
+        ("contract_signed", "Contract Signed", "conversion", False, "Contract fully executed and signed.", {"rule": "contract_signed"}),
+        ("engaging", "Engaging", "conversion", False, "Active project work period.", {"rule": "engaging"}),
+        ("completed", "Completed", None, True, "Project or consulting engagement successfully finished.", {"rule": "completed"}),
+        ("disqualified", "Disqualified", None, True, "Unresponsive, poor fit, or lost opportunity.", {"rule": "disqualified"}),
     ]
 
-    for slug, name, stage, desc, criteria in lead_seeds:
+    for slug, name, stage, is_end_state, desc, criteria in lead_seeds:
         conn.execute(
             text("""
-                INSERT INTO cdp.lead_statuses (slug, name, stage, description, criteria)
-                VALUES (:slug, :name, :stage, :desc, :criteria)
-                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+                INSERT INTO cdp.lead_statuses (slug, name, stage, is_end_state, description, criteria)
+                VALUES (:slug, :name, :stage, :is_end_state, :desc, :criteria)
+                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, is_end_state = EXCLUDED.is_end_state, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
             """),
-            {"slug": slug, "name": name, "stage": stage, "desc": desc, "criteria": json.dumps(criteria)}
+            {"slug": slug, "name": name, "stage": stage, "is_end_state": is_end_state, "desc": desc, "criteria": json.dumps(criteria)}
         )
 
 
@@ -293,14 +293,13 @@ def evaluate_lead_statuses(conn) -> Dict[str, int]:
         "awareness": "1. Awareness",
         "consideration": "2. Consideration",
         "conversion": "3. Conversion",
-        "archived": "Archived",
     }
 
     # Reset all lead status references
     conn.execute(text("UPDATE cdp.leads SET lead_status_id = NULL, lead_status_name = NULL, lead_status_slug = NULL, lead_stage_slug = NULL, lead_stage_name = NULL"))
 
     for slug, (status_id, status_name, stage_slug) in status_map.items():
-        stage_name = stage_display_names.get(stage_slug, stage_slug.title())
+        stage_name = stage_display_names.get(stage_slug, stage_slug.title()) if stage_slug else None
         count = conn.execute(
             text("""
                 UPDATE cdp.leads 

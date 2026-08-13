@@ -178,18 +178,18 @@ Every person in `cdp.persons` is dynamically scored with an `engagement_temperat
 
 ### 💼 Lead Statuses & Funnel Stages
 
-`cdp.lead_statuses` stores the 8 canonical lead lifecycle stages mapped to 3 high-level marketing/sales funnel stages (`awareness`, `consideration`, `conversion`):
+`cdp.lead_statuses` stores the 8 canonical lead lifecycle stages mapped to 3 high-level marketing/sales funnel stages (`awareness`, `consideration`, `conversion`), alongside an `is_end_state` terminal flag:
 
-| Slug | Lead Status Name | Funnel Stage (`stage`) | Description & Lifecycle Trigger |
-| :--- | :--- | :--- | :--- |
-| `prospect` | **Prospect** | `awareness` | Default state upon lead intake/ingestion. No negotiation initiated yet. |
-| `nurture` | **Nurture** | `awareness` | Long-term follow up or delayed opportunity. |
-| `negotiating` | **Negotiating** | `consideration` | Rates, scope, or ROE discussions underway. |
-| `offer_accepted` | **Offer Accepted** | `consideration` | Rates and terms agreed; awaiting contract execution. |
-| `contract_signed` | **Contract Signed** | `conversion` | Contract fully executed and signed. |
-| `engaging` | **Engaging** | `conversion` | Active project work period. |
-| `completed` | **Completed** | `conversion` | Project or consulting engagement successfully finished. |
-| `disqualified` | **Disqualified** | `archived` | Unresponsive, poor fit, or lost opportunity. |
+| Slug | Lead Status Name | Funnel Stage (`stage`) | Is End State (`is_end_state`) | Description & Lifecycle Trigger |
+| :--- | :--- | :---: | :---: | :--- |
+| `prospect` | **Prospect** | `awareness` | `FALSE` | Default state upon lead intake/ingestion. No negotiation initiated yet. |
+| `nurture` | **Nurture** | `awareness` | `FALSE` | Long-term follow up or delayed opportunity. |
+| `negotiating` | **Negotiating** | `consideration` | `FALSE` | Rates, scope, or ROE discussions underway. |
+| `offer_accepted` | **Offer Accepted** | `consideration` | `FALSE` | Rates and terms agreed; awaiting contract execution. |
+| `contract_signed` | **Contract Signed** | `conversion` | `FALSE` | Contract fully executed and signed. |
+| `engaging` | **Engaging** | `conversion` | `FALSE` | Active project work period. |
+| `completed` | **Completed** | `NULL` | `TRUE` | Terminal state: Project or consulting engagement successfully finished. |
+| `disqualified` | **Disqualified** | `NULL` | `TRUE` | Terminal state: Unresponsive, poor fit, or lost opportunity. |
 
 ---
 

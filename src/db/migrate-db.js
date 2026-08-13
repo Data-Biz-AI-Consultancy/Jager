@@ -270,7 +270,8 @@ CREATE TABLE IF NOT EXISTS cdp.lead_statuses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   slug VARCHAR(64) UNIQUE NOT NULL,
   name VARCHAR(128) NOT NULL,
-  stage VARCHAR(32) NOT NULL DEFAULT 'awareness',
+  stage VARCHAR(32),
+  is_end_state BOOLEAN NOT NULL DEFAULT FALSE,
   description TEXT,
   criteria JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -303,16 +304,16 @@ INSERT INTO cdp.person_segments (slug, name, description, segment_type, potentia
 ('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', 'Brand Awareness, Audience Engagement, Content Reach', '{"rule": "general_network"}'::jsonb)
 ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, potential_opportunity_types = EXCLUDED.potential_opportunity_types, criteria = EXCLUDED.criteria, updated_at = NOW();
 
-INSERT INTO cdp.lead_statuses (slug, name, stage, description, criteria) VALUES
-('prospect', 'Prospect', 'awareness', 'Default state upon lead intake/ingestion. No negotiation initiated yet.', '{"rule": "prospect"}'::jsonb),
-('nurture', 'Nurture', 'awareness', 'Long-term follow up or delayed opportunity.', '{"rule": "nurture"}'::jsonb),
-('negotiating', 'Negotiating', 'consideration', 'Rates, scope, or ROE discussions underway.', '{"rule": "negotiating"}'::jsonb),
-('offer_accepted', 'Offer Accepted', 'consideration', 'Rates and terms agreed; awaiting contract execution.', '{"rule": "offer_accepted"}'::jsonb),
-('contract_signed', 'Contract Signed', 'conversion', 'Contract fully executed and signed.', '{"rule": "contract_signed"}'::jsonb),
-('engaging', 'Engaging', 'conversion', 'Active project work period.', '{"rule": "engaging"}'::jsonb),
-('completed', 'Completed', 'conversion', 'Project or consulting engagement successfully finished.', '{"rule": "completed"}'::jsonb),
-('disqualified', 'Disqualified', 'archived', 'Unresponsive, poor fit, or lost opportunity.', '{"rule": "disqualified"}'::jsonb)
-ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+INSERT INTO cdp.lead_statuses (slug, name, stage, is_end_state, description, criteria) VALUES
+('prospect', 'Prospect', 'awareness', FALSE, 'Default state upon lead intake/ingestion. No negotiation initiated yet.', '{"rule": "prospect"}'::jsonb),
+('nurture', 'Nurture', 'awareness', FALSE, 'Long-term follow up or delayed opportunity.', '{"rule": "nurture"}'::jsonb),
+('negotiating', 'Negotiating', 'consideration', FALSE, 'Rates, scope, or ROE discussions underway.', '{"rule": "negotiating"}'::jsonb),
+('offer_accepted', 'Offer Accepted', 'consideration', FALSE, 'Rates and terms agreed; awaiting contract execution.', '{"rule": "offer_accepted"}'::jsonb),
+('contract_signed', 'Contract Signed', 'conversion', FALSE, 'Contract fully executed and signed.', '{"rule": "contract_signed"}'::jsonb),
+('engaging', 'Engaging', 'conversion', FALSE, 'Active project work period.', '{"rule": "engaging"}'::jsonb),
+('completed', 'Completed', NULL, TRUE, 'Project or consulting engagement successfully finished.', '{"rule": "completed"}'::jsonb),
+('disqualified', 'Disqualified', NULL, TRUE, 'Unresponsive, poor fit, or lost opportunity.', '{"rule": "disqualified"}'::jsonb)
+ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, is_end_state = EXCLUDED.is_end_state, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
 `;
 
 const ddl = `
