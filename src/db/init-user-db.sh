@@ -4,7 +4,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Create databases
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "jager" <<-EOSQL
 	SELECT 'CREATE DATABASE n8n'
 	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'n8n')\gexec
 	SELECT 'CREATE DATABASE cdp'
@@ -12,7 +12,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 EOSQL
 
 
-# Initialize CDP database
+# Initialize CDP database (strictly cdp schema only)
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" -f "$SCRIPT_DIR/sql/cdp_schema.sql"
 
 # Seed reference data — skipped in CI (schema-only mode)
@@ -21,10 +21,10 @@ if [ "$CI" != "true" ]; then
 fi
 
 
-# Initialize OLTP database
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -f "$SCRIPT_DIR/sql/oltp_schema.sql"
+# Initialize OLTP database (jager database — raw staging & operational schemas)
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "jager" -f "$SCRIPT_DIR/sql/oltp_schema.sql"
 
 # Seed reference data — skipped in CI (schema-only mode)
 if [ "$CI" != "true" ]; then
-	psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -f "$SCRIPT_DIR/sql/oltp_seeds.sql"
+	psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "jager" -f "$SCRIPT_DIR/sql/oltp_seeds.sql"
 fi

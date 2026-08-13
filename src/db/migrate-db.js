@@ -9,35 +9,40 @@ try {
   Client = require('pg').Client;
 }
 
-let client;
-let configLog = '';
-
-if (process.env.DB_APPLICATION_URL) {
-  configLog = `DB_APPLICATION_URL (connection string)`;
-  client = new Client({
-    connectionString: process.env.DB_APPLICATION_URL,
-  });
-} else if (process.env.DATABASE_URL && (process.env.DATABASE_URL.includes('/jager') || !process.env.DATABASE_URL.includes('/n8n'))) {
-  configLog = `DATABASE_URL (connection string)`;
-  client = new Client({
-    connectionString: process.env.DATABASE_URL,
-  });
-} else {
+function getJagerConfig() {
+  if (process.env.JAGER_DATABASE_URL) {
+    return { connectionString: process.env.JAGER_DATABASE_URL };
+  }
+  if (process.env.DB_APPLICATION_URL) {
+    return { connectionString: process.env.DB_APPLICATION_URL };
+  }
+  if (process.env.DATABASE_URL) {
+    let url = process.env.DATABASE_URL;
+    url = url.replace(/\/cdp(\?|$)/, '/jager$1').replace(/\/n8n(\?|$)/, '/jager$1');
+    return { connectionString: url };
+  }
   const host = process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db';
-  const port = process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432';
-  const database = 'jager';
+  const port = parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10);
   const user = process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager';
-  configLog = `host=${host}, port=${port}, database=${database}, user=${user}`;
-  client = new Client({
-    host,
-    port: parseInt(port, 10),
-    database,
-    user,
-    password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',
-  });
+  const password = process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager';
+  return { host, port, database: 'jager', user, password };
 }
 
-console.log(`Database migration script connecting via: ${configLog}`);
+function getCdpConfig() {
+  if (process.env.CDP_DATABASE_URL) {
+    return { connectionString: process.env.CDP_DATABASE_URL };
+  }
+  if (process.env.DATABASE_URL) {
+    let url = process.env.DATABASE_URL;
+    url = url.replace(/\/jager(\?|$)/, '/cdp$1').replace(/\/n8n(\?|$)/, '/cdp$1');
+    return { connectionString: url };
+  }
+  const host = process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db';
+  const port = parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10);
+  const user = process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager';
+  const password = process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager';
+  return { host, port, database: 'cdp', user, password };
+}
 
 const sqlDir = path.join(__dirname, 'sql');
 const cdpDdl = fs.readFileSync(path.join(sqlDir, 'cdp_schema.sql'), 'utf8');
@@ -46,19 +51,22 @@ const ddl = fs.readFileSync(path.join(sqlDir, 'oltp_schema.sql'), 'utf8');
 const seeds = process.env.CI !== 'true' ? fs.readFileSync(path.join(sqlDir, 'oltp_seeds.sql'), 'utf8') : '';
 
 async function run() {
-  console.log('Connecting to jager application database for automated migrations...');
-  await client.connect();
+  const jagerConfig = getJagerConfig();
+  console.log(`Connecting to jager application database for automated migrations...`);
+  const jagerClient = new Client(jagerConfig);
+  await jagerClient.connect();
 
   console.log('Running application database migrations...');
+  await jagerClient.query('DROP SCHEMA IF EXISTS cdp CASCADE;');
   try {
-    await client.query(`
+    await jagerClient.query(`
       ALTER TABLE t_content_generation.linkedin_posts DROP COLUMN IF EXISTS publish_at;
       ALTER TABLE t_content_generation.linkedin_posts DROP COLUMN IF EXISTS scheduled_to_publish_at;
     `);
   } catch (err) {
     console.warn('Warning: Failed to drop duplicate scheduling columns:', err.message);
   }
-  await client.query(ddl);
+  await jagerClient.query(ddl);
 
   // Deduplicate and ensure primary key constraints for s_linkedin tables
   const tablesToFix = [
@@ -80,12 +88,12 @@ async function run() {
   ];
   for (const table of tablesToFix) {
     console.log(`Ensuring primary key on s_linkedin.${table}...`);
-    await client.query(`
+    await jagerClient.query(`
       DELETE FROM s_linkedin.${table} a
       USING s_linkedin.${table} b
       WHERE a.ctid < b.ctid AND a.id = b.id;
     `);
-    await client.query(`
+    await jagerClient.query(`
       DO $$
       BEGIN
           IF NOT EXISTS (
@@ -128,14 +136,14 @@ async function run() {
 
   console.log('Checking for legacy data to migrate from public schema...');
   for (const m of migrations) {
-    const checkRes = await client.query(
+    const checkRes = await jagerClient.query(
       `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)`,
       [m.oldTable]
     );
     if (checkRes.rows[0].exists) {
       // Find common columns
       const [newSchema, newTableName] = m.newTable.split('.');
-      const colsRes = await client.query(
+      const colsRes = await jagerClient.query(
         `SELECT column_name FROM information_schema.columns 
          WHERE table_schema = 'public' AND table_name = $1
          INTERSECT
@@ -148,11 +156,11 @@ async function run() {
       console.log(`Migrating data from public.${m.oldTable} to ${m.newTable} using columns: ${commonCols}...`);
       
       // Copy data
-      await client.query(`INSERT INTO ${m.newTable} (${commonCols}) SELECT ${commonCols} FROM public.${m.oldTable} ON CONFLICT DO NOTHING`);
+      await jagerClient.query(`INSERT INTO ${m.newTable} (${commonCols}) SELECT ${commonCols} FROM public.${m.oldTable} ON CONFLICT DO NOTHING`);
       
       // Update serial sequence if needed
       if (m.hasSerial) {
-        await client.query(
+        await jagerClient.query(
           `SELECT setval(pg_get_serial_sequence($1, 'id'), coalesce(max(id), 1)) FROM ${m.newTable}`,
           [m.newTable]
         );
@@ -160,47 +168,26 @@ async function run() {
       
       // Drop old table
       console.log(`Dropping legacy table public.${m.oldTable}...`);
-      await client.query(`DROP TABLE public.${m.oldTable} CASCADE`);
+      await jagerClient.query(`DROP TABLE public.${m.oldTable} CASCADE`);
     }
   }
 
   if (seeds) {
     console.log('Seeding default feeds and subreddits...');
-    await client.query(seeds);
+    await jagerClient.query(seeds);
   }
 
   console.log('Application database migrations and data transfers completed successfully.');
-  await client.end();
+  await jagerClient.end();
 
-  let cdpConfig;
-  if (process.env.CDP_DATABASE_URL) {
-    cdpConfig = { connectionString: process.env.CDP_DATABASE_URL };
-  } else if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('/jager')) {
-    cdpConfig = { connectionString: process.env.DATABASE_URL.replace('/jager', '/cdp') };
-  } else {
-    const host = process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db';
-    const port = parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10);
-    const user = process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager';
-    const password = process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager';
-    cdpConfig = { host, port, database: 'cdp', user, password };
-  }
+  const cdpConfig = getCdpConfig();
   const cdpClient = new Client(cdpConfig);
   try {
     console.log('Connecting to cdp database for migrations...');
     await cdpClient.connect();
   } catch (err) {
     if (err.code === '3D000') {
-      const adminClient = new Client(
-        process.env.DATABASE_URL
-          ? { connectionString: process.env.DATABASE_URL }
-          : {
-              host: process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db',
-              port: parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10),
-              database: 'jager',
-              user: process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager',
-              password: process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager',
-            }
-      );
+      const adminClient = new Client(getJagerConfig());
       await adminClient.connect();
       await adminClient.query('CREATE DATABASE cdp');
       await adminClient.end();
@@ -209,6 +196,22 @@ async function run() {
       throw err;
     }
   }
+
+  console.log('Cleaning non-CDP schemas from cdp database if present...');
+  await cdpClient.query(`
+    DO $$
+    DECLARE
+        r RECORD;
+    BEGIN
+        FOR r IN (
+            SELECT schema_name 
+            FROM information_schema.schemata 
+            WHERE schema_name NOT IN ('cdp', 'public', 'information_schema', 'pg_catalog', 'pg_toast')
+        ) LOOP
+            EXECUTE 'DROP SCHEMA IF EXISTS ' || quote_ident(r.schema_name) || ' CASCADE';
+        END LOOP;
+    END $$;
+  `);
 
   console.log('Applying cdp database schema DDL...');
   await cdpClient.query(cdpDdl);
