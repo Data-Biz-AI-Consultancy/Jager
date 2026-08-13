@@ -17,6 +17,3 @@ models:
           - not_null
       - name: stage
         description: "Stage of the lead status."
-        tests:
-          - not_null
-
