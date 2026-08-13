@@ -162,24 +162,24 @@ def ensure_seed_segments(conn):
     conn.execute(text("DELETE FROM cdp.person_segments WHERE slug IN ('community_and_audience', 'ecosystem_tooling_partners')"))
 
     lead_seeds = [
-        ("prospect", "Prospect", "Default state upon lead intake/ingestion. No negotiation initiated yet.", "static", {"rule": "prospect"}),
-        ("negotiating", "Negotiating", "Rates, scope, or ROE discussions underway.", "static", {"rule": "negotiating"}),
-        ("offer_accepted", "Offer Accepted", "Rates and terms agreed; awaiting contract execution.", "static", {"rule": "offer_accepted"}),
-        ("contract_signed", "Contract Signed", "Contract fully executed and signed.", "static", {"rule": "contract_signed"}),
-        ("engaging", "Engaging", "Active project work period.", "static", {"rule": "engaging"}),
-        ("nurture", "Nurture", "Long-term follow up or delayed opportunity.", "static", {"rule": "nurture"}),
-        ("completed", "Completed", "Project or consulting engagement successfully finished.", "static", {"rule": "completed"}),
-        ("disqualified", "Disqualified", "Unresponsive, poor fit, or lost opportunity.", "static", {"rule": "disqualified"}),
+        ("prospect", "Prospect", "Default state upon lead intake/ingestion. No negotiation initiated yet.", {"rule": "prospect"}),
+        ("negotiating", "Negotiating", "Rates, scope, or ROE discussions underway.", {"rule": "negotiating"}),
+        ("offer_accepted", "Offer Accepted", "Rates and terms agreed; awaiting contract execution.", {"rule": "offer_accepted"}),
+        ("contract_signed", "Contract Signed", "Contract fully executed and signed.", {"rule": "contract_signed"}),
+        ("engaging", "Engaging", "Active project work period.", {"rule": "engaging"}),
+        ("nurture", "Nurture", "Long-term follow up or delayed opportunity.", {"rule": "nurture"}),
+        ("completed", "Completed", "Project or consulting engagement successfully finished.", {"rule": "completed"}),
+        ("disqualified", "Disqualified", "Unresponsive, poor fit, or lost opportunity.", {"rule": "disqualified"}),
     ]
 
-    for slug, name, desc, seg_type, criteria in lead_seeds:
+    for slug, name, desc, criteria in lead_seeds:
         conn.execute(
             text("""
-                INSERT INTO cdp.lead_statuses (slug, name, description, segment_type, criteria)
-                VALUES (:slug, :name, :desc, :type, :criteria)
-                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, segment_type = EXCLUDED.segment_type, criteria = EXCLUDED.criteria, updated_at = NOW();
+                INSERT INTO cdp.lead_statuses (slug, name, description, criteria)
+                VALUES (:slug, :name, :desc, :criteria)
+                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
             """),
-            {"slug": slug, "name": name, "desc": desc, "type": seg_type, "criteria": json.dumps(criteria)}
+            {"slug": slug, "name": name, "desc": desc, "criteria": json.dumps(criteria)}
         )
 
 
