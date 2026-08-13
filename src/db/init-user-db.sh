@@ -133,9 +133,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.person_company_relationships ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE CASCADE;
-	ALTER TABLE cdp.activities ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.engagements ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+	ALTER TABLE IF EXISTS cdp.person_company_relationships ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE CASCADE;
+	ALTER TABLE IF EXISTS cdp.activities ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+	ALTER TABLE IF EXISTS cdp.engagements ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
 
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
@@ -146,7 +146,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS rate VARCHAR(100);
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFAULT 'Manual';
 
-	DO $$
+	DO \$\$
 	BEGIN
 		IF EXISTS (
 			SELECT 1 FROM information_schema.tables 
@@ -223,7 +223,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		) THEN
 			ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255);
 		END IF;
-	END $$;
+	END \$\$;
 
 
 	CREATE TABLE IF NOT EXISTS cdp.person_company_relationships (
@@ -338,6 +338,20 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	('disqualified', 'Disqualified', NULL, TRUE, 'Unresponsive, poor fit, or lost opportunity.', '{"rule": "disqualified"}'::jsonb)
 	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, is_end_state = EXCLUDED.is_end_state, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
 EOSQL
+
+# Seed reference data — skipped in CI (schema-only mode)
+if [ "$CI" != "true" ]; then
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
+	INSERT INTO cdp.person_segments (slug, name, description, segment_type, potential_opportunity_types, criteria) VALUES
+	('clients_and_prospects', 'Clients & Prospects', 'Active or past consulting clients and warm lead opportunities', 'dynamic', 'Consulting Projects, Advisory, Fractional Data Leadership', '{"rule": "clients_and_prospects"}'::jsonb),
+	('recruiters_and_talent', 'Recruiters & Talent Acquisition', 'Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers', 'dynamic', 'Full-Time Employment, Contract Roles, Fractional Opportunities', '{"rule": "recruiters_and_talent"}'::jsonb),
+	('hiring_decision_makers', 'Hiring Decision-Makers', 'Founders, CTOs, VPs of Data/Engineering, Heads, and hiring decision makers', 'dynamic', 'Consulting Projects, Full-Time Employment, Fractional Leadership', '{"rule": "hiring_decision_makers"}'::jsonb),
+	('peer_collaborators', 'Peer Collaborators & Agencies', 'Other consultants, agency owners, freelancers, tooling partners, or DevRel for project referrals/partnerships', 'dynamic', 'Project Subcontracting, Co-bidding, Client Referrals, Tooling Implementations', '{"rule": "peer_collaborators"}'::jsonb),
+	('former_colleagues_alumni', 'Alumni & Former Colleagues', 'Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)', 'dynamic', 'Referrals, Re-hiring, Warm Client Introductions, Partnering', '{"rule": "former_colleagues_alumni"}'::jsonb),
+	('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', 'Brand Awareness, Audience Engagement, Content Reach', '{"rule": "general_network"}'::jsonb)
+	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, potential_opportunity_types = EXCLUDED.potential_opportunity_types, criteria = EXCLUDED.criteria, updated_at = NOW();
+EOSQL
+fi
 
 
 # Initialize OLTP database
@@ -977,9 +991,11 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		trained_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		UNIQUE (symbol, model_name)
 	);
+EOSQL
 
-
-
+# Seed reference data — skipped in CI (schema-only mode)
+if [ "$CI" != "true" ]; then
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
 	INSERT INTO s_reddit.subreddits_monitored (name, active) VALUES ('smallbusiness', TRUE) ON CONFLICT (name) DO NOTHING;
 	INSERT INTO s_reddit.subreddits_monitored (name, active) VALUES ('saas', TRUE) ON CONFLICT (name) DO NOTHING;
 	INSERT INTO s_reddit.subreddits_monitored (name, active) VALUES ('solopreneur', TRUE) ON CONFLICT (name) DO NOTHING;
@@ -1021,7 +1037,11 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		('3876e98d4ef880a6a61ae99d8912694f', 'Meetups & Seminars', 'meeting_notes', TRUE),
 		('3a36e98d4ef88084a1aec60052a3cb80', 'FaDi meeting notes', 'meeting_notes', TRUE)
 	ON CONFLICT (database_id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, active = TRUE;
+EOSQL
+fi
 
+# Remaining DDL (always runs)
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
 	CREATE SCHEMA IF NOT EXISTS t_content_generation;
 
 	CREATE TABLE IF NOT EXISTS t_content_generation.linkedin_posts (
@@ -1151,12 +1171,12 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	ALTER TABLE m_embeddings.linkedin_posts ADD COLUMN IF NOT EXISTS source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED;
 
 	CREATE OR REPLACE FUNCTION m_staging.delete_old_notion_embeddings()
-	RETURNS TRIGGER AS $$
+	RETURNS TRIGGER AS \$\$
 	BEGIN
 		DELETE FROM m_embeddings.notion_pages WHERE source_id = OLD.id;
 		RETURN NEW;
 	END;
-	$$ LANGUAGE plpgsql;
+	\$\$ LANGUAGE plpgsql;
 
 	DROP TRIGGER IF EXISTS trg_delete_old_notion_embeddings ON m_staging.notion_pages;
 	CREATE TRIGGER trg_delete_old_notion_embeddings
@@ -1166,12 +1186,12 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	EXECUTE FUNCTION m_staging.delete_old_notion_embeddings();
 
 	CREATE OR REPLACE FUNCTION m_staging.delete_old_substack_embeddings()
-	RETURNS TRIGGER AS $$
+	RETURNS TRIGGER AS \$\$
 	BEGIN
 		DELETE FROM m_embeddings.substack_posts WHERE source_id = OLD.id;
 		RETURN NEW;
 	END;
-	$$ LANGUAGE plpgsql;
+	\$\$ LANGUAGE plpgsql;
 
 	DROP TRIGGER IF EXISTS trg_delete_old_substack_embeddings ON m_staging.substack_posts;
 	CREATE TRIGGER trg_delete_old_substack_embeddings
@@ -1181,12 +1201,12 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	EXECUTE FUNCTION m_staging.delete_old_substack_embeddings();
 
 	CREATE OR REPLACE FUNCTION m_staging.delete_old_linkedin_embeddings()
-	RETURNS TRIGGER AS $$
+	RETURNS TRIGGER AS \$\$
 	BEGIN
 		DELETE FROM m_embeddings.linkedin_posts WHERE source_id = OLD.id;
 		RETURN NEW;
 	END;
-	$$ LANGUAGE plpgsql;
+	\$\$ LANGUAGE plpgsql;
 
 	DROP TRIGGER IF EXISTS trg_delete_old_linkedin_embeddings ON m_staging.linkedin_posts;
 	CREATE TRIGGER trg_delete_old_linkedin_embeddings

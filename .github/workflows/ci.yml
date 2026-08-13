@@ -12,6 +12,7 @@ on:
 
 jobs:
   test-docker:
+    name: Docker Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -22,18 +23,73 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Create stub .env
+        run: |
+          cat > .env <<'EOF'
+          MOTHERDUCK_TOKEN=dummy
+          MOTHERDUCK_DATABASE=staging
+          NOTION_API_KEY=dummy
+          NOTION_MANUAL_INGESTION_PAGE_ID=dummy
+          TUNNEL_TOKEN=dummy
+          SLACK_OAUTH_TOKEN=dummy
+          SLACK_APP_TOKEN=dummy
+          SLACK_GIUSY_OAUTH_TOKEN=dummy
+          SLACK_GIUSY_APP_TOKEN=dummy
+          OLLAMA_API_KEY=dummy
+          LINKEDIN_MEMBER_DATA_PORTABILITY_API_TOKEN=dummy
+          LINKEDIN_SHARE_ON_APP_CLIENT_ID=dummy
+          LINKEDIN_SHARE_ON_APP_CLIENT_PRIMARY_CLIENT_SECRET=dummy
+          NOTION_SUBSTACK_POSTS_GENERATION_API_KEY=dummy
+          BUFFER_API_KEY=dummy
+          HUGGING_FACE_TOKEN=dummy
+          EOF
+
       - name: Run Dockerfile Context Unit Test
         run: node tests/integration/test-dockerfile.js
 
       - name: Validate Docker Compose configuration
-        run: |
-          touch .env
-          echo "SLACK_OAUTH_TOKEN=dummy" >> .env
-          echo "SLACK_APP_TOKEN=dummy" >> .env
-          echo "OLLAMA_API_KEY=dummy" >> .env
-          echo "LINKEDIN_MEMBER_DATA_PORTABILITY_API_TOKEN=dummy" >> .env
+        run: docker compose config --quiet
 
-          docker compose config --quiet
+      - name: Build images (db + n8n)
+        run: docker compose --profile app build db n8n
+
+      - name: Start services
+        run: docker compose --profile app up -d db n8n
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          echo "=== DB logs ==="
+          docker compose logs db --tail 50
+          echo "=== N8N logs ==="
+          docker compose logs n8n --tail 50
+
+      - name: Wait for n8n to become healthy
+        timeout-minutes: 5
+        run: |
+          echo "Waiting for n8n /healthz..."
+          for i in $(seq 1 60); do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' \
+              $(docker compose ps -q n8n) 2>/dev/null || echo "missing")
+            echo "  Attempt $i/60 — status: $STATUS"
+            if [ "$STATUS" = "healthy" ]; then
+              echo "n8n is healthy!"
+              exit 0
+            fi
+            if [ "$STATUS" = "unhealthy" ]; then
+              echo "ERROR: n8n container is unhealthy. Dumping logs:"
+              docker compose logs n8n --tail 80
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "ERROR: n8n never became healthy within timeout. Dumping logs:"
+          docker compose logs n8n --tail 80
+          exit 1
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile app down --remove-orphans --volumes
 
 
   test-python:

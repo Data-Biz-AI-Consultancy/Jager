@@ -361,7 +361,10 @@ ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_stage_slug VARCHAR(64);
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_stage_name VARCHAR(128);
 
 ALTER TABLE cdp.person_segments ADD COLUMN IF NOT EXISTS potential_opportunity_types TEXT;
+`;
 
+// Seed data — skipped in CI (schema-only mode)
+const cdpSeedDdl = process.env.CI !== 'true' ? `
 INSERT INTO cdp.person_segments (slug, name, description, segment_type, potential_opportunity_types, criteria) VALUES
 ('clients_and_prospects', 'Clients & Prospects', 'Active or past consulting clients and warm lead opportunities', 'dynamic', 'Consulting Projects, Advisory, Fractional Data Leadership', '{"rule": "clients_and_prospects"}'::jsonb),
 ('recruiters_and_talent', 'Recruiters & Talent Acquisition', 'Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers', 'dynamic', 'Full-Time Employment, Contract Roles, Fractional Opportunities', '{"rule": "recruiters_and_talent"}'::jsonb),
@@ -381,7 +384,8 @@ INSERT INTO cdp.lead_statuses (slug, name, stage, is_end_state, description, cri
 ('completed', 'Completed', NULL, TRUE, 'Project or consulting engagement successfully finished.', '{"rule": "completed"}'::jsonb),
 ('disqualified', 'Disqualified', NULL, TRUE, 'Unresponsive, poor fit, or lost opportunity.', '{"rule": "disqualified"}'::jsonb)
 ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, is_end_state = EXCLUDED.is_end_state, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
-`;
+` : '';
+
 
 const ddl = `
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -1469,6 +1473,10 @@ async function run() {
 
   console.log('Applying cdp database schema DDL...');
   await cdpClient.query(cdpDdl);
+  if (cdpSeedDdl) {
+    console.log('Applying cdp seed data (skipped in CI)...');
+    await cdpClient.query(cdpSeedDdl);
+  }
   console.log('CDP database migrations completed successfully.');
   await cdpClient.end();
 }
