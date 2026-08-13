@@ -1,8 +1,14 @@
 #!/bin/sh
 
 # Wait for PostgreSQL port to be ready
+# Uses node (always available in n8n image) — /dev/tcp is bash-only and does not work in Alpine ash
 echo "Waiting for PostgreSQL database to be ready..."
-until (echo > /dev/tcp/db/5432) 2>/dev/null; do
+until node -e "
+  const net = require('net');
+  const s = net.createConnection(5432, 'db');
+  s.on('connect', () => { s.destroy(); process.exit(0); });
+  s.on('error',   () => { s.destroy(); process.exit(1); });
+" 2>/dev/null; do
   sleep 1
 done
 echo "PostgreSQL is ready!"
