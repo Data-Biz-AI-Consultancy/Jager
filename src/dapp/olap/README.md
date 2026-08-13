@@ -13,6 +13,7 @@ The ML service initializes and updates lightweight MotherDuck schemas for analyt
 ## Core Pipelines
 
 *   **`ingest_buffer.py`**: Syncs `s_buffer.channels` and `s_buffer.posts` from the PostgreSQL OLTP database to the MotherDuck OLAP database staging catalog using DLT's native schema evolution and merge logic.
+*   **`ingest_cdp.py`**: Syncs CDP domain entities and intake tables from PostgreSQL `cdp` database to the MotherDuck `s_cdp` schema.
 *   **`ingest_linkedin.py`**: Ingests raw LinkedIn exports and engagement metrics.
 *   **`ingest_nager.py`**: Ingests public holiday records from the Nager.Date API.
 *   **`ingest_substack.py`**: Ingests Substack article statistics and data.

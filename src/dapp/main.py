@@ -135,6 +135,12 @@ def run_ingest_nager():
     return run_pipeline_command(["python", "olap/ingest_nager.py"], "ingest_nager")
 
 
+@app.post("/run/ingest_cdp")
+def run_ingest_cdp():
+    return run_pipeline_command(["python", "olap/ingest_cdp.py"], "ingest_cdp")
+
+
+
 @app.post("/run/dbt_transform")
 def run_dbt_transform():
     return run_pipeline_command(["dbt", "build", "--project-dir", "dbt", "--profiles-dir", "dbt"], "dbt_transform")
