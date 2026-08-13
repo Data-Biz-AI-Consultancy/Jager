@@ -110,8 +110,7 @@ services:
       - NOTION_MANUAL_INGESTION_PAGE_ID=${NOTION_MANUAL_INGESTION_PAGE_ID}
     depends_on:
       - db
-    volumes:
-      - ./src/cdp:/app
+
 
 
   caddy:
