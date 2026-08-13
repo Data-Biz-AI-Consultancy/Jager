@@ -6,5 +6,10 @@ models:
     columns:
       - name: person_id
         description: "Primary key of the person record."
+        tests:
+          - unique
+          - not_null
       - name: primary_email
         description: "Primary email address of the person."
+        tests:
+          - not_null
