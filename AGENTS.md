@@ -11,6 +11,8 @@
 - For all staging models in the dbt project (located under `dbt/models/staging/`), the SQL file name must always be prefixed with the target schema name followed by a double underscore (e.g., `staging__<source_name>__<table_name>.sql`).
 - References to these models in downstream models (intermediate, marts) must use this fully prefixed name.
 - Staging models are strictly 1:1 atomic models mapped to a single ODS source table. **Never use JOINs in staging models.** Any logic requiring a JOIN must be promoted to an intermediate model.
+- **Staging Model Materialization**: All staging models must always be materialized as `table` (`materialized='table'`) to avoid view permission and binder overhead in MotherDuck.
+
 
 ### Intermediate Models
 - For all intermediate models in the dbt project (located under `dbt/models/intermediate/`), the SQL file name must always be prefixed with `intermediate__` followed by the domain and a double underscore (e.g., `intermediate__<domain>__<model_name>.sql`).
