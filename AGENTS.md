@@ -169,5 +169,10 @@
 - When an environment variable has a hardcoded fallback default in code (e.g. `os.getenv("VAR") or "default"`), the fallback must be a safe non-sensitive default (e.g. a public page ID or a staging flag). **Never hardcode secrets as fallbacks.**
 - `docker-compose.yml` passes env vars using `${VAR}` substitution from the host environment. In production the host environment provides the values; `.env` is only used locally to populate those host vars via Docker Compose's automatic `.env` file loading.
 
+## Dependency & Requirements Pinning Conventions
+- All Python dependencies declared in `requirements.txt` and `pyproject.toml` files across services MUST be pinned to exact versions (e.g., `dbt-core==1.11.13`, `dbt-duckdb==1.11.0`, `dlt[duckdb,parquet]==1.30.0`).
+- Never use unpinned or minimum-range specifiers like `>=` or `~=` for core framework or adapter packages to prevent version mismatch runtime errors.
+
+
 ## File Formatting & Ending Conventions
 - All files across the codebase must end with **exactly one single newline** at the end of the file. Do not leave multiple trailing blank lines at the end of files.
