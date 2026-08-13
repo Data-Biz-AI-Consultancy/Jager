@@ -136,7 +136,7 @@ def process_notion_meeting_notes():
                 SELECT 
                     page_id,
                     person_id,
-                    client_account_id,
+                    company_id,
                     database_name,
                     title,
                     meeting_date,
@@ -164,7 +164,7 @@ def process_notion_meeting_notes():
 
             # Identity resolution attempt (optional lookup against persons/accounts)
             person_id = row["person_id"]
-            client_account_id = row["client_account_id"]
+            company_id = row["company_id"]
 
             metadata = {
                 "database_name": row["database_name"],
@@ -178,7 +178,7 @@ def process_notion_meeting_notes():
                         source,
                         source_id,
                         person_id,
-                        client_account_id,
+                        company_id,
                         title,
                         activity_date,
                         summary_or_content,
@@ -193,7 +193,7 @@ def process_notion_meeting_notes():
                         'notion_meeting_notes',
                         :source_id,
                         :person_id,
-                        :client_account_id,
+                        :company_id,
                         :title,
                         :activity_date,
                         :summary_or_content,
@@ -206,7 +206,7 @@ def process_notion_meeting_notes():
                     )
                     ON CONFLICT (source_id) DO UPDATE SET
                         person_id = COALESCE(EXCLUDED.person_id, cdp.activities.person_id),
-                        client_account_id = COALESCE(EXCLUDED.client_account_id, cdp.activities.client_account_id),
+                        company_id = COALESCE(EXCLUDED.company_id, cdp.activities.company_id),
                         title = EXCLUDED.title,
                         activity_date = EXCLUDED.activity_date,
                         summary_or_content = EXCLUDED.summary_or_content,
@@ -219,7 +219,7 @@ def process_notion_meeting_notes():
                 {
                     "source_id": page_id,
                     "person_id": person_id,
-                    "client_account_id": client_account_id,
+                    "company_id": company_id,
                     "title": title,
                     "activity_date": meeting_date,
                     "summary_or_content": summary_or_content,

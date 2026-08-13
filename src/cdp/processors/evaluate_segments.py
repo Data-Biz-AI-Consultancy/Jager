@@ -106,7 +106,7 @@ PERSON_SEGMENT_RULES = {
 LEAD_SEGMENT_RULES = {
     "new_leads_no_followup_7d": """
         SELECT l.id FROM cdp.leads l
-        LEFT JOIN cdp.engagements e ON (l.person_id = e.person_id OR l.client_account_id = e.client_account_id)
+        LEFT JOIN cdp.engagements e ON (l.person_id = e.person_id OR l.company_id = e.company_id)
         WHERE l.status = 'prospect'
           AND l.intake_at <= NOW() - INTERVAL '7 days'
         GROUP BY l.id
@@ -114,7 +114,7 @@ LEAD_SEGMENT_RULES = {
     """,
     "stale_in_negotiation": """
         SELECT l.id FROM cdp.leads l
-        LEFT JOIN cdp.engagements e ON (l.person_id = e.person_id OR l.client_account_id = e.client_account_id) AND e.occurred_at >= NOW() - INTERVAL '14 days'
+        LEFT JOIN cdp.engagements e ON (l.person_id = e.person_id OR l.company_id = e.company_id) AND e.occurred_at >= NOW() - INTERVAL '14 days'
         WHERE l.status = 'negotiating'
         GROUP BY l.id
         HAVING COUNT(e.id) = 0
