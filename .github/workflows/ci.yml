@@ -12,6 +12,7 @@ on:
 
 jobs:
   test-docker:
+    name: Docker Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -21,26 +22,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Run Dockerfile Context Unit Test
-        run: node tests/integration/test-dockerfile.js
-
-      - name: Validate Docker Compose configuration
-        run: |
-          touch .env
-          echo "SLACK_OAUTH_TOKEN=dummy" >> .env
-          echo "SLACK_APP_TOKEN=dummy" >> .env
-          echo "OLLAMA_API_KEY=dummy" >> .env
-          echo "LINKEDIN_MEMBER_DATA_PORTABILITY_API_TOKEN=dummy" >> .env
-
-          docker compose config --quiet
-
-  docker-smoke-test:
-    name: Docker Container Smoke Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Create stub .env
         run: |
@@ -63,10 +44,17 @@ jobs:
           HUGGING_FACE_TOKEN=dummy
           EOF
 
-      - name: Build and start core services (db + n8n)
-        run: |
-          docker compose --profile app build --no-cache db n8n
-          docker compose --profile app up -d db n8n
+      - name: Run Dockerfile Context Unit Test
+        run: node tests/integration/test-dockerfile.js
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build images (db + n8n)
+        run: docker compose --profile app build --no-cache db n8n
+
+      - name: Start services
+        run: docker compose --profile app up -d db n8n
 
       - name: Wait for n8n to become healthy
         timeout-minutes: 5
