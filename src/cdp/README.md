@@ -2,7 +2,7 @@
 
 The **CDP Service** is a dedicated FastAPI microservice responsible for core Customer/Client Data Platform processing in Jager.
 
-A Customer Data Platform (CDP) acts as the unified system of record for managing all **Leads** (`cdp.leads`, with specialized intake tables `cdp.leads_linkedin` and `cdp.leads_manual`), **Persons/Contacts** (`cdp.persons`), **Companies** (`cdp.companies`), **Person-Account Relationships** (`cdp.person_account_relationships`), and **Client Engagements / Activities** (`cdp.engagements`, `cdp.activities`). Similar to enterprise platforms like Snowplow or Braze, it provides a centralized, 360-degree overview of client interactions and ongoing project engagements.
+A Customer Data Platform (CDP) acts as the unified system of record for managing all **Leads** (`cdp.leads`, with specialized intake tables `cdp.leads_linkedin` and `cdp.leads_manual`), **Persons/Contacts** (`cdp.persons`), **Companies** (`cdp.companies`), **Person-Company Relationships** (`cdp.person_company_relationships`), and **Client Engagements / Activities** (`cdp.engagements`, `cdp.activities`). Similar to enterprise platforms like Snowplow or Braze, it provides a centralized, 360-degree overview of client interactions and ongoing project engagements.
 
 ---
 
@@ -16,7 +16,7 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
    - **`cdp.persons_manual_substack`**: Dedicated intake table for raw Substack subscriber export contacts (`s_manual`).
    - **`cdp.persons`**: Consolidated master contact table representing single resolution outcomes resolved across intake sources and meeting note attendees by primary email or LinkedIn URL.
    - **`cdp.companies`**: Target client companies, organizations, and accounts extracted from sources (e.g. LinkedIn connections).
-   - **`cdp.person_account_relationships`**: Mapping individual contacts to client accounts with specific roles (e.g. decision maker, job position) and employment status.
+   - **`cdp.person_company_relationships`**: Mapping individual contacts to client accounts with specific roles (e.g. decision maker, job position) and employment status.
 2. **Lead Intake & Opportunity Lifecycle**:
    - **`cdp.leads_linkedin`**: Intake table for LinkedIn message-derived leads (`s_linkedin.messages`).
    - **`cdp.leads_manual`**: Intake table for manual data-derived leads (`s_manual`).
@@ -280,7 +280,7 @@ src/cdp/
 ## API Endpoints
 
 * `GET /health`: Service health check.
-* `POST /process/linkedin_connections`: Runs the processor to normalize raw connections from `s_linkedin.connections` into `cdp.persons`, `cdp.companies`, and `cdp.person_account_relationships`.
+* `POST /process/linkedin_connections`: Runs the processor to normalize raw connections from `s_linkedin.connections` into `cdp.persons`, `cdp.companies`, and `cdp.person_company_relationships`.
 * `POST /process/manual_data`: Runs the processor to extract and normalize manual data ingestion tables from `s_manual` schema into `cdp.leads`, `cdp.persons`, and `cdp.companies`.
 * `POST /process/linkedin_messages`: Runs the processor to extract and normalize LinkedIn messages into `cdp.leads_linkedin` and `cdp.leads`.
 * `POST /process/notion_meeting_notes`: Ingests Notion meeting notes from `s_notion.meeting_notes` into `cdp.activities_notion_meeting_notes` and populates `cdp.activities`.

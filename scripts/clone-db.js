@@ -394,7 +394,7 @@ async function cloneDatabase(dbName, prodUrl) {
               `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
               `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
             `); ` +
-            `CREATE TABLE IF NOT EXISTS cdp.person_account_relationships (` +
+            `CREATE TABLE IF NOT EXISTS cdp.person_company_relationships (` +
               `id UUID PRIMARY KEY DEFAULT gen_random_uuid(), ` +
               `person_id UUID NOT NULL REFERENCES cdp.persons(id) ON DELETE CASCADE, ` +
               `company_id UUID NOT NULL REFERENCES cdp.companies(id) ON DELETE CASCADE, ` +

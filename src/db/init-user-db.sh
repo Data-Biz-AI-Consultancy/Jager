@@ -159,6 +159,22 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		END IF;
 	END $$;
 
+	CREATE TABLE IF NOT EXISTS cdp.person_company_relationships (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		person_id UUID NOT NULL REFERENCES cdp.persons(id) ON DELETE CASCADE,
+		company_id UUID NOT NULL REFERENCES cdp.companies(id) ON DELETE CASCADE,
+		job_title VARCHAR(255),
+		department VARCHAR(100),
+		role_type VARCHAR(50) DEFAULT 'decision_maker',
+		is_primary BOOLEAN DEFAULT TRUE,
+		start_date DATE,
+		end_date DATE,
+		status VARCHAR(50) DEFAULT 'active',
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		UNIQUE (person_id, company_id, role_type)
+	);
+
 	CREATE TABLE IF NOT EXISTS cdp.activities_notion_meeting_notes (
 		page_id VARCHAR(255) PRIMARY KEY,
 		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,

@@ -73,7 +73,7 @@ flowchart TD
 ```
 
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
-*   **CDP App ([src/cdp/](src/cdp/README.md))**: A dedicated FastAPI domain microservice responsible for Customer Data Platform logic (managing `cdp.persons`, `cdp.companies`, `cdp.leads`, `cdp.person_account_relationships`, and `cdp.engagements`). N8N triggers CDP processing via HTTP requests (`CDP_SERVICE_URL`).
+*   **CDP App ([src/cdp/](src/cdp/README.md))**: A dedicated FastAPI domain microservice responsible for Customer Data Platform logic (managing `cdp.persons`, `cdp.companies`, `cdp.leads`, `cdp.person_company_relationships`, and `cdp.engagements`). N8N triggers CDP processing via HTTP requests (`CDP_SERVICE_URL`).
 *   **DAPP App ([src/dapp/](src/dapp/README.md))**: A consolidated Data App service combining data ingestion (**dlt**), transformations (**dbt**), and machine learning training/predictions (**ml**). N8N triggers pipelines (`DATA_PIPELINE_URL`) and ML inference (`ML_SERVICE_URL`) on this service.
 
 ### Database & Storage Schemas

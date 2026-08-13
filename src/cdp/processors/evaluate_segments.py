@@ -82,7 +82,7 @@ PERSON_SEGMENT_RULES = {
     """,
     "hiring_decision_makers": """
         SELECT DISTINCT p.id FROM cdp.persons p
-        LEFT JOIN cdp.person_account_relationships r ON p.id = r.person_id
+        LEFT JOIN cdp.person_company_relationships r ON p.id = r.person_id
         LEFT JOIN cdp.persons_linkedins pli ON (
             (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
             OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND pli.profile_url ILIKE '%' || p.linkedin_url || '%')

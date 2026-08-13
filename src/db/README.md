@@ -49,7 +49,7 @@ erDiagram
         timestamp_tz updated_at
     }
 
-    PERSON_ACCOUNT_RELATIONSHIPS {
+    PERSON_COMPANY_RELATIONSHIPS {
         uuid id PK
         uuid person_id FK
         uuid company_id FK
@@ -83,8 +83,8 @@ erDiagram
     PERSONS }|--o| COMPANIES : "primary_company_id"
     LEADS }|--o| PERSONS : "person_id"
     LEADS }|--o| COMPANIES : "company_id"
-    PERSONS ||--o{ PERSON_ACCOUNT_RELATIONSHIPS : "person_id"
-    COMPANIES ||--o{ PERSON_ACCOUNT_RELATIONSHIPS : "company_id"
+    PERSONS ||--o{ PERSON_COMPANY_RELATIONSHIPS : "person_id"
+    COMPANIES ||--o{ PERSON_COMPANY_RELATIONSHIPS : "company_id"
     PERSONS ||--o{ ENGAGEMENTS : "person_id"
     COMPANIES ||--o{ ENGAGEMENTS : "company_id"
 ```
@@ -96,7 +96,7 @@ erDiagram
 - **`cdp.leads_linkedin`**: Intake table for LinkedIn message-derived leads (`s_linkedin.messages`).
 - **`cdp.leads_manual`**: Intake table for manual data-derived leads (`s_manual`).
 - **`cdp.leads`**: Aggregated table for inbound leads, featuring a `source` column stating if the lead is from `Linkedin` or `Manual`.
-- **`cdp.person_account_relationships`**: Dynamic mapping of persons to client accounts with roles (`role_type`, `job_title`, `department`) and date boundaries.
+- **`cdp.person_company_relationships`**: Dynamic mapping of persons to client accounts with roles (`role_type`, `job_title`, `department`) and date boundaries.
 - **`cdp.engagements`**: Activity log (emails, calls, meetings, notes, form submissions, LinkedIn messages).
 
 ## Files in `src/db/`

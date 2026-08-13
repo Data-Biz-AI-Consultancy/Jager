@@ -47,7 +47,7 @@ def process_linkedin_connections():
     """
     Reads unprocessed LinkedIn connections from s_linkedin.connections (processed = 0) in jager DB,
     normalizes profiles into cdp.persons, extracts company accounts into cdp.companies,
-    and maps relationships in cdp.person_account_relationships in cdp DB.
+    and maps relationships in cdp.person_company_relationships in cdp DB.
     """
     logger.info("Starting processing of LinkedIn connections into cdp.persons and cdp.companies...")
     jager_engine = get_db_engine(default_url="postgresql://jager:jager@db:5432/jager", env_var="JAGER_DATABASE_URL")
