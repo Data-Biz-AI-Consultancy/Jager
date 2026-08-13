@@ -154,10 +154,10 @@ async function run() {
       const commonCols = colsRes.rows.map(r => `"${r.column_name}"`).join(', ');
 
       console.log(`Migrating data from public.${m.oldTable} to ${m.newTable} using columns: ${commonCols}...`);
-      
+
       // Copy data
       await jagerClient.query(`INSERT INTO ${m.newTable} (${commonCols}) SELECT ${commonCols} FROM public.${m.oldTable} ON CONFLICT DO NOTHING`);
-      
+
       // Update serial sequence if needed
       if (m.hasSerial) {
         await jagerClient.query(
@@ -165,7 +165,7 @@ async function run() {
           [m.newTable]
         );
       }
-      
+
       // Drop old table
       console.log(`Dropping legacy table public.${m.oldTable}...`);
       await jagerClient.query(`DROP TABLE public.${m.oldTable} CASCADE`);
@@ -197,7 +197,7 @@ async function run() {
     }
   }
 
-  console.log('Cleaning non-CDP schemas from cdp database if present...');
+  console.log('Cleaning non-CDP schemas and legacy CDP tables from cdp database if present...');
   await cdpClient.query(`
     DO $$
     DECLARE

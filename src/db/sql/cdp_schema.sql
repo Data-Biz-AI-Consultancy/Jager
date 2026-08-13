@@ -114,21 +114,6 @@ CREATE TABLE IF NOT EXISTS cdp.leads (
 	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS cdp.person_company_relationships (
-	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-	person_id UUID NOT NULL REFERENCES cdp.persons(id) ON DELETE CASCADE,
-	company_id UUID NOT NULL REFERENCES cdp.companies(id) ON DELETE CASCADE,
-	job_title VARCHAR(255),
-	department VARCHAR(100),
-	role_type VARCHAR(50) DEFAULT 'decision_maker',
-	is_primary BOOLEAN DEFAULT TRUE,
-	start_date DATE,
-	end_date DATE,
-	status VARCHAR(50) DEFAULT 'active',
-	created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-	updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-	UNIQUE (person_id, company_id, role_type)
-);
 
 CREATE TABLE IF NOT EXISTS cdp.engagements (
 	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -185,7 +170,6 @@ ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN
 ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
 ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
-ALTER TABLE IF EXISTS cdp.person_company_relationships ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE CASCADE;
 ALTER TABLE IF EXISTS cdp.activities ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
 ALTER TABLE IF EXISTS cdp.engagements ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
 
@@ -208,26 +192,6 @@ BEGIN
 		WHERE table_schema = 'cdp' AND table_name = 'companies'
 	) THEN
 		ALTER TABLE cdp.client_accounts RENAME TO companies;
-	END IF;
-
-	IF EXISTS (
-		SELECT 1 FROM information_schema.tables 
-		WHERE table_schema = 'cdp' AND table_name = 'person_account_relationships'
-	) AND NOT EXISTS (
-		SELECT 1 FROM information_schema.tables 
-		WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships'
-	) THEN
-		ALTER TABLE cdp.person_account_relationships RENAME TO person_company_relationships;
-	END IF;
-
-	IF EXISTS (
-		SELECT 1 FROM information_schema.columns 
-		WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships' AND column_name = 'client_account_id'
-	) AND NOT EXISTS (
-		SELECT 1 FROM information_schema.columns 
-		WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships' AND column_name = 'company_id'
-	) THEN
-		ALTER TABLE cdp.person_company_relationships RENAME COLUMN client_account_id TO company_id;
 	END IF;
 
 	IF EXISTS (
