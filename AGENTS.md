@@ -29,8 +29,11 @@
 
 
 ### SQL Coding Style (Table Aliasing)
-- Do not use short aliases (e.g., `p.`, `c.`, `a.`, `l.`, `b.`) in SQL queries.
-- Always use full descriptive aliases (e.g., `posts.`, `channels.`, `analytics.`, `likes.`, `comments.`, `buffer_posts.`) for readability.
+- Do not use table aliases in queries selecting from a single table (queries without JOINs). Refer to columns directly without a table prefix.
+- In queries with JOINs:
+  - Do not use short aliases (e.g., `p.`, `c.`, `a.`, `l.`, `b.`).
+  - Always use full descriptive aliases (e.g., `posts.`, `channels.`, `analytics.`, `likes.`, `comments.`, `buffer_posts.`) for readability.
+
 
 ## Database Naming & Schema Conventions
 

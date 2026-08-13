@@ -5,25 +5,26 @@
 ) }}
 
 SELECT
-  leads.lead_id AS lead_id,
-  leads.person_id AS person_id,
-  leads.company_id AS company_id,
-  leads.full_name AS full_name,
-  leads.description AS description,
-  leads.message_count AS message_count,
-  leads.summary AS summary,
-  leads.convo_history AS convo_history,
-  leads.intent AS intent,
-  leads.signal_strength AS signal_strength,
-  leads.opportunity_type AS opportunity_type,
-  leads.rate AS rate,
-  leads.status AS status,
-  leads.source AS source,
-  leads.lead_status_id AS lead_status_id,
-  leads.lead_status_name AS lead_status_name,
-  leads.lead_status_slug AS lead_status_slug,
-  leads.lead_stage_slug AS lead_stage_slug,
-  leads.lead_stage_name AS lead_stage_name,
-  leads.intake_at AS intake_at,
-  leads.updated_at AS updated_at
-FROM {{ ref('staging__cdp__leads') }} AS leads
+  lead_id AS lead_id,
+  person_id AS person_id,
+  company_id AS company_id,
+  full_name AS full_name,
+  description AS description,
+  message_count AS message_count,
+  summary AS summary,
+  convo_history AS convo_history,
+  intent AS intent,
+  signal_strength AS signal_strength,
+  opportunity_type AS opportunity_type,
+  rate AS rate,
+  status AS status,
+  source AS source,
+  lead_status_id AS lead_status_id,
+  lead_status_name AS lead_status_name,
+  lead_status_slug AS lead_status_slug,
+  lead_stage_slug AS lead_stage_slug,
+  lead_stage_name AS lead_stage_name,
+  intake_at AS intake_at,
+  updated_at AS updated_at
+FROM {{ ref('staging__cdp__leads') }}
+
