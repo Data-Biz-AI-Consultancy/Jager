@@ -139,7 +139,7 @@ LEAD_SEGMENT_RULES = {
 
 
 def ensure_seed_segments(conn):
-    """Ensures built-in seed segments exist in person_segments and lead_segments tables."""
+    """Ensures built-in seed segments exist in person_segments and lead_statuses tables."""
     person_seeds = [
         ("clients_and_prospects", "Clients & Prospects", "Active or past consulting clients and warm lead opportunities", "dynamic", "Consulting Projects, Advisory, Fractional Data Leadership", {"rule": "clients_and_prospects"}),
         ("recruiters_and_talent", "Recruiters & Talent Acquisition", "Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers", "dynamic", "Full-Time Employment, Contract Roles, Fractional Opportunities", {"rule": "recruiters_and_talent"}),
@@ -162,21 +162,24 @@ def ensure_seed_segments(conn):
     conn.execute(text("DELETE FROM cdp.person_segments WHERE slug IN ('community_and_audience', 'ecosystem_tooling_partners')"))
 
     lead_seeds = [
-        ("new_leads_no_followup_7d", "New Leads No Followup 7d", "Leads in prospect status created 7+ days ago with zero engagement", "dynamic", {"rule": "new_leads_no_followup_7d"}),
-        ("stale_in_negotiation", "Stale In Negotiation", "Leads in negotiating status with no touchpoints in last 14 days", "dynamic", {"rule": "stale_in_negotiation"}),
-        ("high_intent_inbound", "High Intent Inbound", "Leads flagged with high intent or strong signal strength", "dynamic", {"rule": "high_intent_inbound"}),
-        ("contract_pending", "Contract Pending", "Leads in offer_accepted stage awaiting contract execution", "dynamic", {"rule": "contract_pending"}),
-        ("re_engagement_prospects", "Re-engagement Prospects", "Leads in nurture status whose contact has recent activity in last 30 days", "dynamic", {"rule": "re_engagement_prospects"}),
+        ("prospect", "Prospect", "awareness", False, "Default state upon lead intake/ingestion. No negotiation initiated yet.", {"rule": "prospect"}),
+        ("nurture", "Nurture", "awareness", False, "Long-term follow up or delayed opportunity.", {"rule": "nurture"}),
+        ("negotiating", "Negotiating", "consideration", False, "Rates, scope, or ROE discussions underway.", {"rule": "negotiating"}),
+        ("offer_accepted", "Offer Accepted", "consideration", False, "Rates and terms agreed; awaiting contract execution.", {"rule": "offer_accepted"}),
+        ("contract_signed", "Contract Signed", "conversion", False, "Contract fully executed and signed.", {"rule": "contract_signed"}),
+        ("engaging", "Engaging", "conversion", False, "Active project work period.", {"rule": "engaging"}),
+        ("completed", "Completed", None, True, "Project or consulting engagement successfully finished.", {"rule": "completed"}),
+        ("disqualified", "Disqualified", None, True, "Unresponsive, poor fit, or lost opportunity.", {"rule": "disqualified"}),
     ]
 
-    for slug, name, desc, seg_type, criteria in lead_seeds:
+    for slug, name, stage, is_end_state, desc, criteria in lead_seeds:
         conn.execute(
             text("""
-                INSERT INTO cdp.lead_segments (slug, name, description, segment_type, criteria)
-                VALUES (:slug, :name, :desc, :type, :criteria)
-                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+                INSERT INTO cdp.lead_statuses (slug, name, stage, is_end_state, description, criteria)
+                VALUES (:slug, :name, :stage, :is_end_state, :desc, :criteria)
+                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, is_end_state = EXCLUDED.is_end_state, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
             """),
-            {"slug": slug, "name": name, "desc": desc, "type": seg_type, "criteria": json.dumps(criteria)}
+            {"slug": slug, "name": name, "stage": stage, "is_end_state": is_end_state, "desc": desc, "criteria": json.dumps(criteria)}
         )
 
 
@@ -280,58 +283,64 @@ def evaluate_engagement_temperature(conn) -> Dict[str, int]:
     return {row[0]: row[1] for row in counts}
 
 
-def evaluate_lead_segments(conn) -> Dict[str, int]:
-    """Evaluates dynamic lead segments and updates lead_segment_id, lead_segment_name, lead_segment_slug on cdp.leads."""
+def evaluate_lead_statuses(conn) -> Dict[str, int]:
+    """Evaluates lead statuses matching cdp.leads.status and updates lead_status_id, lead_status_name, lead_status_slug, lead_stage_slug, lead_stage_name on cdp.leads."""
     results = {}
-    segments = conn.execute(text("SELECT id, slug, name, segment_type, criteria FROM cdp.lead_segments")).fetchall()
+    statuses = conn.execute(text("SELECT id, slug, name, stage FROM cdp.lead_statuses")).fetchall()
+    status_map = {row[1]: (row[0], row[2], row[3]) for row in statuses}
 
-    for seg in segments:
-        seg_id, slug, seg_name, seg_type, criteria = seg[0], seg[1], seg[2], seg[3], seg[4] or {}
-        if seg_type != "dynamic":
-            continue
+    stage_display_names = {
+        "awareness": "1. Awareness",
+        "consideration": "2. Consideration",
+        "conversion": "3. Conversion",
+    }
 
-        rule_name = criteria.get("rule") if isinstance(criteria, dict) else None
-        if not rule_name or rule_name not in LEAD_SEGMENT_RULES:
-            continue
+    # Reset all lead status references
+    conn.execute(text("UPDATE cdp.leads SET lead_status_id = NULL, lead_status_name = NULL, lead_status_slug = NULL, lead_stage_slug = NULL, lead_stage_name = NULL"))
 
-        sql_query = LEAD_SEGMENT_RULES[rule_name]
-        matching_lead_rows = conn.execute(text(sql_query)).fetchall()
-        matching_lead_ids = [row[0] for row in matching_lead_rows]
+    for slug, (status_id, status_name, stage_slug) in status_map.items():
+        stage_name = stage_display_names.get(stage_slug, stage_slug.title()) if stage_slug else None
+        count = conn.execute(
+            text("""
+                UPDATE cdp.leads 
+                SET lead_status_id = :status_id,
+                    lead_status_name = :status_name,
+                    lead_status_slug = :slug,
+                    lead_stage_slug = :stage_slug,
+                    lead_stage_name = :stage_name
+                WHERE LOWER(COALESCE(status, 'prospect')) = :slug
+            """),
+            {
+                "status_id": status_id,
+                "status_name": status_name,
+                "slug": slug,
+                "stage_slug": stage_slug,
+                "stage_name": stage_name,
+            }
+        ).rowcount
 
-        if matching_lead_ids:
-            conn.execute(
-                text("""
-                    UPDATE cdp.leads 
-                    SET lead_segment_id = :seg_id,
-                        lead_segment_name = :seg_name,
-                        lead_segment_slug = :seg_slug
-                    WHERE id IN :lead_ids
-                """),
-                {"seg_id": seg_id, "seg_name": seg_name, "seg_slug": slug, "lead_ids": tuple(matching_lead_ids)}
-            )
-
-        results[slug] = len(matching_lead_ids)
+        results[slug] = count
 
     return results
 
 
 def evaluate_segments() -> Dict[str, Any]:
-    """Evaluates all Person and Lead dynamic segments and engagement temperatures in CDP database."""
-    logger.info("Starting CDP segment and engagement temperature evaluation for Persons and Leads...")
+    """Evaluates all Person dynamic segments, Lead statuses, and engagement temperatures in CDP database."""
+    logger.info("Starting CDP segment, status, and engagement temperature evaluation for Persons and Leads...")
     cdp_engine = get_db_engine(default_url="postgresql://jager:jager@db:5432/cdp", env_var="DATABASE_URL")
 
     with cdp_engine.begin() as conn:
         ensure_seed_segments(conn)
         person_results = evaluate_person_segments(conn)
         temperature_results = evaluate_engagement_temperature(conn)
-        lead_results = evaluate_lead_segments(conn)
+        lead_results = evaluate_lead_statuses(conn)
 
-    logger.info(f"CDP segment evaluation completed. Persons: {person_results}, Temperature: {temperature_results}, Leads: {lead_results}")
+    logger.info(f"CDP evaluation completed. Persons: {person_results}, Temperature: {temperature_results}, Lead Statuses: {lead_results}")
     return {
         "status": "success",
         "person_segments": person_results,
         "engagement_temperatures": temperature_results,
-        "lead_segments": lead_results
+        "lead_statuses": lead_results
     }
 
 

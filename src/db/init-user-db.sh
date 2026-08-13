@@ -204,19 +204,20 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
 
-	CREATE TABLE IF NOT EXISTS cdp.lead_segments (
+	CREATE TABLE IF NOT EXISTS cdp.lead_statuses (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		slug VARCHAR(64) UNIQUE NOT NULL,
 		name VARCHAR(128) NOT NULL,
+		stage VARCHAR(32),
+		is_end_state BOOLEAN NOT NULL DEFAULT FALSE,
 		description TEXT,
-		segment_type VARCHAR(32) NOT NULL DEFAULT 'dynamic',
 		criteria JSONB DEFAULT '{}'::jsonb,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
 
 	DROP TABLE IF EXISTS cdp.person_segment_memberships;
-	DROP TABLE IF EXISTS cdp.lead_segment_memberships;
+	DROP TABLE IF EXISTS cdp.lead_status_memberships;
 
 	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_id UUID REFERENCES cdp.person_segments(id) ON DELETE SET NULL;
 	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_name VARCHAR(128);
@@ -224,9 +225,11 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS potential_opportunity_types TEXT;
 	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS engagement_temperature VARCHAR(32) DEFAULT 'cold';
 
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_id UUID REFERENCES cdp.lead_segments(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_name VARCHAR(128);
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_segment_slug VARCHAR(64);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_id UUID REFERENCES cdp.lead_statuses(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_name VARCHAR(128);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_slug VARCHAR(64);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_stage_slug VARCHAR(64);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_stage_name VARCHAR(128);
 
 	ALTER TABLE cdp.person_segments ADD COLUMN IF NOT EXISTS potential_opportunity_types TEXT;
 
@@ -240,14 +243,17 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', 'Brand Awareness, Audience Engagement, Content Reach', '{"rule": "general_network"}'::jsonb)
 	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, potential_opportunity_types = EXCLUDED.potential_opportunity_types, criteria = EXCLUDED.criteria, updated_at = NOW();
 
-	-- Seed initial lead segments
-	INSERT INTO cdp.lead_segments (slug, name, description, segment_type, criteria) VALUES
-	('new_leads_no_followup_7d', 'New Leads No Followup 7d', 'Leads in prospect status created 7+ days ago with zero engagement touchpoints', 'dynamic', '{"rule": "new_leads_no_followup_7d"}'::jsonb),
-	('stale_in_negotiation', 'Stale In Negotiation', 'Leads in negotiating status with no touchpoints in the last 14 days', 'dynamic', '{"rule": "stale_in_negotiation"}'::jsonb),
-	('high_intent_inbound', 'High Intent Inbound', 'Leads flagged with high intent or strong signal strength', 'dynamic', '{"rule": "high_intent_inbound"}'::jsonb),
-	('contract_pending', 'Contract Pending', 'Leads in offer_accepted stage awaiting contract execution', 'dynamic', '{"rule": "contract_pending"}'::jsonb),
-	('re_engagement_prospects', 'Re-engagement Prospects', 'Leads in nurture status whose contact has recent activity in last 30 days', 'dynamic', '{"rule": "re_engagement_prospects"}'::jsonb)
-	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+	-- Seed initial lead statuses (Canonical Lifecycle Stages, Funnel Mapping & End State Flag)
+	INSERT INTO cdp.lead_statuses (slug, name, stage, is_end_state, description, criteria) VALUES
+	('prospect', 'Prospect', 'awareness', FALSE, 'Default state upon lead intake/ingestion. No negotiation initiated yet.', '{"rule": "prospect"}'::jsonb),
+	('nurture', 'Nurture', 'awareness', FALSE, 'Long-term follow up or delayed opportunity.', '{"rule": "nurture"}'::jsonb),
+	('negotiating', 'Negotiating', 'consideration', FALSE, 'Rates, scope, or ROE discussions underway.', '{"rule": "negotiating"}'::jsonb),
+	('offer_accepted', 'Offer Accepted', 'consideration', FALSE, 'Rates and terms agreed; awaiting contract execution.', '{"rule": "offer_accepted"}'::jsonb),
+	('contract_signed', 'Contract Signed', 'conversion', FALSE, 'Contract fully executed and signed.', '{"rule": "contract_signed"}'::jsonb),
+	('engaging', 'Engaging', 'conversion', FALSE, 'Active project work period.', '{"rule": "engaging"}'::jsonb),
+	('completed', 'Completed', NULL, TRUE, 'Project or consulting engagement successfully finished.', '{"rule": "completed"}'::jsonb),
+	('disqualified', 'Disqualified', NULL, TRUE, 'Unresponsive, poor fit, or lost opportunity.', '{"rule": "disqualified"}'::jsonb)
+	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, is_end_state = EXCLUDED.is_end_state, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
 EOSQL
 
 
