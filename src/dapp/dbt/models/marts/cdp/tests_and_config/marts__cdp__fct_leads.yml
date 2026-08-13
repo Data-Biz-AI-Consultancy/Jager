@@ -6,5 +6,11 @@ models:
     columns:
       - name: lead_id
         description: "Primary key for the lead."
+        tests:
+          - unique
+          - not_null
       - name: full_name
         description: "Full name associated with the lead."
+        tests:
+          - not_null
+

@@ -6,5 +6,10 @@ models:
     columns:
       - name: person_id
         description: "Surrogate/primary key for the person."
+        tests:
+          - unique
+          - not_null
       - name: full_name
         description: "Full name concatenated from first and last name."
+        tests:
+          - not_null

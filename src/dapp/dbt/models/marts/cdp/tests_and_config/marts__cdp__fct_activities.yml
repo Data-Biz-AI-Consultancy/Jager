@@ -6,5 +6,11 @@ models:
     columns:
       - name: activity_id
         description: "Primary key for the activity."
+        tests:
+          - unique
+          - not_null
       - name: activity_type
         description: "Type of activity."
+        tests:
+          - not_null
+
