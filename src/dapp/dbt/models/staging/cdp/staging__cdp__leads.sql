@@ -1,5 +1,5 @@
 {{ config(
-    materialized='view',
+    materialized='table',
     schema='staging',
     alias='stg_cdp__leads'
 ) }}
