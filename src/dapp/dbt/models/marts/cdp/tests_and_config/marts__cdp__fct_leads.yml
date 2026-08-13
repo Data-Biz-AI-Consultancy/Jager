@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: marts__cdp__fct_leads
+    description: "Curated fact table for CDP leads."
+    columns:
+      - name: lead_id
+        description: "Primary key for the lead."
+      - name: full_name
+        description: "Full name associated with the lead."

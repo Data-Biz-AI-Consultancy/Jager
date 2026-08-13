@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: marts__cdp__dim_persons
+    description: "Curated dimension model for CDP persons, enriched with primary company name."
+    columns:
+      - name: person_id
+        description: "Surrogate/primary key for the person."
+      - name: full_name
+        description: "Full name concatenated from first and last name."
