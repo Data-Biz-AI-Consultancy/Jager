@@ -82,14 +82,12 @@ PERSON_SEGMENT_RULES = {
     """,
     "hiring_decision_makers": """
         SELECT DISTINCT p.id FROM cdp.persons p
-        LEFT JOIN cdp.person_company_relationships r ON p.id = r.person_id
-        LEFT JOIN cdp.persons_linkedins pli ON (
+        JOIN cdp.persons_linkedins pli ON (
             (p.primary_email IS NOT NULL AND p.primary_email = pli.email_address)
             OR (p.linkedin_url IS NOT NULL AND pli.profile_url IS NOT NULL AND pli.profile_url ILIKE '%' || p.linkedin_url || '%')
             OR (LOWER(TRIM(p.first_name)) = LOWER(TRIM(pli.first_name)) AND LOWER(TRIM(p.last_name)) = LOWER(TRIM(pli.last_name)))
         )
-        WHERE r.id IS NOT NULL
-           OR LOWER(COALESCE(pli.position, '')) ~ '(founder|co-founder|cofounder|owner|partner|chief|ceo|cto|cfo|coo|cmo|cpo|cro|cio|cdo|vp|vice president|head|director|lead|manager|executive|principal)'
+        WHERE LOWER(COALESCE(pli.position, '')) ~ '(founder|co-founder|cofounder|owner|partner|chief|ceo|cto|cfo|coo|cmo|cpo|cro|cio|cdo|vp|vice president|head|director|lead|manager|executive|principal)'
     """,
     "peer_collaborators": """
         SELECT DISTINCT p.id FROM cdp.persons p

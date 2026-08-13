@@ -185,6 +185,12 @@ def run_ingestion():
             for row in result:
                 yield dict(row._mapping)
 
+    logger.info("Starting DLT pipeline")
+    pipeline = create_motherduck_pipeline(
+        pipeline_name="cdp_ingestion",
+        dataset_name="s_cdp",
+    )
+
     # Run the pipeline
     load_info = pipeline.run([
         get_activities,
