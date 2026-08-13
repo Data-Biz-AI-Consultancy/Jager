@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: staging__cdp__persons
+    description: "Staging model for CDP persons table."
+    columns:
+      - name: person_id
+        description: "Primary key of the person record."
+      - name: primary_email
+        description: "Primary email address of the person."

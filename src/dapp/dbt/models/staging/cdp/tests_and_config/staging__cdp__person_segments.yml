@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: staging__cdp__person_segments
+    description: "Staging model for CDP person segments lookup table."
+    columns:
+      - name: person_segment_id
+        description: "Primary key of the person segment."
+      - name: slug
+        description: "Slug identifier of the person segment."

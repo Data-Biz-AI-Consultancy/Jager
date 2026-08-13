@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: staging__cdp__person_company_relationships
+    description: "Staging model for CDP person to company relationships."
+    columns:
+      - name: relationship_id
+        description: "Primary key of the relationship record."
+      - name: job_title
+        description: "Job title of the person at the company."

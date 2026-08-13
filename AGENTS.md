@@ -154,9 +154,9 @@
 - Always use **Europe/Berlin** (local) timezone for all date and timestamp columns in reporting models.
 
 ## dbt YAML Documentation Conventions
-- Always create **1 YAML file per dbt model**, co-located alongside the `.sql` file in the same directory.
+- Always create **1 YAML file per dbt model**, stored inside a dedicated `tests_and_config/` subfolder within each model domain directory (e.g. `dbt/models/staging/cdp/tests_and_config/` or `dbt/models/marts/cdp/tests_and_config/`).
 - The YAML filename must exactly match the model filename, with a `.yml` extension (e.g., `marts__content_marketing__daily_performance.yml` for `marts__content_marketing__daily_performance.sql`).
-- Do NOT use a shared `_models.yml` or `_sources.yml`-style file to document multiple models in a single file. Sources (raw tables) may still use `_sources.yml` per folder.
+- Do NOT use a shared `_models.yml` or `_sources.yml`-style file to document multiple models in a single file. Sources (raw tables) may still use `_sources.yml` in the `tests_and_config/` folder.
 
 ## Environment & Secrets Conventions
 - The `.env` file at the workspace root is **strictly for local development only**. It MUST NEVER be deployed to or read from in production environments.

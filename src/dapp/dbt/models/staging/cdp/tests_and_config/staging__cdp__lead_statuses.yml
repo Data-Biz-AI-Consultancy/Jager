@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: staging__cdp__lead_statuses
+    description: "Staging model for CDP lead statuses lookup table."
+    columns:
+      - name: lead_status_id
+        description: "Primary key of the lead status."
+      - name: slug
+        description: "Slug identifier of the lead status."

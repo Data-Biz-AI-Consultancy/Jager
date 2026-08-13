@@ -1,0 +1,10 @@
+version: 2
+
+models:
+  - name: staging__cdp__companies
+    description: "Staging model for CDP companies table."
+    columns:
+      - name: company_id
+        description: "Primary key of the company."
+      - name: company_name
+        description: "Name of the company."
