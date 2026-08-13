@@ -23,11 +23,11 @@ def test_notion_workflow_json_structure():
 
 
 def test_notion_monitored_databases_seeds():
-    init_sh_path = os.path.join(os.path.dirname(__file__), '../../src/db/init-user-db.sh')
+    oltp_seeds_path = os.path.join(os.path.dirname(__file__), '../../src/db/sql/oltp_seeds.sql')
     migrate_js_path = os.path.join(os.path.dirname(__file__), '../../src/db/migrate-db.js')
 
-    with open(init_sh_path, 'r') as f:
-        init_sh = f.read()
+    with open(oltp_seeds_path, 'r') as f:
+        oltp_seeds = f.read()
 
     with open(migrate_js_path, 'r') as f:
         migrate_js = f.read()
@@ -39,5 +39,6 @@ def test_notion_monitored_databases_seeds():
     ]
 
     for db_id in target_dbs:
-        assert db_id in init_sh, f"Database ID {db_id} missing from init-user-db.sh"
-        assert db_id in migrate_js, f"Database ID {db_id} missing from migrate-db.js"
+        assert db_id in oltp_seeds, f"Database ID {db_id} missing from oltp_seeds.sql"
+        assert "oltp_seeds.sql" in migrate_js, f"migrate-db.js does not load oltp_seeds.sql"
+

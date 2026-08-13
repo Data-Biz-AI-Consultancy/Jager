@@ -1,6 +1,6 @@
 # Database Schema & Entity Relationship Diagram
 
-This directory contains the database setup and initialization scripts for PostgreSQL database `jager`.
+This directory contains the database setup and initialization scripts for PostgreSQL database `jager` and `cdp`.
 
 ## CDP Schema Entity Relationship Diagram (ERD)
 
@@ -99,6 +99,11 @@ erDiagram
 - **`cdp.person_company_relationships`**: Dynamic mapping of persons to client accounts with roles (`role_type`, `job_title`, `department`) and date boundaries.
 - **`cdp.engagements`**: Activity log (emails, calls, meetings, notes, form submissions, LinkedIn messages).
 
-## Files in `src/db/`
+## Files and Folders in `src/db/`
 - [init-user-db.sh](init-user-db.sh): PostgreSQL initialization script run automatically on Docker startup.
 - [migrate-db.js](migrate-db.js): Database migration and DDL synchronization script.
+- [sql/](sql/): Directory containing single-source-of-truth SQL DDL and seed files shared across `init-user-db.sh` and `migrate-db.js`.
+  - `sql/cdp_schema.sql`: CDP database schema DDL.
+  - `sql/cdp_seeds.sql`: CDP database seed data.
+  - `sql/oltp_schema.sql`: Jager OLTP database schema DDL.
+  - `sql/oltp_seeds.sql`: Jager OLTP database seed data.

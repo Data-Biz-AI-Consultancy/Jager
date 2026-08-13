@@ -17,6 +17,7 @@ COPY src/n8n/scripts/import-workflows.js /etc/n8n/import-workflows.js
 COPY src/n8n/scripts/post-startup-repair.js /etc/n8n/post-startup-repair.js
 COPY src/n8n/scripts/repair-versions.sh /etc/n8n/repair-versions.sh
 RUN chmod +x /etc/n8n/repair-versions.sh
+COPY src/db/sql/ /etc/n8n/sql/
 COPY src/db/migrate-db.js /etc/n8n/migrate-db.js
 
 
