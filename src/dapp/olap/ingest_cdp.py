@@ -131,31 +131,6 @@ def run_ingestion():
                 yield dict(row._mapping)
 
     @dlt.resource(
-        name="person_company_relationships",
-        write_disposition="merge",
-        primary_key="id",
-        columns={
-            "id": {"data_type": "text"},
-            "person_id": {"data_type": "text"},
-            "company_id": {"data_type": "text"},
-            "job_title": {"data_type": "text"},
-            "department": {"data_type": "text"},
-            "role_type": {"data_type": "text"},
-            "is_primary": {"data_type": "bool"},
-            "start_date": {"data_type": "date"},
-            "end_date": {"data_type": "date"},
-            "status": {"data_type": "text"},
-            "created_at": {"data_type": "timestamp"},
-            "updated_at": {"data_type": "timestamp"},
-        }
-    )
-    def get_person_company_relationships():
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT id, person_id, company_id, job_title, department, role_type, is_primary, start_date, end_date, status, created_at, updated_at FROM cdp.person_company_relationships"))
-            for row in result:
-                yield dict(row._mapping)
-
-    @dlt.resource(
         name="person_segments",
         write_disposition="merge",
         primary_key="id",
@@ -210,22 +185,12 @@ def run_ingestion():
             for row in result:
                 yield dict(row._mapping)
 
-
-
-
-    logger.info("Starting DLT pipeline")
-    pipeline = create_motherduck_pipeline(
-        pipeline_name="cdp_ingestion",
-        dataset_name="s_cdp",
-    )
-
     # Run the pipeline
     load_info = pipeline.run([
         get_activities,
         get_companies,
         get_lead_statuses,
         get_leads,
-        get_person_company_relationships,
         get_person_segments,
         get_persons,
     ])

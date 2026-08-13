@@ -8,6 +8,5 @@ sources:
       - name: companies
       - name: lead_statuses
       - name: leads
-      - name: person_company_relationships
       - name: person_segments
       - name: persons
