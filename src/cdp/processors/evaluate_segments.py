@@ -162,24 +162,24 @@ def ensure_seed_segments(conn):
     conn.execute(text("DELETE FROM cdp.person_segments WHERE slug IN ('community_and_audience', 'ecosystem_tooling_partners')"))
 
     lead_seeds = [
-        ("prospect", "Prospect", "Default state upon lead intake/ingestion. No negotiation initiated yet.", {"rule": "prospect"}),
-        ("negotiating", "Negotiating", "Rates, scope, or ROE discussions underway.", {"rule": "negotiating"}),
-        ("offer_accepted", "Offer Accepted", "Rates and terms agreed; awaiting contract execution.", {"rule": "offer_accepted"}),
-        ("contract_signed", "Contract Signed", "Contract fully executed and signed.", {"rule": "contract_signed"}),
-        ("engaging", "Engaging", "Active project work period.", {"rule": "engaging"}),
-        ("nurture", "Nurture", "Long-term follow up or delayed opportunity.", {"rule": "nurture"}),
-        ("completed", "Completed", "Project or consulting engagement successfully finished.", {"rule": "completed"}),
-        ("disqualified", "Disqualified", "Unresponsive, poor fit, or lost opportunity.", {"rule": "disqualified"}),
+        ("prospect", "Prospect", "awareness", "Default state upon lead intake/ingestion. No negotiation initiated yet.", {"rule": "prospect"}),
+        ("nurture", "Nurture", "awareness", "Long-term follow up or delayed opportunity.", {"rule": "nurture"}),
+        ("negotiating", "Negotiating", "consideration", "Rates, scope, or ROE discussions underway.", {"rule": "negotiating"}),
+        ("offer_accepted", "Offer Accepted", "consideration", "Rates and terms agreed; awaiting contract execution.", {"rule": "offer_accepted"}),
+        ("contract_signed", "Contract Signed", "conversion", "Contract fully executed and signed.", {"rule": "contract_signed"}),
+        ("engaging", "Engaging", "conversion", "Active project work period.", {"rule": "engaging"}),
+        ("completed", "Completed", "conversion", "Project or consulting engagement successfully finished.", {"rule": "completed"}),
+        ("disqualified", "Disqualified", "archived", "Unresponsive, poor fit, or lost opportunity.", {"rule": "disqualified"}),
     ]
 
-    for slug, name, desc, criteria in lead_seeds:
+    for slug, name, stage, desc, criteria in lead_seeds:
         conn.execute(
             text("""
-                INSERT INTO cdp.lead_statuses (slug, name, description, criteria)
-                VALUES (:slug, :name, :desc, :criteria)
-                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+                INSERT INTO cdp.lead_statuses (slug, name, stage, description, criteria)
+                VALUES (:slug, :name, :stage, :desc, :criteria)
+                ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
             """),
-            {"slug": slug, "name": name, "desc": desc, "criteria": json.dumps(criteria)}
+            {"slug": slug, "name": name, "stage": stage, "desc": desc, "criteria": json.dumps(criteria)}
         )
 
 
@@ -284,24 +284,40 @@ def evaluate_engagement_temperature(conn) -> Dict[str, int]:
 
 
 def evaluate_lead_statuses(conn) -> Dict[str, int]:
-    """Evaluates lead statuses matching cdp.leads.status and updates lead_status_id, lead_status_name, lead_status_slug on cdp.leads."""
+    """Evaluates lead statuses matching cdp.leads.status and updates lead_status_id, lead_status_name, lead_status_slug, lead_stage_slug, lead_stage_name on cdp.leads."""
     results = {}
-    statuses = conn.execute(text("SELECT id, slug, name FROM cdp.lead_statuses")).fetchall()
-    status_map = {row[1]: (row[0], row[2]) for row in statuses}
+    statuses = conn.execute(text("SELECT id, slug, name, stage FROM cdp.lead_statuses")).fetchall()
+    status_map = {row[1]: (row[0], row[2], row[3]) for row in statuses}
+
+    stage_display_names = {
+        "awareness": "1. Awareness",
+        "consideration": "2. Consideration",
+        "conversion": "3. Conversion",
+        "archived": "Archived",
+    }
 
     # Reset all lead status references
-    conn.execute(text("UPDATE cdp.leads SET lead_status_id = NULL, lead_status_name = NULL, lead_status_slug = NULL"))
+    conn.execute(text("UPDATE cdp.leads SET lead_status_id = NULL, lead_status_name = NULL, lead_status_slug = NULL, lead_stage_slug = NULL, lead_stage_name = NULL"))
 
-    for slug, (status_id, status_name) in status_map.items():
+    for slug, (status_id, status_name, stage_slug) in status_map.items():
+        stage_name = stage_display_names.get(stage_slug, stage_slug.title())
         count = conn.execute(
             text("""
                 UPDATE cdp.leads 
                 SET lead_status_id = :status_id,
                     lead_status_name = :status_name,
-                    lead_status_slug = :slug
+                    lead_status_slug = :slug,
+                    lead_stage_slug = :stage_slug,
+                    lead_stage_name = :stage_name
                 WHERE LOWER(COALESCE(status, 'prospect')) = :slug
             """),
-            {"status_id": status_id, "status_name": status_name, "slug": slug}
+            {
+                "status_id": status_id,
+                "status_name": status_name,
+                "slug": slug,
+                "stage_slug": stage_slug,
+                "stage_name": stage_name,
+            }
         ).rowcount
 
         results[slug] = count

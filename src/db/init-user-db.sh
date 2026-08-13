@@ -208,6 +208,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		slug VARCHAR(64) UNIQUE NOT NULL,
 		name VARCHAR(128) NOT NULL,
+		stage VARCHAR(32) NOT NULL DEFAULT 'awareness',
 		description TEXT,
 		criteria JSONB DEFAULT '{}'::jsonb,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -226,6 +227,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_id UUID REFERENCES cdp.lead_statuses(id) ON DELETE SET NULL;
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_name VARCHAR(128);
 	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_slug VARCHAR(64);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_stage_slug VARCHAR(64);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_stage_name VARCHAR(128);
 
 	ALTER TABLE cdp.person_segments ADD COLUMN IF NOT EXISTS potential_opportunity_types TEXT;
 
@@ -239,17 +242,17 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', 'Brand Awareness, Audience Engagement, Content Reach', '{"rule": "general_network"}'::jsonb)
 	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, potential_opportunity_types = EXCLUDED.potential_opportunity_types, criteria = EXCLUDED.criteria, updated_at = NOW();
 
-	-- Seed initial lead statuses (Canonical Lifecycle Stages)
-	INSERT INTO cdp.lead_statuses (slug, name, description, criteria) VALUES
-	('prospect', 'Prospect', 'Default state upon lead intake/ingestion. No negotiation initiated yet.', '{"rule": "prospect"}'::jsonb),
-	('negotiating', 'Negotiating', 'Rates, scope, or ROE discussions underway.', '{"rule": "negotiating"}'::jsonb),
-	('offer_accepted', 'Offer Accepted', 'Rates and terms agreed; awaiting contract execution.', '{"rule": "offer_accepted"}'::jsonb),
-	('contract_signed', 'Contract Signed', 'Contract fully executed and signed.', '{"rule": "contract_signed"}'::jsonb),
-	('engaging', 'Engaging', 'Active project work period.', '{"rule": "engaging"}'::jsonb),
-	('nurture', 'Nurture', 'Long-term follow up or delayed opportunity.', '{"rule": "nurture"}'::jsonb),
-	('completed', 'Completed', 'Project or consulting engagement successfully finished.', '{"rule": "completed"}'::jsonb),
-	('disqualified', 'Disqualified', 'Unresponsive, poor fit, or lost opportunity.', '{"rule": "disqualified"}'::jsonb)
-	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+	-- Seed initial lead statuses (Canonical Lifecycle Stages & Funnel Mapping)
+	INSERT INTO cdp.lead_statuses (slug, name, stage, description, criteria) VALUES
+	('prospect', 'Prospect', 'awareness', 'Default state upon lead intake/ingestion. No negotiation initiated yet.', '{"rule": "prospect"}'::jsonb),
+	('nurture', 'Nurture', 'awareness', 'Long-term follow up or delayed opportunity.', '{"rule": "nurture"}'::jsonb),
+	('negotiating', 'Negotiating', 'consideration', 'Rates, scope, or ROE discussions underway.', '{"rule": "negotiating"}'::jsonb),
+	('offer_accepted', 'Offer Accepted', 'consideration', 'Rates and terms agreed; awaiting contract execution.', '{"rule": "offer_accepted"}'::jsonb),
+	('contract_signed', 'Contract Signed', 'conversion', 'Contract fully executed and signed.', '{"rule": "contract_signed"}'::jsonb),
+	('engaging', 'Engaging', 'conversion', 'Active project work period.', '{"rule": "engaging"}'::jsonb),
+	('completed', 'Completed', 'conversion', 'Project or consulting engagement successfully finished.', '{"rule": "completed"}'::jsonb),
+	('disqualified', 'Disqualified', 'archived', 'Unresponsive, poor fit, or lost opportunity.', '{"rule": "disqualified"}'::jsonb)
+	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
 EOSQL
 
 

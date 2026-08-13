@@ -176,20 +176,20 @@ Every person in `cdp.persons` is dynamically scored with an `engagement_temperat
 
 ---
 
-### 💼 Lead Statuses (Opportunity Pipeline Stages)
+### 💼 Lead Statuses & Funnel Stages
 
-`cdp.lead_statuses` stores the 8 canonical lead lifecycle stages mapped to `cdp.leads`:
+`cdp.lead_statuses` stores the 8 canonical lead lifecycle stages mapped to 3 high-level marketing/sales funnel stages (`awareness`, `consideration`, `conversion`):
 
-| Slug | Lead Status Name | Description & Lifecycle Trigger |
-| :--- | :--- | :--- |
-| `prospect` | **Prospect** | Default state upon lead intake/ingestion. No negotiation initiated yet. |
-| `negotiating` | **Negotiating** | Rates, scope, or ROE discussions underway. |
-| `offer_accepted` | **Offer Accepted** | Rates and terms agreed; awaiting contract execution. |
-| `contract_signed` | **Contract Signed** | Contract fully executed and signed. |
-| `engaging` | **Engaging** | Active project work period. |
-| `nurture` | **Nurture** | Long-term follow up or delayed opportunity. |
-| `completed` | **Completed** | Project or consulting engagement successfully finished. |
-| `disqualified` | **Disqualified** | Unresponsive, poor fit, or lost opportunity. |
+| Slug | Lead Status Name | Funnel Stage (`stage`) | Description & Lifecycle Trigger |
+| :--- | :--- | :--- | :--- |
+| `prospect` | **Prospect** | `awareness` | Default state upon lead intake/ingestion. No negotiation initiated yet. |
+| `nurture` | **Nurture** | `awareness` | Long-term follow up or delayed opportunity. |
+| `negotiating` | **Negotiating** | `consideration` | Rates, scope, or ROE discussions underway. |
+| `offer_accepted` | **Offer Accepted** | `consideration` | Rates and terms agreed; awaiting contract execution. |
+| `contract_signed` | **Contract Signed** | `conversion` | Contract fully executed and signed. |
+| `engaging` | **Engaging** | `conversion` | Active project work period. |
+| `completed` | **Completed** | `conversion` | Project or consulting engagement successfully finished. |
+| `disqualified` | **Disqualified** | `archived` | Unresponsive, poor fit, or lost opportunity. |
 
 ---
 

@@ -75,8 +75,8 @@ def test_evaluate_lead_statuses():
     mock_conn = MagicMock()
     # Mock cdp.lead_statuses fetchall
     mock_conn.execute.return_value.fetchall.return_value = [
-        ("s-uuid-1", "prospect", "Prospect"),
-        ("s-uuid-2", "negotiating", "Negotiating"),
+        ("s-uuid-1", "prospect", "Prospect", "awareness"),
+        ("s-uuid-2", "negotiating", "Negotiating", "consideration"),
     ]
     # Mock rowcount for updates
     mock_conn.execute.return_value.rowcount = 5
