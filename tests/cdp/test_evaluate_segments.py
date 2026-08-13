@@ -73,22 +73,17 @@ def test_evaluate_person_segments():
 
 def test_evaluate_lead_statuses():
     mock_conn = MagicMock()
-    # Mock lead_statuses query
-    mock_conn.execute.return_value.fetchall.side_effect = [
-        # cdp.lead_statuses fetchall
-        [
-            ("l-uuid-1", "new_leads_no_followup_7d", "New Leads No Followup 7d", "dynamic", {"rule": "new_leads_no_followup_7d"}),
-            ("l-uuid-2", "contract_pending", "Contract Pending", "dynamic", {"rule": "contract_pending"}),
-        ],
-        # rule 1 matching leads
-        [("lead-111",)],
-        # rule 2 matching leads
-        [],
+    # Mock cdp.lead_statuses fetchall
+    mock_conn.execute.return_value.fetchall.return_value = [
+        ("s-uuid-1", "prospect", "Prospect"),
+        ("s-uuid-2", "negotiating", "Negotiating"),
     ]
+    # Mock rowcount for updates
+    mock_conn.execute.return_value.rowcount = 5
 
     results = evaluate_lead_statuses(mock_conn)
-    assert results["new_leads_no_followup_7d"] == 1
-    assert results["contract_pending"] == 0
+    assert results["prospect"] == 5
+    assert results["negotiating"] == 5
 
 
 

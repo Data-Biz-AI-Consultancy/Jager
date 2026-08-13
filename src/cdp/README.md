@@ -176,17 +176,20 @@ Every person in `cdp.persons` is dynamically scored with an `engagement_temperat
 
 ---
 
-### 💼 Lead Segments (Opportunity Pipeline)
+### 💼 Lead Statuses (Opportunity Pipeline Stages)
 
-`cdp.leads` represents sales pipeline opportunities and incoming service requests, classified into 5 lead segments:
+`cdp.lead_statuses` stores the 8 canonical lead lifecycle stages mapped to `cdp.leads`:
 
-| Slug | Lead Segment Name | Description & Evaluation Rule |
+| Slug | Lead Status Name | Description & Lifecycle Trigger |
 | :--- | :--- | :--- |
-| `new_leads_no_followup_7d` | **New Leads No Followup 7d** | Leads in `prospect` status created $\ge 7$ days ago with zero touchpoints in `cdp.engagements`. |
-| `stale_in_negotiation` | **Stale In Negotiation** | Leads in `negotiating` status with no touchpoints in the last 14 days. |
-| `high_intent_inbound` | **High Intent Inbound** | Leads flagged with high intent (`high_intent`, `inbound`) or strong signal strength. |
-| `contract_pending` | **Contract Pending** | Leads in `offer_accepted` stage awaiting contract execution. |
-| `re_engagement_prospects` | **Re-engagement Prospects** | Leads in `nurture` status whose associated contact has recent activity in last 30 days. |
+| `prospect` | **Prospect** | Default state upon lead intake/ingestion. No negotiation initiated yet. |
+| `negotiating` | **Negotiating** | Rates, scope, or ROE discussions underway. |
+| `offer_accepted` | **Offer Accepted** | Rates and terms agreed; awaiting contract execution. |
+| `contract_signed` | **Contract Signed** | Contract fully executed and signed. |
+| `engaging` | **Engaging** | Active project work period. |
+| `nurture` | **Nurture** | Long-term follow up or delayed opportunity. |
+| `completed` | **Completed** | Project or consulting engagement successfully finished. |
+| `disqualified` | **Disqualified** | Unresponsive, poor fit, or lost opportunity. |
 
 ---
 

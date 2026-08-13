@@ -240,14 +240,17 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', 'Brand Awareness, Audience Engagement, Content Reach', '{"rule": "general_network"}'::jsonb)
 	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, potential_opportunity_types = EXCLUDED.potential_opportunity_types, criteria = EXCLUDED.criteria, updated_at = NOW();
 
-	-- Seed initial lead statuses
+	-- Seed initial lead statuses (Canonical Lifecycle Stages)
 	INSERT INTO cdp.lead_statuses (slug, name, description, segment_type, criteria) VALUES
-	('new_leads_no_followup_7d', 'New Leads No Followup 7d', 'Leads in prospect status created 7+ days ago with zero engagement touchpoints', 'dynamic', '{"rule": "new_leads_no_followup_7d"}'::jsonb),
-	('stale_in_negotiation', 'Stale In Negotiation', 'Leads in negotiating status with no touchpoints in the last 14 days', 'dynamic', '{"rule": "stale_in_negotiation"}'::jsonb),
-	('high_intent_inbound', 'High Intent Inbound', 'Leads flagged with high intent or strong signal strength', 'dynamic', '{"rule": "high_intent_inbound"}'::jsonb),
-	('contract_pending', 'Contract Pending', 'Leads in offer_accepted stage awaiting contract execution', 'dynamic', '{"rule": "contract_pending"}'::jsonb),
-	('re_engagement_prospects', 'Re-engagement Prospects', 'Leads in nurture status whose contact has recent activity in last 30 days', 'dynamic', '{"rule": "re_engagement_prospects"}'::jsonb)
-	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+	('prospect', 'Prospect', 'Default state upon lead intake/ingestion. No negotiation initiated yet.', 'static', '{"rule": "prospect"}'::jsonb),
+	('negotiating', 'Negotiating', 'Rates, scope, or ROE discussions underway.', 'static', '{"rule": "negotiating"}'::jsonb),
+	('offer_accepted', 'Offer Accepted', 'Rates and terms agreed; awaiting contract execution.', 'static', '{"rule": "offer_accepted"}'::jsonb),
+	('contract_signed', 'Contract Signed', 'Contract fully executed and signed.', 'static', '{"rule": "contract_signed"}'::jsonb),
+	('engaging', 'Engaging', 'Active project work period.', 'static', '{"rule": "engaging"}'::jsonb),
+	('nurture', 'Nurture', 'Long-term follow up or delayed opportunity.', 'static', '{"rule": "nurture"}'::jsonb),
+	('completed', 'Completed', 'Project or consulting engagement successfully finished.', 'static', '{"rule": "completed"}'::jsonb),
+	('disqualified', 'Disqualified', 'Unresponsive, poor fit, or lost opportunity.', 'static', '{"rule": "disqualified"}'::jsonb)
+	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, segment_type = EXCLUDED.segment_type, criteria = EXCLUDED.criteria, updated_at = NOW();
 EOSQL
 
 
