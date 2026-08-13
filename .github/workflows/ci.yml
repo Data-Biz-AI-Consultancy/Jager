@@ -35,6 +35,66 @@ jobs:
 
           docker compose config --quiet
 
+  docker-smoke-test:
+    name: Docker Container Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create stub .env
+        run: |
+          cat > .env <<'EOF'
+          MOTHERDUCK_TOKEN=dummy
+          MOTHERDUCK_DATABASE=staging
+          NOTION_API_KEY=dummy
+          NOTION_MANUAL_INGESTION_PAGE_ID=dummy
+          TUNNEL_TOKEN=dummy
+          SLACK_OAUTH_TOKEN=dummy
+          SLACK_APP_TOKEN=dummy
+          SLACK_GIUSY_OAUTH_TOKEN=dummy
+          SLACK_GIUSY_APP_TOKEN=dummy
+          OLLAMA_API_KEY=dummy
+          LINKEDIN_MEMBER_DATA_PORTABILITY_API_TOKEN=dummy
+          LINKEDIN_SHARE_ON_APP_CLIENT_ID=dummy
+          LINKEDIN_SHARE_ON_APP_CLIENT_PRIMARY_CLIENT_SECRET=dummy
+          NOTION_SUBSTACK_POSTS_GENERATION_API_KEY=dummy
+          BUFFER_API_KEY=dummy
+          HUGGING_FACE_TOKEN=dummy
+          EOF
+
+      - name: Build and start core services (db + n8n)
+        run: |
+          docker compose --profile app build --no-cache db n8n
+          docker compose --profile app up -d db n8n
+
+      - name: Wait for n8n to become healthy
+        timeout-minutes: 5
+        run: |
+          echo "Waiting for n8n /healthz..."
+          for i in $(seq 1 60); do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' \
+              $(docker compose ps -q n8n) 2>/dev/null || echo "missing")
+            echo "  Attempt $i/60 — status: $STATUS"
+            if [ "$STATUS" = "healthy" ]; then
+              echo "n8n is healthy!"
+              exit 0
+            fi
+            if [ "$STATUS" = "unhealthy" ]; then
+              echo "ERROR: n8n container is unhealthy. Dumping logs:"
+              docker compose logs n8n --tail 80
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "ERROR: n8n never became healthy within timeout. Dumping logs:"
+          docker compose logs n8n --tail 80
+          exit 1
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile app down --remove-orphans --volumes
+
 
   test-python:
     runs-on: ubuntu-latest
