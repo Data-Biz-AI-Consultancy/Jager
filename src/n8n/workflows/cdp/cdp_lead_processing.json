@@ -17,7 +17,7 @@
       "typeVersion": 1.2,
       "position": [
         0,
-        0
+        48
       ],
       "id": "1",
       "name": "Schedule Trigger"
@@ -32,7 +32,7 @@
       "typeVersion": 4.2,
       "position": [
         224,
-        0
+        -48
       ],
       "id": "2",
       "name": "Process LinkedIn Connections"
@@ -47,10 +47,55 @@
       "typeVersion": 4.2,
       "position": [
         448,
-        0
+        -48
       ],
       "id": "3",
       "name": "Process Manual Data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CDP_SERVICE_URL || 'http://cdp:8000' }}/process/linkedin_messages",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        144
+      ],
+      "id": "4",
+      "name": "Process LinkedIn Messages"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CDP_SERVICE_URL || 'http://cdp:8000' }}/process/notion_meeting_notes",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        448,
+        144
+      ],
+      "id": "5",
+      "name": "Process Notion Meeting Notes"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CDP_SERVICE_URL || 'http://cdp:8000' }}/process/evaluate_segments",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        672,
+        48
+      ],
+      "id": "6",
+      "name": "Evaluate Dynamic Segments"
     }
   ],
   "connections": {
@@ -59,6 +104,11 @@
         [
           {
             "node": "Process LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process LinkedIn Messages",
             "type": "main",
             "index": 0
           }
@@ -75,9 +125,41 @@
           }
         ]
       ]
+    },
+    "Process Manual Data": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Dynamic Segments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process LinkedIn Messages": {
+      "main": [
+        [
+          {
+            "node": "Process Notion Meeting Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Notion Meeting Notes": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Dynamic Segments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"

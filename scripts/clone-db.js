@@ -62,13 +62,19 @@ async function waitForPostgres(dockerComposeCmd, timeoutSeconds = 30) {
 
 // ─── Usage ────────────────────────────────────────────────────────────────────
 
+// ─── Usage ────────────────────────────────────────────────────────────────────
+
 function usage() {
   console.log(`
 Usage: node scripts/clone-db.js <PROD_DATABASE_URL> [options]
 
 Options:
-  --skip-n8n, --jager-only    Only clone the 'jager' database, skip 'n8n' database
-  --skip-jager, --n8n-only    Only clone the 'n8n' database, skip 'jager' database
+  --skip-n8n                  Skip cloning 'n8n' database
+  --skip-cdp                  Skip cloning 'cdp' database
+  --skip-jager                Skip cloning 'jager' database
+  --jager-only                Only clone 'jager' database
+  --n8n-only                  Only clone 'n8n' database
+  --cdp-only                  Only clone 'cdp' database
   --include-history           Include n8n execution log table data (execution_entity,
                               execution_data, execution_metadata). By default these
                               tables are skipped as they can be very large.
@@ -92,8 +98,14 @@ if (args.includes('--help') || args.includes('-h')) usage();
 const connectionString = args.find(
   a => a.startsWith('postgres://') || a.startsWith('postgresql://') || a.includes('@')
 );
-const skipN8N        = args.includes('--skip-n8n')    || args.includes('--jager-only');
-const skipJager      = args.includes('--skip-jager')   || args.includes('--n8n-only');
+const cdpOnly        = args.includes('--cdp-only');
+const n8nOnly        = args.includes('--n8n-only');
+const jagerOnly      = args.includes('--jager-only');
+
+const skipN8N        = args.includes('--skip-n8n') || jagerOnly || cdpOnly;
+const skipCDP        = args.includes('--skip-cdp') || jagerOnly || n8nOnly;
+const skipJager      = args.includes('--skip-jager') || n8nOnly || cdpOnly;
+
 const includeHistory = args.includes('--include-history');
 const excludeHistory = !includeHistory; // excluded by default; use --include-history to opt in
 
@@ -109,16 +121,22 @@ const numJobs    = (jobsIdx !== -1 && args[jobsIdx + 1])
 
 let PROD_JAGER_URL      = connectionString || process.env.PROD_DATABASE_URL || process.env.PROD_JAGER_URL;
 let PROD_N8N_URL        = process.env.PROD_N8N_URL;
+let PROD_CDP_URL        = process.env.PROD_CDP_URL;
 
 if (PROD_JAGER_URL) {
   try {
     const urlObj = new URL(PROD_JAGER_URL);
-    if (urlObj.pathname !== '/n8n') {
+    if (!PROD_N8N_URL) {
       urlObj.pathname = '/n8n';
       PROD_N8N_URL = urlObj.toString();
     }
+    if (!PROD_CDP_URL) {
+      urlObj.pathname = '/cdp';
+      PROD_CDP_URL = urlObj.toString();
+    }
   } catch {
-    PROD_N8N_URL = PROD_JAGER_URL.replace(/\/jager(\?|$)/, '/n8n$1');
+    if (!PROD_N8N_URL) PROD_N8N_URL = PROD_JAGER_URL.replace(/\/jager(\?|$)/, '/n8n$1');
+    if (!PROD_CDP_URL) PROD_CDP_URL = PROD_JAGER_URL.replace(/\/jager(\?|$)/, '/cdp$1');
   }
 }
 
@@ -204,30 +222,31 @@ async function cloneDatabase(dbName, prodUrl) {
       tag
     );
 
-    // ── Step 2: Drop local database (WITH FORCE eliminates separate termination step) ──
-    log(`Dropping local database ${dbName}...`);
-    try {
-      // PostgreSQL 13+ — immediately terminates all connections and drops
+    // ── Step 2: Clean existing database schema (without dropping database) ──
+    // We only drop 'public' and s_* schemas. The 'cdp' schema is intentionally
+    // preserved so that GUI IDE connections (PostgreSQL Explorer) bound to
+    // cdp/scratch.pgsql never lose their connection handle.
+    log(`Clearing existing schemas in local database ${dbName}...`);
+    if (dbName === 'jager') {
+      // Enumerate and drop all s_* schemas (ODS layer) plus public; leave cdp alone.
       await run(
-        `${dockerComposeCmd} exec -T db psql -U jager -d postgres` +
-          ` -c "DROP DATABASE IF EXISTS ${dbName} WITH (FORCE);"`,
+        `${dockerComposeCmd} exec -T db psql -U jager -d ${dbName} -tAc ` +
+          `"SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 's\\_%' OR schema_name = 'public'"`,
+        tag
+      ).catch(() => {});
+      await run(
+        `${dockerComposeCmd} exec -T db psql -U jager -d ${dbName} -c ` +
+          `"DO \\$\\$ DECLARE r RECORD; BEGIN FOR r IN SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 's\\_%%' LOOP EXECUTE 'DROP SCHEMA IF EXISTS ' || quote_ident(r.schema_name) || ' CASCADE'; END LOOP; END \\$\\$; DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"`,
         tag
       );
-    } catch {
-      // Fallback for PostgreSQL < 13
+    } else {
+      // n8n and cdp databases: drop public + cdp schemas as before
       await run(
-        `${dockerComposeCmd} exec -T db psql -U jager -d postgres` +
-          ` -c "DROP DATABASE IF EXISTS ${dbName};"`,
+        `${dockerComposeCmd} exec -T db psql -U jager -d ${dbName}` +
+          ` -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; DROP SCHEMA IF EXISTS cdp CASCADE;"`,
         tag
       );
     }
-
-    // ── Step 3: Recreate ─────────────────────────────────────────────────────
-    log(`Creating local database ${dbName}...`);
-    await run(
-      `${dockerComposeCmd} exec -T db psql -U jager -d postgres -c "CREATE DATABASE ${dbName};"`,
-      tag
-    );
 
     // ── Step 4: Restore with pg_restore -Fd -j ───────────────────────────────
     log(`Restoring → local ${dbName}  (-j ${numJobs})...`);
@@ -248,11 +267,7 @@ async function cloneDatabase(dbName, prodUrl) {
       }
     }
 
-    // ── Step 5: Credential FK cleanup (n8n only) ─────────────────────────────
-    // credentials_entity is intentionally empty. Simulate what the database's own
-    // ON DELETE rules would have done, so the schema is left consistent:
-    //   - ON DELETE SET NULL → NULL out the credentialId column
-    //   - ON DELETE CASCADE  → delete rows that reference missing credentials
+    // ── Step 5: Credential FK cleanup (n8n only) & Schema initialization (cdp only) ─────
     if (dbName === 'n8n') {
       log('Cleaning up credential FK references (credentials intentionally excluded)...');
       try {
@@ -269,6 +284,174 @@ async function cloneDatabase(dbName, prodUrl) {
         log('Credential FK cleanup complete.');
       } catch (err) {
         console.error(`[${tag}] Warning: credential FK cleanup failed:`, err.message);
+      }
+    }
+
+    if (dbName === 'cdp') {
+      log('Ensuring cdp schema and tables exist in local cdp database...');
+      try {
+        await run(
+          `${dockerComposeCmd} exec -T db psql -U jager -d cdp -c "` +
+            `CREATE EXTENSION IF NOT EXISTS pgcrypto; ` +
+            `CREATE SCHEMA IF NOT EXISTS cdp; ` +
+            `CREATE TABLE IF NOT EXISTS cdp.companies (` +
+              `id UUID PRIMARY KEY DEFAULT gen_random_uuid(), ` +
+              `company_name VARCHAR(255) NOT NULL, ` +
+              `domain VARCHAR(255) UNIQUE, ` +
+              `status VARCHAR(50) DEFAULT 'prospect', ` +
+              `attributes JSONB DEFAULT '{}'::jsonb, ` +
+              `created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.persons (` +
+              `id UUID PRIMARY KEY DEFAULT gen_random_uuid(), ` +
+              `first_name VARCHAR(255), ` +
+              `last_name VARCHAR(255), ` +
+              `primary_email VARCHAR(255) UNIQUE, ` +
+              `primary_phone VARCHAR(100), ` +
+              `linkedin_url VARCHAR(2048), ` +
+              `city VARCHAR(100), ` +
+              `country VARCHAR(100), ` +
+              `primary_company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL, ` +
+              `status VARCHAR(50) DEFAULT 'active', ` +
+              `attributes JSONB DEFAULT '{}'::jsonb, ` +
+              `created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.persons_linkedins (` +
+              `connection_id VARCHAR(255) PRIMARY KEY, ` +
+              `first_name VARCHAR(255), ` +
+              `last_name VARCHAR(255), ` +
+              `profile_url VARCHAR(2048), ` +
+              `email_address VARCHAR(255), ` +
+              `company VARCHAR(255), ` +
+              `position VARCHAR(255), ` +
+              `connected_at TIMESTAMP WITH TIME ZONE, ` +
+              `raw_payload JSONB DEFAULT '{}'::jsonb, ` +
+              `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.persons_manual_substack (` +
+              `id VARCHAR(255) PRIMARY KEY, ` +
+              `email VARCHAR(255), ` +
+              `first_name VARCHAR(255), ` +
+              `last_name VARCHAR(255), ` +
+              `full_name VARCHAR(255), ` +
+              `phone VARCHAR(100), ` +
+              `linkedin_url VARCHAR(2048), ` +
+              `country VARCHAR(100), ` +
+              `subscribed_at TIMESTAMP WITH TIME ZONE, ` +
+              `source_table VARCHAR(255), ` +
+              `raw_payload JSONB DEFAULT '{}'::jsonb, ` +
+              `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.leads_linkedin (` +
+              `conversation_id VARCHAR(255) PRIMARY KEY, ` +
+              `person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL, ` +
+              `full_name VARCHAR(255), ` +
+              `description TEXT, ` +
+              `message_count INTEGER DEFAULT 0, ` +
+              `summary TEXT, ` +
+              `convo_history TEXT, ` +
+              `intent VARCHAR(100), ` +
+              `signal_strength VARCHAR(50), ` +
+              `opportunity_type VARCHAR(100), ` +
+              `status VARCHAR(50) DEFAULT 'prospect', ` +
+              `raw_payload JSONB DEFAULT '{}'::jsonb, ` +
+              `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.leads_manual (` +
+              `id VARCHAR(255) PRIMARY KEY, ` +
+              `person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL, ` +
+              `company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL, ` +
+              `full_name VARCHAR(255), ` +
+              `description TEXT, ` +
+              `rate VARCHAR(100), ` +
+              `status VARCHAR(50) DEFAULT 'prospect', ` +
+              `source VARCHAR(100) DEFAULT 'manual', ` +
+              `raw_payload JSONB DEFAULT '{}'::jsonb, ` +
+              `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.leads (` +
+              `id VARCHAR(255) PRIMARY KEY, ` +
+              `person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL, ` +
+              `company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL, ` +
+              `full_name VARCHAR(255), ` +
+              `description TEXT, ` +
+              `message_count INTEGER DEFAULT 0, ` +
+              `summary TEXT, ` +
+              `convo_history TEXT, ` +
+              `intent VARCHAR(100), ` +
+              `signal_strength VARCHAR(50), ` +
+              `opportunity_type VARCHAR(100), ` +
+              `rate VARCHAR(100), ` +
+              `status VARCHAR(50) DEFAULT 'prospect', ` +
+              `source VARCHAR(100) NOT NULL DEFAULT 'Manual', ` +
+              `raw_payload JSONB DEFAULT '{}'::jsonb, ` +
+              `intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.person_company_relationships (` +
+              `id UUID PRIMARY KEY DEFAULT gen_random_uuid(), ` +
+              `person_id UUID NOT NULL REFERENCES cdp.persons(id) ON DELETE CASCADE, ` +
+              `company_id UUID NOT NULL REFERENCES cdp.companies(id) ON DELETE CASCADE, ` +
+              `job_title VARCHAR(255), ` +
+              `department VARCHAR(100), ` +
+              `role_type VARCHAR(50) DEFAULT 'decision_maker', ` +
+              `is_primary BOOLEAN DEFAULT TRUE, ` +
+              `start_date DATE, ` +
+              `end_date DATE, ` +
+              `status VARCHAR(50) DEFAULT 'active', ` +
+              `created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `UNIQUE (person_id, company_id, role_type)` +
+            `); ` +
+            `CREATE TABLE IF NOT EXISTS cdp.engagements (` +
+              `id UUID PRIMARY KEY DEFAULT gen_random_uuid(), ` +
+              `person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL, ` +
+              `company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL, ` +
+              `engagement_type VARCHAR(50) NOT NULL, ` +
+              `direction VARCHAR(20) DEFAULT 'inbound', ` +
+              `subject VARCHAR(1024), ` +
+              `summary_or_content TEXT, ` +
+              `channel VARCHAR(100), ` +
+              `status VARCHAR(50) DEFAULT 'completed', ` +
+              `occurred_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `metadata JSONB DEFAULT '{}'::jsonb, ` +
+              `created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(), ` +
+              `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()` +
+            `); ` +
+            `ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS primary_company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL; ` +
+            `ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN DEFAULT FALSE; ` +
+            `ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE; ` +
+            `ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL; ` +
+            `ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL; ` +
+            `ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0; ` +
+            `ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT; ` +
+            `ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT; ` +
+            `ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS intent VARCHAR(100); ` +
+            `ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS signal_strength VARCHAR(50); ` +
+            `ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS opportunity_type VARCHAR(100); ` +
+            `ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS rate VARCHAR(100); ` +
+            `ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFAULT 'Manual'; ` +
+            `DO $$ ` +
+            `BEGIN ` +
+              `IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'conversation_id') ` +
+              `AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'id') THEN ` +
+                `ALTER TABLE cdp.leads RENAME COLUMN conversation_id TO id; ` +
+              `END IF; ` +
+              `IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'id' AND data_type = 'uuid') THEN ` +
+                `ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255); ` +
+              `END IF; ` +
+            `END $$;"`,
+          tag
+        );
+        log('cdp schema and tables verified/created successfully.');
+      } catch (err) {
+        console.error(`[${tag}] Warning: cdp schema initialization failed:`, err.message);
       }
     }
 
@@ -363,6 +546,16 @@ async function cloneDatabase(dbName, prodUrl) {
     console.log("Skipping 'jager' database clone.");
   }
 
+  if (!skipCDP) {
+    if (PROD_CDP_URL) {
+      tasks.push(cloneDatabase('cdp', PROD_CDP_URL));
+    } else {
+      console.log("Production URL for 'cdp' not available. Skipping.");
+    }
+  } else {
+    console.log("Skipping 'cdp' database clone.");
+  }
+
   if (!skipN8N) {
     if (PROD_N8N_URL) {
       tasks.push(cloneDatabase('n8n', PROD_N8N_URL));
@@ -432,6 +625,44 @@ async function cloneDatabase(dbName, prodUrl) {
     }
 
     console.log('n8n database updated. Refresh the n8n browser tab to see the new data.');
+  }
+
+  // ── Seed CDP local data if empty ──────────────────────────────────────────
+  if (!skipCDP) {
+    try {
+      const { stdout: countOut } = await execAsync(
+        `${dockerComposeCmd} exec -T db psql -U jager -d cdp -tAc "SELECT COUNT(*) FROM cdp.leads;"`,
+        { maxBuffer: 1 * 1024 * 1024 }
+      );
+      const leadCount = parseInt(countOut.trim(), 10) || 0;
+      if (leadCount === 0) {
+        console.log('Local CDP database is empty. Ingesting seed data (substack & cdp seeds)...');
+        await execAsync(
+          `${dockerComposeCmd} exec -T dapp python /app/src/dapp/oltp/ingest_seeds.py`,
+          { maxBuffer: 50 * 1024 * 1024 }
+        );
+        console.log('Local CDP database seeded successfully.');
+      } else {
+        console.log(`Local CDP database verified (${leadCount} leads existing).`);
+      }
+    } catch (e) {
+      console.warn('Warning: CDP auto-seed check failed:', e.message);
+    }
+
+    // Mirror cdp schema into jager database so the 'Jager (Dev)' PostgreSQL Explorer
+    // connection (database: jager) can browse cdp.leads, cdp.persons etc without switching connections.
+    // --clean --if-exists: drops & recreates objects inside the schema without touching the schema itself,
+    // so the IDE's connection handle to the cdp schema folder is never severed.
+    console.log('Mirroring cdp schema into jager database for IDE browsing...');
+    try {
+      await execAsync(
+        `${dockerComposeCmd} exec -T db sh -c "pg_dump -U jager -d cdp -n cdp --clean --if-exists | psql -U jager -d jager -q"`,
+        { maxBuffer: 50 * 1024 * 1024 }
+      );
+      console.log('cdp schema mirrored into jager database.');
+    } catch (e) {
+      console.warn('Warning: cdp schema mirror into jager failed:', e.message);
+    }
   }
 
   console.log('Database clone process completed.');

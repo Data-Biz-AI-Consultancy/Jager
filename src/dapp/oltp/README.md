@@ -24,7 +24,7 @@ We organize database tables into dedicated ODS schemas following the `s_{{applic
 *   **`ingest_eurostat_fx.py`**: Ingests foreign exchange rates and economic indicators from Eurostat.
 *   **`ingest_wordpress.py`**: Ingests posts and content from monitored WordPress sites.
 *   **`ingest_yahoo_finance.py`**: Ingests historical stock index price data from Yahoo Finance.
-*   **`ingest_seeds.py`**: Ingests repository seed files (`data/seed/`) into schema tables (e.g. Substack subscribers, CDP leads & profiles).
+*   **`ingest_notion.py`**: Centralized Notion pipeline ingesting workspace knowledge bases (`s_notion.pages`) and meeting notes databases (`s_notion.meeting_notes`) using dlt.
 *   **`ingest_notion_manual.py`**: Ingests manual databases and pages under Notion page `_manual_data_ingestion` into `s_manual` tables.
 
 

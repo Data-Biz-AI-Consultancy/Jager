@@ -5,28 +5,17 @@ set -e
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
 	SELECT 'CREATE DATABASE n8n'
 	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'n8n')\gexec
+	SELECT 'CREATE DATABASE cdp'
+	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'cdp')\gexec
 EOSQL
 
 
-# Initialize OLTP database
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-	CREATE SCHEMA IF NOT EXISTS s_reddit;
-	CREATE SCHEMA IF NOT EXISTS s_slack;
-	CREATE SCHEMA IF NOT EXISTS s_substack;
-	CREATE SCHEMA IF NOT EXISTS s_meetup;
-	CREATE SCHEMA IF NOT EXISTS s_euro_stat;
-	CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
-	CREATE SCHEMA IF NOT EXISTS s_wordpress;
-	CREATE SCHEMA IF NOT EXISTS s_linkedin;
-	CREATE SCHEMA IF NOT EXISTS s_notion;
-	CREATE SCHEMA IF NOT EXISTS s_zernio;
-	CREATE SCHEMA IF NOT EXISTS s_buffer;
-	CREATE SCHEMA IF NOT EXISTS s_manual;
-	CREATE SCHEMA IF NOT EXISTS s_motherduck;
+# Initialize CDP database
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "cdp" <<-EOSQL
 	CREATE SCHEMA IF NOT EXISTS cdp;
 
-	-- Client Account status lifecycle: 'prospect', 'reached', 'decision_maker_reached', 'contract_signed', 'engaging', 'completed'
-	CREATE TABLE IF NOT EXISTS cdp.client_accounts (
+	-- Company status lifecycle: 'prospect', 'reached', 'decision_maker_reached', 'contract_signed', 'engaging', 'completed'
+	CREATE TABLE IF NOT EXISTS cdp.companies (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		company_name VARCHAR(255) NOT NULL,
 		domain VARCHAR(255) UNIQUE,
@@ -46,33 +35,201 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		linkedin_url VARCHAR(2048),
 		city VARCHAR(100),
 		country VARCHAR(100),
-		primary_client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
+		primary_company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL,
 		status VARCHAR(50) DEFAULT 'active',
 		attributes JSONB DEFAULT '{}'::jsonb,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
 
+	-- LinkedIn Persons intake (sourced from s_linkedin.connections)
+	CREATE TABLE IF NOT EXISTS cdp.persons_linkedins (
+		connection_id VARCHAR(255) PRIMARY KEY,
+		first_name VARCHAR(255),
+		last_name VARCHAR(255),
+		profile_url VARCHAR(2048),
+		email_address VARCHAR(255),
+		company VARCHAR(255),
+		position VARCHAR(255),
+		connected_at TIMESTAMP WITH TIME ZONE,
+		raw_payload JSONB DEFAULT '{}'::jsonb,
+		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
 
-	-- Lead status lifecycle: 'prospect', 'negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed', 'nurture', 'disqualified'
-	CREATE TABLE IF NOT EXISTS cdp.leads (
-		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+	-- Manual Substack Persons intake (sourced from s_manual)
+	CREATE TABLE IF NOT EXISTS cdp.persons_manual_substack (
+		id VARCHAR(255) PRIMARY KEY,
+		email VARCHAR(255),
+		first_name VARCHAR(255),
+		last_name VARCHAR(255),
 		full_name VARCHAR(255),
-		description TEXT,
-		rate VARCHAR(100),
-		status VARCHAR(50) DEFAULT 'new',
-		source VARCHAR(100) NOT NULL DEFAULT 'manual',
+		phone VARCHAR(100),
+		linkedin_url VARCHAR(2048),
+		country VARCHAR(100),
+		subscribed_at TIMESTAMP WITH TIME ZONE,
+		source_table VARCHAR(255),
 		raw_payload JSONB DEFAULT '{}'::jsonb,
 		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
 
 
-	CREATE TABLE IF NOT EXISTS cdp.person_account_relationships (
+	-- LinkedIn Leads intake (sourced from s_linkedin.messages)
+	CREATE TABLE IF NOT EXISTS cdp.leads_linkedin (
+		conversation_id VARCHAR(255) PRIMARY KEY,
+		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+		full_name VARCHAR(255),
+		description TEXT,
+		message_count INTEGER DEFAULT 0,
+		summary TEXT,
+		convo_history TEXT,
+		intent VARCHAR(100),
+		signal_strength VARCHAR(50),
+		opportunity_type VARCHAR(100),
+		status VARCHAR(50) DEFAULT 'prospect',
+		raw_payload JSONB DEFAULT '{}'::jsonb,
+		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	-- Manual Leads intake (sourced from s_manual)
+	CREATE TABLE IF NOT EXISTS cdp.leads_manual (
+		id VARCHAR(255) PRIMARY KEY,
+		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+		company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL,
+		full_name VARCHAR(255),
+		description TEXT,
+		rate VARCHAR(100),
+		status VARCHAR(50) DEFAULT 'prospect',
+		source VARCHAR(100) DEFAULT 'manual',
+		raw_payload JSONB DEFAULT '{}'::jsonb,
+		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	-- Lead status lifecycle: 'prospect', 'negotiating', 'offer_accepted', 'contract_signed', 'engaging', 'completed', 'nurture', 'disqualified'
+	CREATE TABLE IF NOT EXISTS cdp.leads (
+		id VARCHAR(255) PRIMARY KEY,
+		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+		company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL,
+		full_name VARCHAR(255),
+		description TEXT,
+		message_count INTEGER DEFAULT 0,
+		summary TEXT,
+		convo_history TEXT,
+		intent VARCHAR(100),
+		signal_strength VARCHAR(50),
+		opportunity_type VARCHAR(100),
+		rate VARCHAR(100),
+		status VARCHAR(50) DEFAULT 'prospect',
+		source VARCHAR(100) NOT NULL DEFAULT 'Manual',
+		raw_payload JSONB DEFAULT '{}'::jsonb,
+		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS primary_company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN DEFAULT FALSE;
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.person_company_relationships ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE CASCADE;
+	ALTER TABLE cdp.activities ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.engagements ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL;
+
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS message_count INTEGER DEFAULT 0;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS summary TEXT;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS convo_history TEXT;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS intent VARCHAR(100);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS signal_strength VARCHAR(50);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS opportunity_type VARCHAR(100);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS rate VARCHAR(100);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFAULT 'Manual';
+
+	DO $$
+	BEGIN
+		IF EXISTS (
+			SELECT 1 FROM information_schema.tables 
+			WHERE table_schema = 'cdp' AND table_name = 'client_accounts'
+		) AND NOT EXISTS (
+			SELECT 1 FROM information_schema.tables 
+			WHERE table_schema = 'cdp' AND table_name = 'companies'
+		) THEN
+			ALTER TABLE cdp.client_accounts RENAME TO companies;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.tables 
+			WHERE table_schema = 'cdp' AND table_name = 'person_account_relationships'
+		) AND NOT EXISTS (
+			SELECT 1 FROM information_schema.tables 
+			WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships'
+		) THEN
+			ALTER TABLE cdp.person_account_relationships RENAME TO person_company_relationships;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'person_company_relationships' AND column_name = 'client_account_id'
+		) THEN
+			ALTER TABLE cdp.person_company_relationships RENAME COLUMN client_account_id TO company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'persons' AND column_name = 'primary_client_account_id'
+		) THEN
+			ALTER TABLE cdp.persons RENAME COLUMN primary_client_account_id TO primary_company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'client_account_id'
+		) THEN
+			ALTER TABLE cdp.leads RENAME COLUMN client_account_id TO company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'leads_manual' AND column_name = 'client_account_id'
+		) THEN
+			ALTER TABLE cdp.leads_manual RENAME COLUMN client_account_id TO company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'activities_notion_meeting_notes' AND column_name = 'client_account_id'
+		) THEN
+			ALTER TABLE cdp.activities_notion_meeting_notes RENAME COLUMN client_account_id TO company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'activities' AND column_name = 'client_account_id'
+		) THEN
+			ALTER TABLE cdp.activities RENAME COLUMN client_account_id TO company_id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'conversation_id'
+		) THEN
+			ALTER TABLE cdp.leads RENAME COLUMN conversation_id TO id;
+		END IF;
+
+		IF EXISTS (
+			SELECT 1 FROM information_schema.columns 
+			WHERE table_schema = 'cdp' AND table_name = 'leads' AND column_name = 'id' AND data_type = 'uuid'
+		) THEN
+			ALTER TABLE cdp.leads ALTER COLUMN id TYPE VARCHAR(255);
+		END IF;
+	END $$;
+
+
+	CREATE TABLE IF NOT EXISTS cdp.person_company_relationships (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 		person_id UUID NOT NULL REFERENCES cdp.persons(id) ON DELETE CASCADE,
-		client_account_id UUID NOT NULL REFERENCES cdp.client_accounts(id) ON DELETE CASCADE,
+		company_id UUID NOT NULL REFERENCES cdp.companies(id) ON DELETE CASCADE,
 		job_title VARCHAR(255),
 		department VARCHAR(100),
 		role_type VARCHAR(50) DEFAULT 'decision_maker',
@@ -82,30 +239,122 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 		status VARCHAR(50) DEFAULT 'active',
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-		UNIQUE (person_id, client_account_id, role_type)
+		UNIQUE (person_id, company_id, role_type)
 	);
 
-	CREATE TABLE IF NOT EXISTS cdp.engagements (
-		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	CREATE TABLE IF NOT EXISTS cdp.activities_notion_meeting_notes (
+		page_id VARCHAR(255) PRIMARY KEY,
 		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
-		client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL,
-		engagement_type VARCHAR(50) NOT NULL,
-		direction VARCHAR(20) DEFAULT 'inbound',
-		subject VARCHAR(1024),
+		company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL,
+		database_name VARCHAR(255),
+		title VARCHAR(1024),
+		meeting_date TIMESTAMP WITH TIME ZONE,
+		attendees TEXT,
 		summary_or_content TEXT,
-		channel VARCHAR(100),
-		status VARCHAR(50) DEFAULT 'completed',
-		occurred_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		to_dos JSONB DEFAULT '[]'::jsonb,
+		url VARCHAR(2048),
+		raw_payload JSONB DEFAULT '{}'::jsonb,
+		intake_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS cdp.activities (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		activity_type VARCHAR(50) NOT NULL DEFAULT 'meeting_note',
+		source VARCHAR(100) NOT NULL DEFAULT 'notion_meeting_notes',
+		source_id VARCHAR(255) UNIQUE,
+		person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL,
+		company_id UUID REFERENCES cdp.companies(id) ON DELETE SET NULL,
+		title VARCHAR(1024),
+		activity_date TIMESTAMP WITH TIME ZONE,
+		summary_or_content TEXT,
+		to_dos JSONB DEFAULT '[]'::jsonb,
+		participants TEXT,
+		url VARCHAR(2048),
 		metadata JSONB DEFAULT '{}'::jsonb,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
 		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
 
-	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS primary_client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_linkedin_connections BOOLEAN DEFAULT FALSE;
-	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS in_substack_subscriber_export BOOLEAN DEFAULT FALSE;
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS person_id UUID REFERENCES cdp.persons(id) ON DELETE SET NULL;
-	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS client_account_id UUID REFERENCES cdp.client_accounts(id) ON DELETE SET NULL;
+	CREATE TABLE IF NOT EXISTS cdp.person_segments (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		slug VARCHAR(64) UNIQUE NOT NULL,
+		name VARCHAR(128) NOT NULL,
+		description TEXT,
+		segment_type VARCHAR(32) NOT NULL DEFAULT 'dynamic',
+		criteria JSONB DEFAULT '{}'::jsonb,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	CREATE TABLE IF NOT EXISTS cdp.lead_statuses (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		slug VARCHAR(64) UNIQUE NOT NULL,
+		name VARCHAR(128) NOT NULL,
+		stage VARCHAR(32),
+		is_end_state BOOLEAN NOT NULL DEFAULT FALSE,
+		description TEXT,
+		criteria JSONB DEFAULT '{}'::jsonb,
+		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+	);
+
+	DROP TABLE IF EXISTS cdp.person_segment_memberships;
+	DROP TABLE IF EXISTS cdp.lead_status_memberships;
+
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_id UUID REFERENCES cdp.person_segments(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_name VARCHAR(128);
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS person_segment_slug VARCHAR(64);
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS potential_opportunity_types TEXT;
+	ALTER TABLE cdp.persons ADD COLUMN IF NOT EXISTS engagement_temperature VARCHAR(32) DEFAULT 'cold';
+
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_id UUID REFERENCES cdp.lead_statuses(id) ON DELETE SET NULL;
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_name VARCHAR(128);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_status_slug VARCHAR(64);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_stage_slug VARCHAR(64);
+	ALTER TABLE cdp.leads ADD COLUMN IF NOT EXISTS lead_stage_name VARCHAR(128);
+
+	ALTER TABLE cdp.person_segments ADD COLUMN IF NOT EXISTS potential_opportunity_types TEXT;
+
+	-- Seed initial person segments (Opportunity-Based Framework)
+	INSERT INTO cdp.person_segments (slug, name, description, segment_type, potential_opportunity_types, criteria) VALUES
+	('clients_and_prospects', 'Clients & Prospects', 'Active or past consulting clients and warm lead opportunities', 'dynamic', 'Consulting Projects, Advisory, Fractional Data Leadership', '{"rule": "clients_and_prospects"}'::jsonb),
+	('recruiters_and_talent', 'Recruiters & Talent Acquisition', 'Internal/agency recruiters, talent acquisition managers, talent partners, headhunters, and sourcers', 'dynamic', 'Full-Time Employment, Contract Roles, Fractional Opportunities', '{"rule": "recruiters_and_talent"}'::jsonb),
+	('hiring_decision_makers', 'Hiring Decision-Makers', 'Founders, CTOs, VPs of Data/Engineering, Heads, and hiring decision makers', 'dynamic', 'Consulting Projects, Full-Time Employment, Fractional Leadership', '{"rule": "hiring_decision_makers"}'::jsonb),
+	('peer_collaborators', 'Peer Collaborators & Agencies', 'Other consultants, agency owners, freelancers, tooling partners, or DevRel for project referrals/partnerships', 'dynamic', 'Project Subcontracting, Co-bidding, Client Referrals, Tooling Implementations', '{"rule": "peer_collaborators"}'::jsonb),
+	('former_colleagues_alumni', 'Alumni & Former Colleagues', 'Alumni network contacts from target companies (HelloFresh, Delivery Hero, Foodpanda, Vestiaire)', 'dynamic', 'Referrals, Re-hiring, Warm Client Introductions, Partnering', '{"rule": "former_colleagues_alumni"}'::jsonb),
+	('general_network', 'General Network', 'General network contacts and audience members not belonging to specific opportunity segments', 'dynamic', 'Brand Awareness, Audience Engagement, Content Reach', '{"rule": "general_network"}'::jsonb)
+	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, potential_opportunity_types = EXCLUDED.potential_opportunity_types, criteria = EXCLUDED.criteria, updated_at = NOW();
+
+	-- Seed initial lead statuses (Canonical Lifecycle Stages, Funnel Mapping & End State Flag)
+	INSERT INTO cdp.lead_statuses (slug, name, stage, is_end_state, description, criteria) VALUES
+	('prospect', 'Prospect', 'awareness', FALSE, 'Default state upon lead intake/ingestion. No negotiation initiated yet.', '{"rule": "prospect"}'::jsonb),
+	('nurture', 'Nurture', 'awareness', FALSE, 'Long-term follow up or delayed opportunity.', '{"rule": "nurture"}'::jsonb),
+	('negotiating', 'Negotiating', 'consideration', FALSE, 'Rates, scope, or ROE discussions underway.', '{"rule": "negotiating"}'::jsonb),
+	('offer_accepted', 'Offer Accepted', 'consideration', FALSE, 'Rates and terms agreed; awaiting contract execution.', '{"rule": "offer_accepted"}'::jsonb),
+	('contract_signed', 'Contract Signed', 'conversion', FALSE, 'Contract fully executed and signed.', '{"rule": "contract_signed"}'::jsonb),
+	('engaging', 'Engaging', 'conversion', FALSE, 'Active project work period.', '{"rule": "engaging"}'::jsonb),
+	('completed', 'Completed', NULL, TRUE, 'Project or consulting engagement successfully finished.', '{"rule": "completed"}'::jsonb),
+	('disqualified', 'Disqualified', NULL, TRUE, 'Unresponsive, poor fit, or lost opportunity.', '{"rule": "disqualified"}'::jsonb)
+	ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, stage = EXCLUDED.stage, is_end_state = EXCLUDED.is_end_state, description = EXCLUDED.description, criteria = EXCLUDED.criteria, updated_at = NOW();
+EOSQL
+
+
+# Initialize OLTP database
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+	CREATE SCHEMA IF NOT EXISTS s_reddit;
+	CREATE SCHEMA IF NOT EXISTS s_slack;
+	CREATE SCHEMA IF NOT EXISTS s_substack;
+	CREATE SCHEMA IF NOT EXISTS s_meetup;
+	CREATE SCHEMA IF NOT EXISTS s_euro_stat;
+	CREATE SCHEMA IF NOT EXISTS s_yahoo_finance;
+	CREATE SCHEMA IF NOT EXISTS s_wordpress;
+	CREATE SCHEMA IF NOT EXISTS s_linkedin;
+	CREATE SCHEMA IF NOT EXISTS s_notion;
+	CREATE SCHEMA IF NOT EXISTS s_zernio;
+	CREATE SCHEMA IF NOT EXISTS s_buffer;
+	CREATE SCHEMA IF NOT EXISTS s_manual;
+	CREATE SCHEMA IF NOT EXISTS s_motherduck;
 
 
 
@@ -507,20 +756,53 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	CREATE TABLE IF NOT EXISTS s_notion.databases_monitored (
 		database_id VARCHAR(255) PRIMARY KEY,
 		name VARCHAR(255) NOT NULL,
+		type VARCHAR(50) DEFAULT 'database',
 		active BOOLEAN DEFAULT TRUE,
 		created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 	);
+	ALTER TABLE s_notion.databases_monitored ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'database';
 
 	CREATE TABLE IF NOT EXISTS s_notion.pages (
 		id VARCHAR(255) PRIMARY KEY,
 		database_id VARCHAR(255) REFERENCES s_notion.databases_monitored(database_id) ON DELETE CASCADE,
 		title VARCHAR(1024),
 		content TEXT,
+		properties JSONB DEFAULT '{}'::jsonb,
+		cover_url VARCHAR(2048),
+		icon VARCHAR(1024),
+		url VARCHAR(2048),
+		created_time TIMESTAMP WITH TIME ZONE,
+		last_edited_time TIMESTAMP WITH TIME ZONE,
+		updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+		processed INTEGER DEFAULT 0
+	);
+
+	ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS properties JSONB DEFAULT '{}'::jsonb;
+	ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS cover_url VARCHAR(2048);
+	ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS icon VARCHAR(1024);
+	ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+	ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS _dlt_load_id VARCHAR DEFAULT 'legacy';
+	ALTER TABLE s_notion.pages ADD COLUMN IF NOT EXISTS _dlt_id VARCHAR DEFAULT 'legacy';
+
+	CREATE TABLE IF NOT EXISTS s_notion.meeting_notes (
+		id VARCHAR(255) PRIMARY KEY,
+		database_id VARCHAR(255) REFERENCES s_notion.databases_monitored(database_id) ON DELETE CASCADE,
+		title VARCHAR(1024),
+		meeting_date TIMESTAMP WITH TIME ZONE,
+		attendees TEXT,
+		summary TEXT,
+		transcription TEXT,
+		action_items TEXT,
+		recording_url VARCHAR(2048),
+		properties JSONB DEFAULT '{}'::jsonb,
 		url VARCHAR(2048),
 		created_time TIMESTAMP WITH TIME ZONE,
 		last_edited_time TIMESTAMP WITH TIME ZONE,
 		processed INTEGER DEFAULT 0
 	);
+
+	ALTER TABLE s_notion.meeting_notes ADD COLUMN IF NOT EXISTS _dlt_load_id VARCHAR DEFAULT 'legacy';
+	ALTER TABLE s_notion.meeting_notes ADD COLUMN IF NOT EXISTS _dlt_id VARCHAR DEFAULT 'legacy';
 
 	CREATE TABLE IF NOT EXISTS s_buffer.channels (
 		id VARCHAR(255) PRIMARY KEY,
@@ -722,6 +1004,23 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 	INSERT INTO s_wordpress.feeds_monitored (name, feed_url, active) VALUES 
 		('Towards Data Science', 'https://towardsdatascience.com/feed', TRUE)
 	ON CONFLICT (name) DO NOTHING;
+
+	INSERT INTO s_notion.databases_monitored (database_id, name, type, active) VALUES 
+		('b5ad53f72b0e45e3b481e25da2703fd8', 'Leadership & Management', 'database', TRUE),
+		('1686e98d4ef8806da4e1c28268b7365e', 'Data Science - AIs', 'database', TRUE),
+		('4cd9498f5b5c48c6864d57bd36f7f82d', 'Data Science', 'database', TRUE),
+		('32fcdb5f301b4a9c94329dcadeffca15', 'data engineering', 'database', TRUE),
+		('f0501c9ac3bf4f0ea8d06b7ed6e40a31', 'Data Governance', 'database', TRUE),
+		('8fc4f5d17d6644eaa6b199f11cb3bf2b', 'Data Visualization & Reporting', 'database', TRUE),
+		('40906fc76abd4951bd4b283c9717d320', 'Product Management', 'database', TRUE),
+		('2bdfbb81d5c043d0a5fdd3028ad2504f', 'Product Analytics', 'database', TRUE),
+		('1d362ecd225241c0ab3c0fe4d0ed3cda', 'Software Engineering', 'database', TRUE),
+		('2d56e98d4ef8806ba96cca38539b67e1', 'Business', 'database', TRUE),
+		('f34619396f3c4be8b96fa64211eb18d7', 'Career', 'database', TRUE),
+		('3876e98d4ef8807eab9be1b0b029246c', 'Interview Meeting notes', 'meeting_notes', TRUE),
+		('3876e98d4ef880a6a61ae99d8912694f', 'Meetups & Seminars', 'meeting_notes', TRUE),
+		('3a36e98d4ef88084a1aec60052a3cb80', 'FaDi meeting notes', 'meeting_notes', TRUE)
+	ON CONFLICT (database_id) DO UPDATE SET name = EXCLUDED.name, type = EXCLUDED.type, active = TRUE;
 
 	CREATE SCHEMA IF NOT EXISTS t_content_generation;
 

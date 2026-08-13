@@ -7,7 +7,8 @@ This directory contains n8n workflows designed to manage and sync data ingestion
 ### 1. [MotherDuck Data Ingestion - Jager](./motherduck_data_ingestion_jager.json)
 *   **Workflow ID**: `motherduck-data-ingestion-jager`
 *   **Trigger**: Runs automatically every day via a `Schedule Trigger`.
-*   **Purpose**: Replicates processed data from PostgreSQL source tables into MotherDuck OLAP tables (cloud-based) using DLT ingestion pipelines (Buffer, Zernio, LinkedIn, Substack).
+*   **Purpose**: Replicates processed data from PostgreSQL source tables into MotherDuck OLAP tables (cloud-based) using DLT ingestion pipelines (Buffer, CDP, Zernio, LinkedIn, Substack).
+
 
 ### 2. [MotherDuck Data Ingestion - Nager](./motherduck_data_ingestion_nager.json)
 *   **Workflow ID**: `motherduck-data-ingestion-nager`
@@ -21,4 +22,3 @@ To manually trigger workflow imports from the workspace JSON files, ensure the c
 ```bash
 docker compose exec n8n n8n import:workflow --input /etc/n8n/workflows/olap/data_ingestion/motherduck_data_ingestion_jager.json
 ```
-
