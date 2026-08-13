@@ -9,7 +9,9 @@ The service is packaged inside the **`data-pipeline`** container service.
 
 *   `olap/`: Contains scripts for ingesting data into OLAP target databases (e.g., MotherDuck).
     *   `ingest_buffer.py`: Syncs `s_buffer.channels` and `s_buffer.posts` from the PostgreSQL OLTP database to the MotherDuck OLAP database staging catalog using DLT's native schema evolution and merge logic.
-*   `main.py`: A lightweight FastAPI service that exposes HTTP trigger endpoints (e.g., `POST /run/ingest_buffer`) which execute the ingestion scripts as subprocesses. This provides a secure way for external orchestrators (like **n8n**) to trigger scripts inside this container.
+    *   `ingest_cdp.py`: Syncs CDP domain data from the PostgreSQL `cdp` database to the MotherDuck `s_cdp` schema.
+*   `main.py`: A lightweight FastAPI service that exposes HTTP trigger endpoints (e.g., `POST /run/ingest_buffer`, `POST /run/ingest_cdp`) which execute the ingestion scripts as subprocesses. This provides a secure way for external orchestrators (like **n8n**) to trigger scripts inside this container.
+
 *   `Dockerfile` & `requirements.txt`: Container packaging and Python dependencies (including `dlt[duckdb,parquet]` and `pyarrow`).
 
 ---

@@ -87,6 +87,21 @@ def test_ingest_substack(mock_dlt_utils):
     mock_dlt_utils['pipeline_inst'].run.assert_called_once()
 
 
+def test_ingest_cdp(mock_dlt_utils):
+    from olap import ingest_cdp
+
+    mock_dlt_utils['connection'].execute.return_value = []
+
+    ingest_cdp.run_ingestion()
+
+    mock_dlt_utils['pipeline'].assert_called_once_with(
+        pipeline_name="cdp_ingestion",
+        dataset_name="s_cdp"
+    )
+    mock_dlt_utils['pipeline_inst'].run.assert_called_once()
+
+
+
 @patch('requests.get')
 @patch('feedparser.parse')
 def test_ingest_wordpress(mock_feedparser, mock_get, mock_dlt_utils):
