@@ -23,6 +23,12 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./src/db/init-user-db.sh:/docker-entrypoint-initdb.d/init-user-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jager -d jager"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
 
   n8n:
     build:
@@ -35,7 +41,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768m
+          memory: 1024m
           cpus: '1.0'
     expose:
       - "5678"
@@ -73,7 +79,8 @@ services:
       - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://dapp:8000}
       - CDP_SERVICE_URL=${CDP_SERVICE_URL:-http://cdp:8000}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - n8n_data:/home/node/.n8n
       - ./src/n8n/workflows:/etc/n8n/workflows:ro
@@ -105,7 +112,8 @@ services:
       - NOTION_API_KEY=${NOTION_API_KEY}
       - NOTION_MANUAL_INGESTION_PAGE_ID=${NOTION_MANUAL_INGESTION_PAGE_ID}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 
   cdp:
@@ -130,7 +138,8 @@ services:
       - NOTION_API_KEY=${NOTION_API_KEY}
       - NOTION_MANUAL_INGESTION_PAGE_ID=${NOTION_MANUAL_INGESTION_PAGE_ID}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - ./src/cdp:/app
       - ./src/shared:/app/src/shared
