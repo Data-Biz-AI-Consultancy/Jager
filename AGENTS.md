@@ -11,6 +11,8 @@
 - For all staging models in the dbt project (located under `dbt/models/staging/`), the SQL file name must always be prefixed with the target schema name followed by a double underscore (e.g., `staging__<source_name>__<table_name>.sql`).
 - References to these models in downstream models (intermediate, marts) must use this fully prefixed name.
 - Staging models are strictly 1:1 atomic models mapped to a single ODS source table. **Never use JOINs in staging models.** Any logic requiring a JOIN must be promoted to an intermediate model.
+- **Staging Model Materialization**: All staging models must always be materialized as `table` (`materialized='table'`) to avoid view permission and binder overhead in MotherDuck.
+
 
 ### Intermediate Models
 - For all intermediate models in the dbt project (located under `dbt/models/intermediate/`), the SQL file name must always be prefixed with `intermediate__` followed by the domain and a double underscore (e.g., `intermediate__<domain>__<model_name>.sql`).
@@ -29,8 +31,11 @@
 
 
 ### SQL Coding Style (Table Aliasing)
-- Do not use short aliases (e.g., `p.`, `c.`, `a.`, `l.`, `b.`) in SQL queries.
-- Always use full descriptive aliases (e.g., `posts.`, `channels.`, `analytics.`, `likes.`, `comments.`, `buffer_posts.`) for readability.
+- Do not use table aliases in queries selecting from a single table (queries without JOINs). Refer to columns directly without a table prefix.
+- In queries with JOINs:
+  - Do not use short aliases (e.g., `p.`, `c.`, `a.`, `l.`, `b.`).
+  - Always use full descriptive aliases (e.g., `posts.`, `channels.`, `analytics.`, `likes.`, `comments.`, `buffer_posts.`) for readability.
+
 
 ## Database Naming & Schema Conventions
 
@@ -154,9 +159,9 @@
 - Always use **Europe/Berlin** (local) timezone for all date and timestamp columns in reporting models.
 
 ## dbt YAML Documentation Conventions
-- Always create **1 YAML file per dbt model**, co-located alongside the `.sql` file in the same directory.
+- Always create **1 YAML file per dbt model**, stored inside a dedicated `tests_and_config/` subfolder within each model domain directory (e.g. `dbt/models/staging/cdp/tests_and_config/` or `dbt/models/marts/cdp/tests_and_config/`).
 - The YAML filename must exactly match the model filename, with a `.yml` extension (e.g., `marts__content_marketing__daily_performance.yml` for `marts__content_marketing__daily_performance.sql`).
-- Do NOT use a shared `_models.yml` or `_sources.yml`-style file to document multiple models in a single file. Sources (raw tables) may still use `_sources.yml` per folder.
+- Do NOT use a shared `_models.yml` or `_sources.yml`-style file to document multiple models in a single file. Sources (raw tables) may still use `_sources.yml` in the `tests_and_config/` folder.
 
 ## Environment & Secrets Conventions
 - The `.env` file at the workspace root is **strictly for local development only**. It MUST NEVER be deployed to or read from in production environments.
@@ -165,6 +170,11 @@
 - When writing Python scripts that load environment variables, always use `python-dotenv` (`load_dotenv()`) for local dev convenience, but the code must work correctly without it — i.e., the script must read from `os.environ` directly and not assume `.env` is present.
 - When an environment variable has a hardcoded fallback default in code (e.g. `os.getenv("VAR") or "default"`), the fallback must be a safe non-sensitive default (e.g. a public page ID or a staging flag). **Never hardcode secrets as fallbacks.**
 - `docker-compose.yml` passes env vars using `${VAR}` substitution from the host environment. In production the host environment provides the values; `.env` is only used locally to populate those host vars via Docker Compose's automatic `.env` file loading.
+
+## Dependency & Requirements Pinning Conventions
+- All Python dependencies declared in `requirements.txt` and `pyproject.toml` files across services MUST be pinned to exact versions (e.g., `dbt-core==1.11.13`, `dbt-duckdb==1.11.0`, `dlt[duckdb,parquet]==1.30.0`).
+- Never use unpinned or minimum-range specifiers like `>=` or `~=` for core framework or adapter packages to prevent version mismatch runtime errors.
+
 
 ## File Formatting & Ending Conventions
 - All files across the codebase must end with **exactly one single newline** at the end of the file. Do not leave multiple trailing blank lines at the end of files.

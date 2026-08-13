@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: staging__cdp__leads
+    description: "Staging model for CDP leads table."
+    columns:
+      - name: lead_id
+        description: "Primary key of the lead record."
+        tests:
+          - unique
+          - not_null
+      - name: full_name
+        description: "Full name associated with the lead."

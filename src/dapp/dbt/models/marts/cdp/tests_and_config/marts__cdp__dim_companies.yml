@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: marts__cdp__dim_companies
+    description: "Curated dimension table for CDP companies."
+    columns:
+      - name: company_id
+        description: "Primary key for the company."
+        tests:
+          - unique
+          - not_null
+      - name: company_name
+        description: "Name of the company."
+        tests:
+          - not_null

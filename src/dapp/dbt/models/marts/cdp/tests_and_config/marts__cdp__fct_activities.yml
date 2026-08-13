@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: marts__cdp__fct_activities
+    description: "Curated fact table for CDP activities."
+    columns:
+      - name: activity_id
+        description: "Primary key for the activity."
+        tests:
+          - unique
+          - not_null
+      - name: activity_type
+        description: "Type of activity."
+        tests:
+          - not_null
+

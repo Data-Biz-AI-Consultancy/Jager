@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: s_cdp
+    schema: s_cdp
+    tables:
+      - name: activities
+      - name: companies
+      - name: lead_statuses
+      - name: leads
+      - name: person_company_relationships
+      - name: person_segments
+      - name: persons
