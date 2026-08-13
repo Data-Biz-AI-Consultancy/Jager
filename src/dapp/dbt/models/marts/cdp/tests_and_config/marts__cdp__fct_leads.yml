@@ -13,4 +13,3 @@ models:
         description: "Full name associated with the lead."
         tests:
           - not_null
-
