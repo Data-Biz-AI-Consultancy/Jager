@@ -11,8 +11,46 @@ on:
       - master
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      docker: ${{ steps.filter.outputs.docker }}
+      python: ${{ steps.filter.outputs.python }}
+      dbt: ${{ steps.filter.outputs.dbt }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            docker:
+              - 'docker-compose*.yml'
+              - 'docker-compose*.yaml'
+              - 'Dockerfile*'
+              - '**/Dockerfile*'
+              - 'src/db/**'
+              - 'tests/integration/test-dockerfile.js'
+              - '.github/workflows/ci.yml'
+            python:
+              - '**/*.py'
+              - 'pyproject.toml'
+              - 'requirements*.txt'
+              - 'uv.lock'
+              - 'tests/**'
+              - '.github/workflows/ci.yml'
+            dbt:
+              - 'src/dapp/dbt/**'
+              - 'dbt/**'
+              - '.github/workflows/ci.yml'
+
   test-docker:
     name: Docker Tests
+    needs: changes
+    if: ${{ needs.changes.outputs.docker == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -71,6 +109,9 @@ jobs:
 
 
   test-python:
+    name: Python Tests
+    needs: changes
+    if: ${{ needs.changes.outputs.python == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -93,6 +134,9 @@ jobs:
 
 
   dbt-compile:
+    name: dbt Compile
+    needs: changes
+    if: ${{ needs.changes.outputs.dbt == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -109,4 +153,3 @@ jobs:
       - name: dbt compile (CI target - local DuckDB)
         working-directory: src/dapp/dbt
         run: dbt compile --target ci --profiles-dir .
-
