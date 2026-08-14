@@ -30,8 +30,6 @@ models:
     t_reporting:
       +materialized: table
       +schema: t_reporting
-    t_slack:
-      +materialized: table
-      +schema: t_slack
+
 
 
