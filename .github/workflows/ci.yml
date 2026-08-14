@@ -43,11 +43,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Create stub .env
         run: |
           cat > .env <<'EOF'
@@ -75,11 +70,24 @@ jobs:
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
 
-      - name: Build images (db + n8n)
-        run: docker compose --profile app build db n8n
+      - name: Cache Docker base images
+        id: cache-docker
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-images.tar
+          key: docker-images-${{ runner.os }}-${{ hashFiles('src/n8n/Dockerfile', 'docker-compose.yml') }}
 
-      - name: Start services
-        run: docker compose --profile app up -d db n8n
+      - name: Load cached Docker images
+        if: steps.cache-docker.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/docker-images.tar
+
+      - name: Start services (Build & Up)
+        run: docker compose --profile app up -d --build db n8n
+
+      - name: Save Docker images to cache
+        if: steps.cache-docker.outputs.cache-hit != 'true'
+        run: |
+          docker save pgvector/pgvector:pg15 $(docker images --filter "reference=*n8n*" -q | head -n 1) -o /tmp/docker-images.tar
 
       - name: Dump container logs on failure
         if: failure()
@@ -88,12 +96,6 @@ jobs:
           docker compose logs db --tail 50
           echo "=== N8N logs ==="
           docker compose logs n8n --tail 50
-
-
-      - name: Tear down
-        if: always()
-        run: docker compose --profile app down --remove-orphans --volumes
-
 
   test-python:
     name: Python Tests
