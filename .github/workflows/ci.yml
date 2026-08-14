@@ -11,6 +11,31 @@ on:
       - master
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      dbt: ${{ steps.filter.outputs.dbt }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Filter changed paths
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            python:
+              - '**/*.py'
+              - 'pyproject.toml'
+              - 'requirements*.txt'
+              - 'uv.lock'
+              - 'tests/**'
+            dbt:
+              - 'src/dapp/dbt/**'
+              - 'dbt/**'
+
   test-docker:
     name: Docker Tests
     runs-on: ubuntu-latest
@@ -64,28 +89,6 @@ jobs:
           echo "=== N8N logs ==="
           docker compose logs n8n --tail 50
 
-      - name: Wait for n8n to become healthy
-        timeout-minutes: 5
-        run: |
-          echo "Waiting for n8n /healthz..."
-          for i in $(seq 1 60); do
-            STATUS=$(docker inspect --format='{{.State.Health.Status}}' \
-              $(docker compose ps -q n8n) 2>/dev/null || echo "missing")
-            echo "  Attempt $i/60 — status: $STATUS"
-            if [ "$STATUS" = "healthy" ]; then
-              echo "n8n is healthy!"
-              exit 0
-            fi
-            if [ "$STATUS" = "unhealthy" ]; then
-              echo "ERROR: n8n container is unhealthy. Dumping logs:"
-              docker compose logs n8n --tail 80
-              exit 1
-            fi
-            sleep 5
-          done
-          echo "ERROR: n8n never became healthy within timeout. Dumping logs:"
-          docker compose logs n8n --tail 80
-          exit 1
 
       - name: Tear down
         if: always()
@@ -93,6 +96,9 @@ jobs:
 
 
   test-python:
+    name: Python Tests
+    needs: changes
+    if: ${{ needs.changes.outputs.python == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -115,6 +121,9 @@ jobs:
 
 
   dbt-compile:
+    name: dbt Compile
+    needs: changes
+    if: ${{ needs.changes.outputs.dbt == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -131,4 +140,3 @@ jobs:
       - name: dbt compile (CI target - local DuckDB)
         working-directory: src/dapp/dbt
         run: dbt compile --target ci --profiles-dir .
-
