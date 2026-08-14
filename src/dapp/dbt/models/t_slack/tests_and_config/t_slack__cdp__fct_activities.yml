@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: t_slack__cdp__fct_activities
+    description: "Presentation model exposing CDP activity facts for Slack application interfaces."
+    columns:
+      - name: activity_id
+        description: "Primary key for activity record."
+        tests:
+          - not_null
+          - unique
