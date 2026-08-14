@@ -124,10 +124,11 @@
       ],
       "credentials": {
         "slackApi": {
-          "id": "slack-bella-cred",
-          "name": "Slack Bella Credential"
+          "id": "slack-api-cred",
+          "name": "Slack API Credential"
         }
       }
+
     }
   ],
   "connections": {
