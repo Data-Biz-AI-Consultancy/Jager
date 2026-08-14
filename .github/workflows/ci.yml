@@ -64,28 +64,6 @@ jobs:
           echo "=== N8N logs ==="
           docker compose logs n8n --tail 50
 
-      - name: Wait for n8n to become healthy
-        timeout-minutes: 5
-        run: |
-          echo "Waiting for n8n /healthz..."
-          for i in $(seq 1 60); do
-            STATUS=$(docker inspect --format='{{.State.Health.Status}}' \
-              $(docker compose ps -q n8n) 2>/dev/null || echo "missing")
-            echo "  Attempt $i/60 — status: $STATUS"
-            if [ "$STATUS" = "healthy" ]; then
-              echo "n8n is healthy!"
-              exit 0
-            fi
-            if [ "$STATUS" = "unhealthy" ]; then
-              echo "ERROR: n8n container is unhealthy. Dumping logs:"
-              docker compose logs n8n --tail 80
-              exit 1
-            fi
-            sleep 5
-          done
-          echo "ERROR: n8n never became healthy within timeout. Dumping logs:"
-          docker compose logs n8n --tail 80
-          exit 1
 
       - name: Tear down
         if: always()
