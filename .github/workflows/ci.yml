@@ -70,8 +70,23 @@ jobs:
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
 
+      - name: Cache Docker base images
+        id: cache-docker
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-images.tar
+          key: docker-images-${{ runner.os }}-${{ hashFiles('src/n8n/Dockerfile', 'docker-compose.yml') }}
+
+      - name: Load cached Docker images
+        if: steps.cache-docker.outputs.cache-hit == 'true'
+        run: docker load -i /tmp/docker-images.tar
+
       - name: Start services (Build & Up)
         run: docker compose --profile app up -d --build db n8n
+
+      - name: Save Docker images to cache
+        if: steps.cache-docker.outputs.cache-hit != 'true'
+        run: docker save pgvector/pgvector:pg15 n8nio/n8n:2.33.5 -o /tmp/docker-images.tar
 
       - name: Dump container logs on failure
         if: failure()
