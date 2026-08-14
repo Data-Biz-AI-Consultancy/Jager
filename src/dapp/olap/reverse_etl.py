@@ -64,7 +64,19 @@ def run_reverse_etl():
         for row in res.fetchall():
             yield dict(zip(cols, row))
 
-    @dlt.resource(name="cdp_companies", write_disposition="replace")
+    @dlt.resource(
+        name="cdp_companies",
+        write_disposition="replace",
+        columns={
+            "company_id": {"data_type": "text"},
+            "company_name": {"data_type": "text"},
+            "domain": {"data_type": "text"},
+            "status": {"data_type": "text"},
+            "attributes": {"data_type": "text"},
+            "created_at_berlin": {"data_type": "timestamp"},
+            "updated_at_berlin": {"data_type": "timestamp"},
+        }
+    )
     def get_cdp_companies():
         logger.info("Fetching cdp_companies from Motherduck")
         res = conn.execute("SELECT * FROM t_jager.cdp_companies")
@@ -72,7 +84,32 @@ def run_reverse_etl():
         for row in res.fetchall():
             yield dict(zip(cols, row))
 
-    @dlt.resource(name="cdp_persons", write_disposition="replace")
+    @dlt.resource(
+        name="cdp_persons",
+        write_disposition="replace",
+        columns={
+            "person_id": {"data_type": "text"},
+            "first_name": {"data_type": "text"},
+            "last_name": {"data_type": "text"},
+            "full_name": {"data_type": "text"},
+            "primary_email": {"data_type": "text"},
+            "primary_phone": {"data_type": "text"},
+            "linkedin_url": {"data_type": "text"},
+            "city": {"data_type": "text"},
+            "country": {"data_type": "text"},
+            "primary_company_id": {"data_type": "text"},
+            "primary_company_name": {"data_type": "text"},
+            "status": {"data_type": "text"},
+            "person_segment_id": {"data_type": "text"},
+            "person_segment_name": {"data_type": "text"},
+            "person_segment_slug": {"data_type": "text"},
+            "engagement_temperature": {"data_type": "text"},
+            "in_linkedin_connections": {"data_type": "bool"},
+            "in_substack_subscriber_export": {"data_type": "bool"},
+            "created_at_berlin": {"data_type": "timestamp"},
+            "updated_at_berlin": {"data_type": "timestamp"},
+        }
+    )
     def get_cdp_persons():
         logger.info("Fetching cdp_persons from Motherduck")
         res = conn.execute("SELECT * FROM t_jager.cdp_persons")
@@ -80,7 +117,27 @@ def run_reverse_etl():
         for row in res.fetchall():
             yield dict(zip(cols, row))
 
-    @dlt.resource(name="cdp_activities", write_disposition="replace")
+    @dlt.resource(
+        name="cdp_activities",
+        write_disposition="replace",
+        columns={
+            "activity_id": {"data_type": "text"},
+            "activity_type": {"data_type": "text"},
+            "source": {"data_type": "text"},
+            "source_id": {"data_type": "text"},
+            "person_id": {"data_type": "text"},
+            "company_id": {"data_type": "text"},
+            "title": {"data_type": "text"},
+            "activity_date_berlin": {"data_type": "date"},
+            "summary_or_content": {"data_type": "text"},
+            "to_dos": {"data_type": "text"},
+            "participants": {"data_type": "text"},
+            "url": {"data_type": "text"},
+            "metadata": {"data_type": "text"},
+            "created_at_berlin": {"data_type": "timestamp"},
+            "updated_at_berlin": {"data_type": "timestamp"},
+        }
+    )
     def get_cdp_activities():
         logger.info("Fetching cdp_activities from Motherduck")
         res = conn.execute("SELECT * FROM t_jager.cdp_activities")
@@ -88,7 +145,33 @@ def run_reverse_etl():
         for row in res.fetchall():
             yield dict(zip(cols, row))
 
-    @dlt.resource(name="cdp_leads", write_disposition="replace")
+    @dlt.resource(
+        name="cdp_leads",
+        write_disposition="replace",
+        columns={
+            "lead_id": {"data_type": "text"},
+            "person_id": {"data_type": "text"},
+            "company_id": {"data_type": "text"},
+            "full_name": {"data_type": "text"},
+            "description": {"data_type": "text"},
+            "message_count": {"data_type": "bigint"},
+            "summary": {"data_type": "text"},
+            "convo_history": {"data_type": "text"},
+            "intent": {"data_type": "text"},
+            "signal_strength": {"data_type": "text"},
+            "opportunity_type": {"data_type": "text"},
+            "rate": {"data_type": "text"},
+            "status": {"data_type": "text"},
+            "source": {"data_type": "text"},
+            "lead_status_id": {"data_type": "text"},
+            "lead_status_name": {"data_type": "text"},
+            "lead_status_slug": {"data_type": "text"},
+            "lead_stage_slug": {"data_type": "text"},
+            "lead_stage_name": {"data_type": "text"},
+            "intake_at_berlin": {"data_type": "timestamp"},
+            "updated_at_berlin": {"data_type": "timestamp"},
+        }
+    )
     def get_cdp_leads():
         logger.info("Fetching cdp_leads from Motherduck")
         res = conn.execute("SELECT * FROM t_jager.cdp_leads")
@@ -96,7 +179,27 @@ def run_reverse_etl():
         for row in res.fetchall():
             yield dict(zip(cols, row))
 
-    @dlt.resource(name="sum_cdp_weekly_network_digest", write_disposition="replace")
+    @dlt.resource(
+        name="sum_cdp_weekly_network_digest",
+        write_disposition="replace",
+        columns={
+            "date_berlin": {"data_type": "date"},
+            "new_leads_count": {"data_type": "bigint"},
+            "high_signal_leads_count": {"data_type": "bigint"},
+            "active_pipeline_leads_count": {"data_type": "bigint"},
+            "new_persons_count": {"data_type": "bigint"},
+            "new_linkedin_connections_count": {"data_type": "bigint"},
+            "new_substack_subscribers_count": {"data_type": "bigint"},
+            "daily_activities_count": {"data_type": "bigint"},
+            "total_leads_cumulative": {"data_type": "bigint"},
+            "total_persons_cumulative": {"data_type": "bigint"},
+            "total_companies_cumulative": {"data_type": "bigint"},
+            "total_activities_cumulative": {"data_type": "bigint"},
+            "high_priority_leads": {"data_type": "text"},
+            "daily_activities_json": {"data_type": "text"},
+            "calculated_at_berlin": {"data_type": "timestamp"},
+        }
+    )
     def get_sum_cdp_weekly_network_digest():
         logger.info("Fetching sum_cdp_weekly_network_digest from Motherduck")
         res = conn.execute("SELECT * FROM t_jager.sum_cdp_weekly_network_digest")

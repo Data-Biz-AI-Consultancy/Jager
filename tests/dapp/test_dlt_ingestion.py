@@ -243,10 +243,11 @@ def test_reverse_etl_success(mock_duckdb_connect):
     mock_duckdb_connect.return_value = mock_conn
     
     # Mock dlt.resource decorator to pass through the function and set metadata
-    def mock_resource_decorator(name=None, write_disposition=None):
+    def mock_resource_decorator(name=None, write_disposition=None, **kwargs):
         def decorator(func):
             func.name = name
             func.write_disposition = write_disposition
+            func.columns = kwargs.get('columns')
             return func
         return decorator
 
