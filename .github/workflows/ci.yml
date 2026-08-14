@@ -34,18 +34,15 @@ jobs:
               - '**/Dockerfile*'
               - 'src/db/**'
               - 'tests/integration/test-dockerfile.js'
-              - '.github/workflows/ci.yml'
             python:
               - '**/*.py'
               - 'pyproject.toml'
               - 'requirements*.txt'
               - 'uv.lock'
               - 'tests/**'
-              - '.github/workflows/ci.yml'
             dbt:
               - 'src/dapp/dbt/**'
               - 'dbt/**'
-              - '.github/workflows/ci.yml'
 
   test-docker:
     name: Docker Tests
