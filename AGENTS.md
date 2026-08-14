@@ -150,13 +150,11 @@
 - Prompts must use `{{VARIABLE_NAME}}` (double curly braces) for all dynamic input placeholders — consistent with n8n's expression syntax.
 - Prompts must specify their output format explicitly (e.g., "Output only the JSON block", "Do not wrap in JSON"). Never leave output format ambiguous.
 
-## dbt `t_reporting` Layer Conventions
-- The `t_reporting` layer (`dbt/models/t_reporting/`) is the **presentation layer for reporting consumers** (dashboards, Slack digests). It is separate from `t_jager`, which serves n8n application workflows.
-- File names follow the pattern `t_reporting__<domain>__<model_name>.sql` (e.g., `t_reporting__content_marketing__daily_performance.sql`).
-- Models in `t_reporting` are thin pass-through `SELECT * FROM <mart>` views/tables exposing summary marts to consumers.
-- The `alias` does NOT use a `fct_`, `dim_`, or `sum_` prefix; it uses a descriptive name directly (e.g., `alias='content_marketing_daily_performance'`).
+## dbt Timezone Handling & `t_` Presentation Layer Conventions
+- **Marts Layer (`dbt/models/marts/`)**: Default date and timestamp columns MUST remain in UTC (e.g., `date_utc`, `calculated_at_utc`). Additionally, include the local timezone (Europe/Berlin) as an explicit secondary column (e.g., `date_berlin`, `calculated_at_berlin`).
+- **Reporting & Activation Layers (`t_` layers like `t_reporting`, `t_slack`, `t_jager`)**: Models in presentation and activation layers must stick strictly to the local timezone (**Europe/Berlin**) for consumption (e.g. selecting `date_berlin` as the primary date dimension).
 - Always use **daily granularity** as the standard time dimension for all reporting models.
-- Always use **Europe/Berlin** (local) timezone for all date and timestamp columns in reporting models.
+
 
 ## dbt YAML Documentation Conventions
 - Always create **1 YAML file per dbt model**, stored inside a dedicated `tests_and_config/` subfolder within each model domain directory (e.g. `dbt/models/staging/cdp/tests_and_config/` or `dbt/models/marts/cdp/tests_and_config/`).
