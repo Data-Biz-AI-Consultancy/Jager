@@ -15,7 +15,6 @@ jobs:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
-      docker: ${{ steps.filter.outputs.docker }}
       python: ${{ steps.filter.outputs.python }}
       dbt: ${{ steps.filter.outputs.dbt }}
     steps:
@@ -27,13 +26,6 @@ jobs:
         id: filter
         with:
           filters: |
-            docker:
-              - 'docker-compose*.yml'
-              - 'docker-compose*.yaml'
-              - 'Dockerfile*'
-              - '**/Dockerfile*'
-              - 'src/db/**'
-              - 'tests/integration/test-dockerfile.js'
             python:
               - '**/*.py'
               - 'pyproject.toml'
@@ -46,8 +38,6 @@ jobs:
 
   test-docker:
     name: Docker Tests
-    needs: changes
-    if: ${{ needs.changes.outputs.docker == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
