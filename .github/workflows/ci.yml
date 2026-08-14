@@ -86,7 +86,8 @@ jobs:
 
       - name: Save Docker images to cache
         if: steps.cache-docker.outputs.cache-hit != 'true'
-        run: docker save pgvector/pgvector:pg15 n8nio/n8n:2.33.5 -o /tmp/docker-images.tar
+        run: |
+          docker save pgvector/pgvector:pg15 $(docker images --filter "reference=*n8n*" -q | head -n 1) -o /tmp/docker-images.tar
 
       - name: Dump container logs on failure
         if: failure()
