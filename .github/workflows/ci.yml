@@ -43,11 +43,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Create stub .env
         run: |
           cat > .env <<'EOF'
@@ -75,11 +70,8 @@ jobs:
       - name: Validate Docker Compose configuration
         run: docker compose config --quiet
 
-      - name: Build images (db + n8n)
-        run: docker compose --profile app build db n8n
-
-      - name: Start services
-        run: docker compose --profile app up -d db n8n
+      - name: Start services (Build & Up)
+        run: docker compose --profile app up -d --build db n8n
 
       - name: Dump container logs on failure
         if: failure()
