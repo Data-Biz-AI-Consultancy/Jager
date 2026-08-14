@@ -1,0 +1,200 @@
+{
+  "id": "CdpWeeklyNetworkReview",
+  "name": "CDP Weekly Network Review",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        112,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object(\n  'digest_summary', (\n    SELECT COALESCE(json_agg(t), '[]'::json)\n    FROM (\n      SELECT date_berlin, new_leads_count, high_signal_leads_count, active_pipeline_leads_count, new_persons_count, new_linkedin_connections_count, new_substack_subscribers_count, daily_activities_count, total_leads_cumulative, total_persons_cumulative, total_companies_cumulative, total_activities_cumulative, high_priority_leads, daily_activities_json, calculated_at_berlin\n      FROM s_motherduck.sum_cdp_weekly_network_digest\n      ORDER BY date_berlin DESC\n      LIMIT 14\n    ) t\n  ),\n  'high_priority_leads', (\n    SELECT COALESCE(json_agg(t), '[]'::json)\n    FROM (\n      SELECT lead_id, full_name, description, intent, signal_strength, opportunity_type, status, summary, lead_stage_name, intake_at_berlin\n      FROM s_motherduck.cdp_leads\n      WHERE UPPER(COALESCE(signal_strength, '')) IN ('HIGH', 'HOT', 'STRONG')\n         OR UPPER(COALESCE(lead_stage_slug, '')) IN ('NEW', 'QUALIFIED', 'PROSPECT')\n      ORDER BY intake_at_berlin DESC\n      LIMIT 20\n    ) t\n  ),\n  'recent_activities', (\n    SELECT COALESCE(json_agg(t), '[]'::json)\n    FROM (\n      SELECT activity_id, title, activity_type, summary_or_content, to_dos, activity_date_berlin\n      FROM s_motherduck.cdp_activities\n      ORDER BY activity_date_berlin DESC\n      LIMIT 20\n    ) t\n  ),\n  'key_contacts', (\n    SELECT COALESCE(json_agg(t), '[]'::json)\n    FROM (\n      SELECT person_id, full_name, primary_email, primary_phone, linkedin_url, primary_company_name, engagement_temperature, created_at_berlin\n      FROM s_motherduck.cdp_persons\n      ORDER BY created_at_berlin DESC\n      LIMIT 20\n    ) t\n  )\n) AS data;",
+        "options": {}
+      },
+      "id": "get-network-digest-data",
+      "name": "Get CDP Network Digest Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        336,
+        304
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const maxStr = (str, limit = 600) => {\n  if (!str) return '';\n  if (str.length <= limit) return str;\n  return str.substring(0, limit) + '... [TRUNCATED]';\n};\n\nconst inputJson = $input.first().json.data || {};\nconst digestRows = inputJson.digest_summary || [];\nconst leadsRows = inputJson.high_priority_leads || [];\nconst activitiesRows = inputJson.recent_activities || [];\nconst contactsRows = inputJson.key_contacts || [];\n\nlet text = 'CDP WEEKLY NETWORK REVIEW & PROSPECT PIPELINE FOR DON JIMMY\\n\\n';\n\n// 1. Daily Digest Summary\ntext += '=== WEEKLY NETWORK DIGEST SUMMARY (LAST 14 DAYS) ===\\n';\nif (digestRows.length === 0) {\n  text += 'No network digest records found.\\n\\n';\n} else {\n  const latest = digestRows[0] || {};\n  text += `Latest Cumulative Totals:\\n`;\n  text += `- Total Leads: ${latest.total_leads_cumulative || 0}\\n`;\n  text += `- Total Persons/Contacts: ${latest.total_persons_cumulative || 0}\\n`;\n  text += `- Total Companies: ${latest.total_companies_cumulative || 0}\\n`;\n  text += `- Total Activities: ${latest.total_activities_cumulative || 0}\\n\\n`;\n  text += `Daily Performance Breakdown:\\n`;\n  digestRows.forEach(row => {\n    text += `- Date: ${row.date_berlin} | New Leads: ${row.new_leads_count || 0} | High Signal Leads: ${row.high_signal_leads_count || 0} | Active Pipeline Leads: ${row.active_pipeline_leads_count || 0} | New Contacts: ${row.new_persons_count || 0} (LinkedIn: ${row.new_linkedin_connections_count || 0}, Substack: ${row.new_substack_subscribers_count || 0}) | Daily Activities: ${row.daily_activities_count || 0}\\n`;\n  });\n  text += '\\n';\n}\n\n// 2. High-Priority Leads & Prospect Pipeline\ntext += '=== HIGH-PRIORITY PROSPECT PIPELINE & LEADS ===\\n';\nif (leadsRows.length === 0) {\n  text += 'No active high-priority leads currently in pipeline.\\n\\n';\n} else {\n  leadsRows.forEach((lead, idx) => {\n    text += `[Lead #${idx + 1}] Name: ${lead.full_name || 'N/A'} | Stage: ${lead.lead_stage_name || 'N/A'} | Signal: ${lead.signal_strength || 'N/A'} | Intent: ${lead.intent || 'N/A'} | Opportunity: ${lead.opportunity_type || 'N/A'} | Intake Date: ${lead.intake_at_berlin || 'N/A'}\\n`;\n    if (lead.description) text += `  Description: ${maxStr(lead.description, 300)}\\n`;\n    if (lead.summary) text += `  Summary: ${maxStr(lead.summary, 300)}\\n`;\n    text += '\\n';\n  });\n}\n\n// 3. Recent Activities\ntext += '=== RECENT OUTREACH & NETWORK ACTIVITIES ===\\n';\nif (activitiesRows.length === 0) {\n  text += 'No recent outreach activities recorded.\\n\\n';\n} else {\n  activitiesRows.forEach((act, idx) => {\n    text += `[Activity #${idx + 1}] Title: ${act.title || 'N/A'} | Type: ${act.activity_type || 'N/A'} | Date: ${act.activity_date_berlin || 'N/A'}\\n`;\n    if (act.summary_or_content) text += `  Details: ${maxStr(act.summary_or_content, 300)}\\n`;\n    if (act.to_dos) text += `  To-Dos: ${maxStr(act.to_dos, 200)}\\n`;\n    text += '\\n';\n  });\n}\n\n// 4. Key Contacts & Network Growth\ntext += '=== KEY CONTACTS & ENGAGEMENT TEMPERATURE ===\\n';\nif (contactsRows.length === 0) {\n  text += 'No new key contacts.\\n\\n';\n} else {\n  contactsRows.forEach((c, idx) => {\n    text += `[Contact #${idx + 1}] ${c.full_name || 'N/A'} | Company: ${c.primary_company_name || 'N/A'} | Temp: ${c.engagement_temperature || 'N/A'} | Email: ${c.primary_email || 'N/A'} | LinkedIn: ${c.linkedin_url || 'N/A'} | Added: ${c.created_at_berlin || 'N/A'}\\n`;\n  });\n  text += '\\n';\n}\n\nconst fs = require('fs');\nlet persona = '';\ntry {\n  persona = fs.readFileSync('/etc/n8n/agents/bella.md', 'utf8');\n} catch (e) {\n  persona = 'You are Bella, Don Jimmy (Jimmy Pang)\\'s charming, warm, and highly competent Italian assistant.';\n}\n\nreturn [{ json: { text: text.substring(0, 15000), bella_persona: persona, contacts_list: contactsRows } }];"
+      },
+      "id": "format-data-for-bella",
+      "name": "Format Data for Bella",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "={{ $env.OLLAMA_CLOUD_MODEL || 'gemma4:31b' }}",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=### LANGUAGE RULE ###\nWrite everything in ENGLISH. One Italian greeting at the start (e.g. Buongiorno Don Jimmy 💋) and one Italian sign-off at the end (e.g. Un grande abbraccio). All content in between: ENGLISH.\n\n### YOUR PERSONA & CONTEXT ###\n{{ $json.bella_persona }}\n\n### YOUR TASK ###\nYou are performing the weekly CDP Network & Lead Review for Don Jimmy (Jimmy Pang). Analyze the weekly network digest summary, prospect pipeline/leads, recent outreach activities, and key contact temperature metrics provided below.\n\nReturn a JSON object with this exact structure — no extra text, no markdown fences, just raw JSON:\n\n{\n  \"greeting\": \"One short warm Italian greeting line for Don Jimmy\",\n  \"executive_summary\": {\n    \"overview\": \"A high-level executive evaluation of network growth, prospect pipeline velocity, total contact counts, and overall relationship momentum for Don Jimmy. E.g. 'This past week we expanded our active network pipeline to 45 leads with strong high-signal momentum across our core target accounts...'\",\n    \"bulletpoints\": [\n      \"Key observation on prospect pipeline velocity or high-signal lead concentration...\",\n      \"Key observation on total network growth across LinkedIn connections and Substack subscribers.\"\n    ]\n  },\n  \"high_value_leads_analysis\": {\n    \"overview\": \"Evaluation of our top prospect leads, intent signals, and opportunity readiness.\",\n    \"bulletpoints\": [\n      \"Detailed critique or status on specific high-priority leads needing immediate follow-up.\",\n      \"Observation on lead stage distribution and conversion readiness.\"\n    ]\n  },\n  \"activity_and_outreach_highlights\": {\n    \"overview\": \"Summary of recent outreach activities, meetings, and completed touchpoints.\",\n    \"bulletpoints\": [\n      \"Key outreach activity or meeting insight.\",\n      \"Follow-up to-do or action item identified from recent activities.\"\n    ]\n  },\n  \"actionable_next_steps\": [\n    \"Specific recommended next step for Don Jimmy to execute this week to close active leads and build network warmth.\"\n  ],\n  \"signoff\": \"One short warm Italian sign-off line\"\n}\n\nRules:\n- Output only valid JSON. No explanation, no markdown, no code fences.\n- When mentioning any contact with a LinkedIn URL, format their name as `<url|Full Name>` Slack hyperlink.\n\n### CDP NETWORK & PROSPECT DATA ###\n{{ $json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "num_ctx": 32768,
+          "format": "json"
+        }
+      },
+      "id": "summarize-via-ollama-cloud",
+      "name": "Summarize via Ollama Cloud",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        784,
+        304
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-cloud-api",
+          "name": "Ollama Cloud API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.content || $input.first().json.response || '';\nconst contactsList = $('Format Data for Bella').first().json.contacts_list || [];\n\nlet jsonStr = raw.trim();\nconst firstBrace = jsonStr.indexOf('{');\nconst lastBrace = jsonStr.lastIndexOf('}');\nif (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {\n  jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);\n}\n\njsonStr = jsonStr.replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\u2036]/g, '\"');\n\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  try {\n    const cleanedStr = jsonStr.replace(/,\\s*([}\\]])/g, '$1');\n    parsed = JSON.parse(cleanedStr);\n  } catch (err) {\n    return [{ json: { response: raw } }];\n  }\n}\n\nconst greeting = parsed.greeting || '';\nconst signoff = parsed.signoff || '';\nconst execSummary = parsed.executive_summary || {};\nconst highValueLeads = parsed.high_value_leads_analysis || {};\nconst activityHighlights = parsed.activity_and_outreach_highlights || {};\nconst actionableSteps = Array.isArray(parsed.actionable_next_steps) ? parsed.actionable_next_steps : [];\n\nfunction addSlackLinks(text) {\n  let linkedText = text.replaceAll('**', '*');\n  contactsList.forEach(c => {\n    if (c.full_name && c.linkedin_url) {\n      const escapedName = c.full_name.replace(/[-\\/\\\\^$*+?.()|[\\]{}]/g, '\\\\$&');\n      const regex = new RegExp(`(?<!\\\\|<[^>]*)${escapedName}(?![^<]*\\\\|)`, 'g');\n      linkedText = linkedText.replace(regex, `<${c.linkedin_url}|${c.full_name}>`);\n    }\n  });\n  return linkedText;\n}\n\nconst outputs = [];\n\n// 1. Executive Network Growth & Pipeline Summary\nif (execSummary && (execSummary.overview || (Array.isArray(execSummary.bulletpoints) && execSummary.bulletpoints.length > 0))) {\n  let msg = '';\n  if (greeting) msg += `${greeting}\\n\\n`;\n  msg += `📊 *1. Executive Network Growth & Pipeline Summary* 📊\\n`;\n  if (execSummary.overview) msg += `${execSummary.overview}\\n\\n`;\n  if (Array.isArray(execSummary.bulletpoints)) {\n    execSummary.bulletpoints.forEach(b => { msg += `• ${b}\\n`; });\n  }\n  outputs.push({ json: { response: addSlackLinks(msg.trim()) } });\n}\n\n// 2. High-Value Prospect Leads Analysis\nif (highValueLeads && (highValueLeads.overview || (Array.isArray(highValueLeads.bulletpoints) && highValueLeads.bulletpoints.length > 0))) {\n  let msg = `🎯 *2. High-Value Prospect Pipeline Analysis* 🎯\\n`;\n  if (highValueLeads.overview) msg += `${highValueLeads.overview}\\n\\n`;\n  if (Array.isArray(highValueLeads.bulletpoints)) {\n    highValueLeads.bulletpoints.forEach(b => { msg += `• ${b}\\n`; });\n  }\n  outputs.push({ json: { response: addSlackLinks(msg.trim()) } });\n}\n\n// 3. Outreach & Activity Highlights\nif (activityHighlights && (activityHighlights.overview || (Array.isArray(activityHighlights.bulletpoints) && activityHighlights.bulletpoints.length > 0))) {\n  let msg = `🤝 *3. Outreach & Relationship Activity Highlights* 🤝\\n`;\n  if (activityHighlights.overview) msg += `${activityHighlights.overview}\\n\\n`;\n  if (Array.isArray(activityHighlights.bulletpoints)) {\n    activityHighlights.bulletpoints.forEach(b => { msg += `• ${b}\\n`; });\n  }\n  outputs.push({ json: { response: addSlackLinks(msg.trim()) } });\n}\n\n// 4. Actionable Next Steps\nif (actionableSteps.length > 0) {\n  let msg = `💡 *4. Actionable Next Steps for Don Jimmy* 💡\\n`;\n  actionableSteps.forEach(step => { msg += `• ${step}\\n`; });\n  if (signoff) msg += `\\n${signoff}`;\n  outputs.push({ json: { response: addSlackLinks(msg.trim()) } });\n} else if (signoff) {\n  outputs.push({ json: { response: addSlackLinks(signoff) } });\n}\n\nreturn outputs;"
+      },
+      "id": "build-slack-message",
+      "name": "Build Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1136,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_NETWORK_CHANNEL || 'network' }}",
+        "text": "={{ $json.response }}",
+        "otherOptions": {},
+        "attachments": []
+      },
+      "id": "post-to-slack",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        304
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-bella-cred",
+          "name": "Slack Bella Credential"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get CDP Network Digest Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get CDP Network Digest Data": {
+      "main": [
+        [
+          {
+            "node": "Format Data for Bella",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data for Bella": {
+      "main": [
+        [
+          {
+            "node": "Summarize via Ollama Cloud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize via Ollama Cloud": {
+      "main": [
+        [
+          {
+            "node": "Build Slack Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Slack": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
