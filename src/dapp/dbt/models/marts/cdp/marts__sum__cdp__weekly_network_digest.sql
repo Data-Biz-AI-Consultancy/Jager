@@ -17,8 +17,7 @@ WITH leads AS (
         lead_stage_name,
         lead_stage_slug,
         summary,
-        CAST(intake_at AT TIME ZONE 'UTC' AS DATE) AS date_utc,
-        CAST(intake_at AT TIME ZONE 'Europe/Berlin' AS DATE) AS date_berlin
+        CAST(intake_at AT TIME ZONE 'UTC' AS DATE) AS date_utc
     FROM {{ ref('marts__cdp__fct_leads') }}
 ),
 
@@ -29,8 +28,7 @@ activities AS (
         activity_type,
         summary_or_content,
         to_dos,
-        CAST(activity_date AS DATE) AS date_utc,
-        CAST(activity_date AT TIME ZONE 'Europe/Berlin' AS DATE) AS date_berlin
+        CAST(activity_date AS DATE) AS date_utc
     FROM {{ ref('marts__cdp__fct_activities') }}
 ),
 
@@ -40,19 +38,18 @@ persons AS (
         in_linkedin_connections,
         in_substack_subscriber_export,
         engagement_temperature,
-        CAST(created_at AT TIME ZONE 'UTC' AS DATE) AS date_utc,
-        CAST(created_at AT TIME ZONE 'Europe/Berlin' AS DATE) AS date_berlin
+        CAST(created_at AT TIME ZONE 'UTC' AS DATE) AS date_utc
     FROM {{ ref('marts__cdp__dim_persons') }}
 ),
 
 date_spine AS (
-    SELECT DISTINCT date_utc, date_berlin FROM activities WHERE date_utc IS NOT NULL
+    SELECT DISTINCT date_utc FROM activities WHERE date_utc IS NOT NULL
     UNION
-    SELECT DISTINCT date_utc, date_berlin FROM leads WHERE date_utc IS NOT NULL
+    SELECT DISTINCT date_utc FROM leads WHERE date_utc IS NOT NULL
     UNION
-    SELECT DISTINCT date_utc, date_berlin FROM persons WHERE date_utc IS NOT NULL
+    SELECT DISTINCT date_utc FROM persons WHERE date_utc IS NOT NULL
     UNION
-    SELECT (CURRENT_DATE AT TIME ZONE 'UTC')::DATE AS date_utc, (CURRENT_DATE AT TIME ZONE 'Europe/Berlin')::DATE AS date_berlin
+    SELECT (CURRENT_DATE AT TIME ZONE 'UTC')::DATE AS date_utc
 ),
 
 daily_leads AS (
@@ -113,8 +110,7 @@ high_priority_leads_json AS (
                 'status': status,
                 'lead_stage_name': lead_stage_name,
                 'summary': summary,
-                'intake_date_utc': date_utc,
-                'intake_date_berlin': date_berlin
+                'intake_date_utc': date_utc
             })),
             to_json([])
         ) AS high_priority_leads
@@ -125,7 +121,6 @@ high_priority_leads_json AS (
 
 SELECT
     ds.date_utc,
-    ds.date_berlin,
     COALESCE(dl.new_leads_count, 0) AS new_leads_count,
     COALESCE(dl.high_signal_leads_count, 0) AS high_signal_leads_count,
     COALESCE(dl.active_pipeline_leads_count, 0) AS active_pipeline_leads_count,
@@ -139,8 +134,7 @@ SELECT
     ct.total_activities_cumulative,
     hpl.high_priority_leads,
     COALESCE(da.daily_activities_json, to_json([])) AS daily_activities_json,
-    NOW() AT TIME ZONE 'UTC' AS calculated_at_utc,
-    NOW() AT TIME ZONE 'Europe/Berlin' AS calculated_at_berlin
+    NOW() AT TIME ZONE 'UTC' AS calculated_at_utc
 FROM date_spine ds
 LEFT JOIN daily_leads dl ON ds.date_utc = dl.date_utc
 LEFT JOIN daily_activities da ON ds.date_utc = da.date_utc
