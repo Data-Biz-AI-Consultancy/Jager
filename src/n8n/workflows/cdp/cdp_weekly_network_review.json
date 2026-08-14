@@ -109,7 +109,7 @@
     },
     {
       "parameters": {
-        "channel": "={{ $env.SLACK_NETWORK_CHANNEL || 'network' }}",
+        "channel": "network",
         "text": "={{ $json.response }}",
         "otherOptions": {},
         "attachments": []
