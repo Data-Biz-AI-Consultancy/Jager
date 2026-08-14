@@ -69,15 +69,16 @@ daily_activities AS (
     SELECT
         date_utc,
         COUNT(*) AS activities_count,
-        COALESCE(json_agg(
-            json_build_object(
-                'activity_id', activity_id,
-                'title', title,
-                'activity_type', activity_type,
-                'summary_or_content', summary_or_content,
-                'to_dos', to_dos
-            )
-        ), '[]'::json) AS daily_activities_json
+        COALESCE(
+            to_json(list({
+                'activity_id': activity_id,
+                'title': title,
+                'activity_type': activity_type,
+                'summary_or_content': summary_or_content,
+                'to_dos': to_dos
+            })),
+            to_json([])
+        ) AS daily_activities_json
     FROM activities
     GROUP BY date_utc
 ),
@@ -102,20 +103,21 @@ cumulative_totals AS (
 
 high_priority_leads_json AS (
     SELECT
-        COALESCE(json_agg(
-            json_build_object(
-                'lead_id', lead_id,
-                'full_name', full_name,
-                'intent', intent,
-                'signal_strength', signal_strength,
-                'opportunity_type', opportunity_type,
-                'status', status,
-                'lead_stage_name', lead_stage_name,
-                'summary', summary,
-                'intake_date_utc', date_utc,
-                'intake_date_berlin', date_berlin
-            )
-        ), '[]'::json) AS high_priority_leads
+        COALESCE(
+            to_json(list({
+                'lead_id': lead_id,
+                'full_name': full_name,
+                'intent': intent,
+                'signal_strength': signal_strength,
+                'opportunity_type': opportunity_type,
+                'status': status,
+                'lead_stage_name': lead_stage_name,
+                'summary': summary,
+                'intake_date_utc': date_utc,
+                'intake_date_berlin': date_berlin
+            })),
+            to_json([])
+        ) AS high_priority_leads
     FROM leads
     WHERE UPPER(COALESCE(signal_strength, '')) IN ('HIGH', 'HOT', 'STRONG')
        OR UPPER(COALESCE(lead_stage_slug, '')) IN ('NEW', 'QUALIFIED', 'PROSPECT')
@@ -136,7 +138,7 @@ SELECT
     ct.total_companies_cumulative,
     ct.total_activities_cumulative,
     hpl.high_priority_leads,
-    COALESCE(da.daily_activities_json, '[]'::json) AS daily_activities_json,
+    COALESCE(da.daily_activities_json, to_json([])) AS daily_activities_json,
     NOW() AT TIME ZONE 'UTC' AS calculated_at_utc,
     NOW() AT TIME ZONE 'Europe/Berlin' AS calculated_at_berlin
 FROM date_spine ds
