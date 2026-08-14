@@ -30,9 +30,6 @@ Unlike analytical ETL pipelines (which live under `src/data_pipelines/` for load
    - **`cdp.person_segments`**: Dimension table for Opportunity-Based contact segments (`clients_and_prospects`, `former_colleagues_alumni`, `recruiters_and_talent`, `hiring_decision_makers`, `peer_collaborators`, `general_network`). Referenced via `cdp.persons.person_segment_id`.
    - **`cdp.persons.potential_opportunity_types`**: Denormalized opportunity types column describing target collaboration models.
    - **`cdp.persons.engagement_temperature`**: Dynamic engagement score (`hot` [30d], `warm` [90d], `dormant` [>90d], `cold` [no activity]).
-   - **`cdp.person_segments`**: Dimension table for Opportunity-Based contact segments (`clients_and_prospects`, `former_colleagues_alumni`, `recruiters_and_talent`, `hiring_decision_makers`, `peer_collaborators`, `general_network`). Referenced via `cdp.persons.person_segment_id`.
-   - **`cdp.persons.potential_opportunity_types`**: Denormalized opportunity types column describing target collaboration models.
-   - **`cdp.persons.engagement_temperature`**: Dynamic engagement score (`hot` [30d], `warm` [90d], `dormant` [>90d], `cold` [no activity]).
    - **`cdp.lead_statuses`**: Dimension table for opportunity/pipeline statuses. Referenced via `cdp.leads.lead_status_id`.
 6. **Automation Endpoints**:
    - Exposes REST HTTP endpoints consumed by n8n workflows (accessed via `CDP_SERVICE_URL`, e.g. `http://cdp:8000`).
