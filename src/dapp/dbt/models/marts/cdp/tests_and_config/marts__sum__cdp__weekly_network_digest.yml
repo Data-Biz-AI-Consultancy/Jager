@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: marts__sum__cdp__weekly_network_digest
+    description: "Summary mart aggregating daily CDP network statistics, high-priority lead pipelines, recent activities, and engagement temperatures in UTC."
+    columns:
+      - name: date_utc
+        description: "The default daily time dimension in UTC timezone."
+        tests:
+          - not_null
+          - unique
+      - name: new_leads_count
+        description: "Count of new leads intake on date_utc."
+      - name: high_signal_leads_count
+        description: "Count of high-signal leads intake on date_utc."
+      - name: active_pipeline_leads_count
+        description: "Count of active pipeline leads intake on date_utc."
+      - name: total_leads_cumulative
+        description: "Cumulative total count of leads in CDP."
+      - name: total_persons_cumulative
+        description: "Cumulative total count of persons in CDP."
+      - name: total_companies_cumulative
+        description: "Cumulative total count of companies in CDP."
+      - name: total_activities_cumulative
+        description: "Cumulative total count of activities in CDP."
+      - name: calculated_at_utc
+        description: "Default timestamp in UTC when the summary record was calculated."

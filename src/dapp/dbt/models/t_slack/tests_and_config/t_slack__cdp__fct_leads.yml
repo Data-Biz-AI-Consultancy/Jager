@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: t_slack__cdp__fct_leads
+    description: "Presentation model exposing CDP lead facts for Slack application interfaces."
+    columns:
+      - name: lead_id
+        description: "Primary key for lead entity."
+        tests:
+          - not_null
+          - unique

@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: t_slack__cdp__dim_persons
+    description: "Presentation model exposing CDP person dimensions for Slack application interfaces."
+    columns:
+      - name: person_id
+        description: "Primary key for person entity."
+        tests:
+          - not_null
+          - unique

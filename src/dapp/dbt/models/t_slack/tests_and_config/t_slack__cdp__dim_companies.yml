@@ -1,0 +1,11 @@
+version: 2
+
+models:
+  - name: t_slack__cdp__dim_companies
+    description: "Presentation model exposing CDP company dimensions for Slack application interfaces."
+    columns:
+      - name: company_id
+        description: "Primary key for company entity."
+        tests:
+          - not_null
+          - unique
