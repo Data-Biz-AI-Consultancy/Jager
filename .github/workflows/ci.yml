@@ -81,12 +81,6 @@ jobs:
           echo "=== N8N logs ==="
           docker compose logs n8n --tail 50
 
-
-      - name: Tear down
-        if: always()
-        run: docker compose --profile app down --remove-orphans --volumes
-
-
   test-python:
     name: Python Tests
     needs: changes
