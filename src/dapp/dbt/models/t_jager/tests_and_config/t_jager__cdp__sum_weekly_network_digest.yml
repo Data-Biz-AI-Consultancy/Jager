@@ -1,8 +1,8 @@
 version: 2
 
 models:
-  - name: t_slack__cdp__sum_weekly_network_digest
-    description: "Presentation model exposing the last 14 days of CDP network digest statistics for Slack channel #network consumption."
+  - name: t_jager__cdp__sum_weekly_network_digest
+    description: "Presentation model exposing the last 14 days of CDP network digest statistics for application interfaces in t_jager schema."
     columns:
       - name: date_berlin
         description: "Primary key daily time dimension in Europe/Berlin timezone."

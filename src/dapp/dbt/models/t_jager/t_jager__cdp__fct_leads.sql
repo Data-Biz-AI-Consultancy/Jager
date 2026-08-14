@@ -1,6 +1,6 @@
 {{ config(
     materialized='table',
-    schema='t_slack',
+    schema='t_jager',
     alias='cdp_leads'
 ) }}
 

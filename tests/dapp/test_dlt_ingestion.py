@@ -268,10 +268,10 @@ def test_reverse_etl_success(mock_duckdb_connect):
         assert kwargs.get('pipeline_name') == "reverse_etl_motherduck"
         assert kwargs.get('dataset_name') == "s_motherduck"
         
-        # Verify pipeline.run was called with 5 resources
+        # Verify pipeline.run was called with 10 resources
         mock_pipeline_inst.run.assert_called_once()
         resources_arg = mock_pipeline_inst.run.call_args[0][0]
-        assert len(resources_arg) == 5
+        assert len(resources_arg) == 10
         
         # Test resource generators yield correct dictionary data
         for resource_func in resources_arg:

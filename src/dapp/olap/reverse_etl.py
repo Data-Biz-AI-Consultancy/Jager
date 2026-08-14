@@ -64,6 +64,46 @@ def run_reverse_etl():
         for row in res.fetchall():
             yield dict(zip(cols, row))
 
+    @dlt.resource(name="cdp_companies", write_disposition="replace")
+    def get_cdp_companies():
+        logger.info("Fetching cdp_companies from Motherduck")
+        res = conn.execute("SELECT * FROM t_jager.cdp_companies")
+        cols = [desc[0] for desc in res.description]
+        for row in res.fetchall():
+            yield dict(zip(cols, row))
+
+    @dlt.resource(name="cdp_persons", write_disposition="replace")
+    def get_cdp_persons():
+        logger.info("Fetching cdp_persons from Motherduck")
+        res = conn.execute("SELECT * FROM t_jager.cdp_persons")
+        cols = [desc[0] for desc in res.description]
+        for row in res.fetchall():
+            yield dict(zip(cols, row))
+
+    @dlt.resource(name="cdp_activities", write_disposition="replace")
+    def get_cdp_activities():
+        logger.info("Fetching cdp_activities from Motherduck")
+        res = conn.execute("SELECT * FROM t_jager.cdp_activities")
+        cols = [desc[0] for desc in res.description]
+        for row in res.fetchall():
+            yield dict(zip(cols, row))
+
+    @dlt.resource(name="cdp_leads", write_disposition="replace")
+    def get_cdp_leads():
+        logger.info("Fetching cdp_leads from Motherduck")
+        res = conn.execute("SELECT * FROM t_jager.cdp_leads")
+        cols = [desc[0] for desc in res.description]
+        for row in res.fetchall():
+            yield dict(zip(cols, row))
+
+    @dlt.resource(name="sum_cdp_weekly_network_digest", write_disposition="replace")
+    def get_sum_cdp_weekly_network_digest():
+        logger.info("Fetching sum_cdp_weekly_network_digest from Motherduck")
+        res = conn.execute("SELECT * FROM t_jager.sum_cdp_weekly_network_digest")
+        cols = [desc[0] for desc in res.description]
+        for row in res.fetchall():
+            yield dict(zip(cols, row))
+
     # Set up DLT pipeline with PostgreSQL destination
     logger.info("Starting DLT pipeline with postgres destination")
     os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
@@ -83,11 +123,17 @@ def run_reverse_etl():
             get_company_page_engagement,
             get_timeslot_recommendations,
             get_public_holidays,
-            get_sum_content_marketing_daily_performance
+            get_sum_content_marketing_daily_performance,
+            get_cdp_companies,
+            get_cdp_persons,
+            get_cdp_activities,
+            get_cdp_leads,
+            get_sum_cdp_weekly_network_digest
         ])
         logger.info(f"Reverse ETL completed successfully:\n{load_info}")
     finally:
         conn.close()
+
 
 if __name__ == "__main__":
     run_reverse_etl()
