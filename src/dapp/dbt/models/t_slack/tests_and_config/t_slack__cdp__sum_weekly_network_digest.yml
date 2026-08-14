@@ -5,6 +5,7 @@ models:
     description: "Presentation model exposing the last 14 days of CDP network digest statistics for Slack channel #network consumption."
     columns:
       - name: date_berlin
-        description: "The daily time dimension in Europe/Berlin timezone."
+        description: "Primary key daily time dimension in Europe/Berlin timezone."
         tests:
           - not_null
+          - unique

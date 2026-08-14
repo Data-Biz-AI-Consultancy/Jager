@@ -151,9 +151,10 @@
 - Prompts must specify their output format explicitly (e.g., "Output only the JSON block", "Do not wrap in JSON"). Never leave output format ambiguous.
 
 ## dbt Timezone Handling & `t_` Presentation Layer Conventions
-- **Marts Layer (`dbt/models/marts/`)**: Default date and timestamp columns MUST remain in UTC (e.g., `date_utc`, `calculated_at_utc`). Additionally, include the local timezone (Europe/Berlin) as an explicit secondary column (e.g., `date_berlin`, `calculated_at_berlin`).
+- **Marts Layer (`dbt/models/marts/`)**: Default date and timestamp columns MUST remain in UTC (e.g., `date_utc`, `calculated_at_utc`).
 - **Reporting & Activation Layers (`t_` layers like `t_reporting`, `t_slack`, `t_jager`)**: Models in presentation and activation layers MUST ONLY keep local timezone (**Europe/Berlin**) date and timestamp columns for consumption (e.g., `date_berlin`, `created_at_berlin`, `calculated_at_berlin`), excluding/dropping any UTC-specific columns (`date_utc`, `calculated_at_utc`).
 - Always use **daily granularity** as the standard time dimension for all reporting models.
+
 
 
 
