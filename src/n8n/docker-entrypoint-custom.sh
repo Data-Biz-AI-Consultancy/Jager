@@ -13,8 +13,8 @@ until node -e "
 done
 echo "PostgreSQL is ready!"
 
-# Give PostgreSQL a moment to finish initialization (accept connections, run init scripts)
-sleep 3
+# Give PostgreSQL a brief moment to finish any lingering init operations
+sleep 1
 
 # Run application database migrations — fail hard if this errors
 if [ -f /etc/n8n/migrate-db.js ]; then
