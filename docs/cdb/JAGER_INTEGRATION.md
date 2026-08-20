@@ -8,30 +8,26 @@
 
 ---
 
-## 1. Integration Architecture
+## 1. Deployment Model
+
+CDB is distributed as a **Docker image published to GitHub Container Registry (GHCR)**. Jager's `docker-compose.yml` pulls the image directly — no cross-stack networking, no separate compose file to manage.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    jager_network (Docker bridge)                 │
-│                                                                  │
-│  ┌──────────────────────┐        ┌──────────────────────────┐   │
-│  │   Jager n8n service  │        │   CDB API service        │   │
-│  │   (n8n:5678)         │──────► │   (cdb-api:8000)         │   │
-│  └──────────────────────┘        └──────────────────────────┘   │
-│           │                                   │                  │
-│           ▼                                   ▼                  │
-│  ┌────────────────┐              ┌────────────────────────┐      │
-│  │ Jager Postgres │              │ CDB Postgres           │      │
-│  │ (db:5432)      │              │ (cdb-db:5432 /         │      │
-│  │ database: cdp  │              │  host port 5433)       │      │
-│  └────────────────┘              └────────────────────────┘      │
-└─────────────────────────────────────────────────────────────────┘
+CDB repo (GitHub)
+  └── push to main
+        └── GitHub Actions: build → push ghcr.io/data-biz-ai-consultancy/cdb:production
+
+Jager VPS
+  └── docker-compose.yml
+        └── cdb-api:   image: ghcr.io/data-biz-ai-consultancy/cdb:production
+        └── cdb-db:    image: postgres:16
+        (both on the same jager_network as n8n)
 ```
 
 **Integration principles:**
 - CDB is the **source of truth** for all person and company data
-- Jager pushes raw data **into** CDB after each source sync
-- Jager queries CDB for enriched person/company context (e.g. before sending a Slack digest)
+- Jager pulls the latest `production`-tagged image on each `docker compose pull && docker compose up -d`
+- n8n calls CDB over the internal Docker network: `http://cdb-api:8000`
 - Service-to-service calls use a dedicated API key (`X-API-Key` header), not a user JWT
 
 ---
@@ -64,41 +60,101 @@ The following endpoints are currently called by Jager's n8n workflows against `h
 
 ## 4. Jager Changes Required
 
-### 4.1 `docker-compose.yml`
+### 4.1 CDB repo — GitHub Actions (CI/CD)
 
-**Add** the `CDB_API_URL` and `CDB_API_KEY` env vars to the `n8n` service:
+The CDB repo needs a workflow at `.github/workflows/publish.yml` that builds and pushes the Docker image to GHCR on every merge to `main`:
 
 ```yaml
-# docker-compose.yml — n8n service environment block
-environment:
-  # ... existing vars ...
-  CDB_API_URL: "http://cdb-api:8000"
-  CDB_API_KEY: "${CDB_API_KEY}"
+# .github/workflows/publish.yml (in the CDB repo)
+name: Build & Publish
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: |
+            ghcr.io/data-biz-ai-consultancy/cdb:production
+            ghcr.io/data-biz-ai-consultancy/cdb:${{ github.sha }}
 ```
 
-**Add** the CDB network to Jager's compose so n8n can reach `cdb-api`:
+### 4.2 Jager `docker-compose.yml`
+
+Add `cdb-api` and `cdb-db` services pulling from GHCR. Both join the existing `jager_network` so n8n can reach `cdb-api` by container name:
 
 ```yaml
-networks:
-  jager_network:
-    external: true
-  cdb_network:
-    external: true   # joins the CDB stack's network
-
 services:
-  n8n:
+  # ... existing Jager services ...
+
+  cdb-api:
+    image: ghcr.io/data-biz-ai-consultancy/cdb:production
+    container_name: cdb-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://cdb:cdb@cdb-db:5432/cdb"
+      CDB_API_KEY: "${CDB_API_KEY}"
+      SECRET_KEY: "${CDB_SECRET_KEY}"
+    depends_on:
+      - cdb-db
     networks:
       - jager_network
-      - cdb_network
+    ports:
+      - "8001:8000"     # host port 8001 to avoid conflict with dapp on 8000
+
+  cdb-db:
+    image: postgres:16
+    container_name: cdb-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cdb
+      POSTGRES_USER: cdb
+      POSTGRES_PASSWORD: cdb
+    volumes:
+      - cdb_db_data:/var/lib/postgresql/data
+    networks:
+      - jager_network
+    ports:
+      - "5433:5432"     # host port 5433; Jager's Postgres is on 5432
+
+volumes:
+  # ... existing volumes ...
+  cdb_db_data:
 ```
 
-Or alternatively, join CDB's services to `jager_network` in the CDB `docker-compose.yml` — whichever is simpler to operate.
+> **To upgrade CDB**: `docker compose pull cdb-api && docker compose up -d cdb-api` — pulls the latest `production` image with no downtime for other services.
 
-### 4.2 `.env`
+### 4.3 Jager `.env`
 
 Add:
 ```
 CDB_API_KEY=<generated_service_token>
+CDB_SECRET_KEY=<generated_secret_key>
+```
+
+Generate both:
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+### 4.4 Jager `docker-compose.yml` — n8n env vars
+
+Add to the `n8n` service's `environment` block:
+```yaml
+CDB_API_URL: "http://cdb-api:8000"
+CDB_API_KEY: "${CDB_API_KEY}"
 ```
 
 ---

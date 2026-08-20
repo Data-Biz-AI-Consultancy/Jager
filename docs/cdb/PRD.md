@@ -286,10 +286,11 @@ See [Implementation_plan.md](Implementation_plan.md) for full technical details.
 
 ## 7. Deployment
 
-- **Self-hosted** on the same VPS as Jager
-- Separate Docker Compose stack (`cdb/docker-compose.yml`) joining Jager's Docker network
-- Services: `cdb-api`, `cdb-worker` (Celery), `cdb-db` (Postgres on port 5433), `cdb-redis`, `cdb-frontend`
-- Optional Nginx routing: `cdb.yourdomain.com` → frontend, `api.cdb.yourdomain.com` → API
+- **CDB repo** publishes a Docker image to **GitHub Container Registry (GHCR)** on every merge to `main` via GitHub Actions, tagged as `ghcr.io/data-biz-ai-consultancy/cdb:production`
+- **Jager's `docker-compose.yml`** adds `cdb-api` and `cdb-db` services that pull this image directly — no separate compose file, no cross-stack network complexity
+- Both `cdb-api` and `cdb-db` join Jager's existing Docker network, so n8n reaches CDB at `http://cdb-api:8000`
+- `cdb-db` runs on host port `5433` to avoid collision with Jager's Postgres on `5432`
+- **To upgrade**: `docker compose pull cdb-api && docker compose up -d cdb-api`
 
 ---
 
