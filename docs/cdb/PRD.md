@@ -88,9 +88,10 @@ At its core, CDB:
 - Manually create companies or have them auto-extracted from person profiles
 - Navigate between a person and their company with one click
 
-### 3.3 Full Interaction History
-**As a user, I want to see every interaction I've had with a person or company, so I never lose context before a meeting or follow-up.**
+### 3.3 Full History
+**As a user, I want to see the complete history of a person — both my interactions with them and what has happened in their career — so I always have full context.**
 
+#### My interactions with them
 - Browse a chronological activity timeline per person or company
 - Activities are auto-imported from connected sources (Notion meeting notes, LinkedIn messages, Gmail — future)
 - Log manual notes, calls, or meetings directly in CDB
@@ -106,6 +107,13 @@ At its core, CDB:
 | WhatsApp | Conversation exports | 3 |
 | Gmail | Email threads | 3 |
 | Google / Outlook Calendar | Meeting events and attendees | 3 |
+
+#### Their personal timeline
+- Track a person's career history: previous companies, roles, and dates
+- Record when someone changes jobs, gets promoted, or starts a new venture
+- See their full employment timeline (past and current roles) on their profile
+- Get prompted to re-engage when a key contact changes companies (future: notification trigger)
+
 
 ### 3.4 Opportunity Pipeline
 **As a user, I want to track deals, partnerships, and collaborations through a clear pipeline, so I always know what needs action.**
