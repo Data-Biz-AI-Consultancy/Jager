@@ -58,62 +58,64 @@ At its core, CDB:
 
 ## 3. Core Features
 
-### 3.1 Persons
+### 3.1 Unified Contact Profile
+**As a user, I want a single profile for every person I know, regardless of where I met them or what tool they came from.**
 
-A unified golden record for every natural person, merged from all sources via Entity Resolution.
+- Search and find any contact by name, email, company, or LinkedIn URL
+- See all known contact details (emails, phone, LinkedIn, socials) in one place
+- See exactly which sources contributed to this person's record (LinkedIn, Notion, manual import, etc.)
+- Edit or enrich a profile manually at any time
+- Soft-delete contacts without losing history
+- **Automatic deduplication across sources**: CDB recognises when the same person appears in LinkedIn, Notion, and a spreadsheet — and merges them into one record
+- Ambiguous matches surface in a **Review Queue** to accept or reject proposed merges side-by-side
+- Re-run deduplication at any time without data loss
 
-- Full contact profile: name, email(s), phone, LinkedIn, social handles, location
-- Source attribution: which systems contributed to this record
-- Activity timeline: all interactions with this person in chronological order
-- Linked companies: current and past roles
-
-### 3.2 Companies
-
-A first-class entity — peer to Persons, not subordinate.
-
-- Company profile: name, domain, industry, size, location, LinkedIn
-- Linked persons: all known contacts at this company with their roles
-- Activity and opportunity history at the company level
-
-### 3.3 Activities
-
-Any recorded interaction with a person or company.
-
-- Types: `meeting`, `email`, `linkedin_message`, `whatsapp`, `call`, `note`
-- Source-tagged: which system the activity came from (`notion`, `gmail`, `linkedin`, `manual`)
-- Idempotent upsert via `source_id` — re-ingesting the same source never creates duplicates
-- AI-generated or manual summaries
-
-### 3.4 Opportunities
-
-Deals, partnerships, and collaborations being tracked.
-
-- Pipeline stages: `prospect → qualified → proposal → negotiation → closed_won / closed_lost`
-- Linked to one or more persons and companies
-- Optional value, currency, probability, expected close date
-- Owner assignment (multi-user ready from day 1)
-
-### 3.5 Entity Resolution
-
-Automatic identification that two records from different sources represent the same real person.
-
-- **Rule-based** (Phase 1): email match, LinkedIn URL match, phone match, name+company fuzzy match
-- **ML-based fallback** (Phase 3): probabilistic scoring for ambiguous pairs
-- **Review Queue**: a first-class UI for users to accept/reject proposed merges — not a backend script
-
-### 3.6 Source Integrations
+**Contact sources supported:**
 
 | Source | Mechanism | Phase |
 |--------|-----------|-------|
-| LinkedIn connections | CSV export upload | 1 |
-| LinkedIn messages | ZIP export upload | 1 |
-| Notion meeting notes | Notion API | 1 |
-| Manual CSV / XLSX | File upload + column mapper | 1 |
-| Substack subscribers | CSV export upload | 2 |
-| Gmail | Google OAuth | 3 |
-| WhatsApp | Export ZIP parser | 3 |
-| Google / Outlook Calendar | OAuth + Calendar API | 3 |
-| Facebook connections | Export ZIP parser | 4 |
+| LinkedIn connections | Upload LinkedIn GDPR export CSV | 1 |
+| Any spreadsheet | Upload CSV/XLSX + map columns | 1 |
+| Substack subscribers | Upload subscriber export CSV | 2 |
+| Gmail contacts | Connect via Google OAuth | 3 |
+| Facebook connections | Upload Facebook export ZIP | 4 |
+
+### 3.2 Company Intelligence
+**As a user, I want to see all the people I know at a company in one place, so I can understand my relationship with that organisation as a whole.**
+
+- View a company profile with all linked contacts and their current/past roles
+- See all activities and opportunities associated with a company, not just individual people
+- Manually create companies or have them auto-extracted from person profiles
+- Navigate between a person and their company with one click
+
+### 3.3 Full Interaction History
+**As a user, I want to see every interaction I've had with a person or company, so I never lose context before a meeting or follow-up.**
+
+- Browse a chronological activity timeline per person or company
+- Activities are auto-imported from connected sources (Notion meeting notes, LinkedIn messages, Gmail — future)
+- Log manual notes, calls, or meetings directly in CDB
+- Filter the global activity feed by type, source, date range, or person
+
+**Activity sources supported:**
+
+| Source | What's captured | Phase |
+|--------|----------------|-------|
+| Notion meeting notes | Meeting title, date, attendees, summary, to-dos | 1 |
+| LinkedIn messages | Message threads and participants | 1 |
+| Manual entry | Notes, calls, meetings logged directly in CDB | 1 |
+| WhatsApp | Conversation exports | 3 |
+| Gmail | Email threads | 3 |
+| Google / Outlook Calendar | Meeting events and attendees | 3 |
+
+### 3.4 Opportunity Pipeline
+**As a user, I want to track deals, partnerships, and collaborations through a clear pipeline, so I always know what needs action.**
+
+- Visualise all opportunities in a Kanban board (stages: prospect → qualified → proposal → negotiation → closed)
+- Link each opportunity to one or more persons and companies
+- Add value, probability, and expected close date
+- Advance stages by dragging cards or from person/company detail pages
+- Assign opportunities to team members (multi-user)
+- Manually create opportunities or log them during activity review
 
 ---
 
