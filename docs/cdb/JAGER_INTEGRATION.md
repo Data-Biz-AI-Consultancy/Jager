@@ -62,11 +62,19 @@ The following endpoints are currently called by Jager's n8n workflows against `h
 
 ### 4.1 CDB repo — GitHub Actions (CI/CD)
 
-The CDB repo needs a workflow at `.github/workflows/publish.yml` that builds and pushes the Docker image to GHCR on every merge to `main`:
+CDB follows the same **train deployment model** as Jager:
+
+| Trigger | Tag pushed | Environment |
+|---------|-----------|-------------|
+| Merge to `main` (automatic) | `staging`, `sha-<commit>` | Staging |
+| Manual `workflow_dispatch` (explicit) | `production` | Production |
+
+Merging to `main` alone **does not release to production**. A production release requires a deliberate manual trigger.
+
+**Workflow 1 — CI Build** (`.github/workflows/ci.yml` in the CDB repo):
 
 ```yaml
-# .github/workflows/publish.yml (in the CDB repo)
-name: Build & Publish
+name: CI — Build & Push Staging
 on:
   push:
     branches: [main]
@@ -87,9 +95,44 @@ jobs:
         with:
           push: true
           tags: |
-            ghcr.io/data-biz-ai-consultancy/cdb:production
-            ghcr.io/data-biz-ai-consultancy/cdb:${{ github.sha }}
+            ghcr.io/data-biz-ai-consultancy/cdb:staging
+            ghcr.io/data-biz-ai-consultancy/cdb:sha-${{ github.sha }}
 ```
+
+**Workflow 2 — Release to Production** (`.github/workflows/release.yml` in the CDB repo):
+
+```yaml
+name: Release — Promote to Production
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit SHA to promote (leave blank for latest main)"
+        required: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Retag staging → production
+        run: |
+          SHA="${{ github.event.inputs.sha || github.sha }}"
+          docker pull ghcr.io/data-biz-ai-consultancy/cdb:sha-${SHA}
+          docker tag  ghcr.io/data-biz-ai-consultancy/cdb:sha-${SHA} \
+                      ghcr.io/data-biz-ai-consultancy/cdb:production
+          docker push ghcr.io/data-biz-ai-consultancy/cdb:production
+```
+
+> **To release**: go to the CDB repo → Actions → "Release — Promote to Production" → Run workflow. Optionally specify a SHA to promote a specific commit rather than the latest.
+
 
 ### 4.2 Jager `docker-compose.yml`
 
