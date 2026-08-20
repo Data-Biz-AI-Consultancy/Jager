@@ -150,38 +150,94 @@ New → Contacted → Qualified → Converted (→ Opportunity) / Disqualified
 
 ## 4. Key UX Screens
 
-### Persons List
+### 👤 People
+
+#### Persons List
 - Full-text search (name, email, company)
-- Filter: source, country, has open opportunity
+- Filter: source, country, has open opportunity, has open lead
 - Sortable columns: name, last activity, created date
 - Slide-in quick-view panel on row click
+- Source badges per row (LinkedIn, Notion, manual, etc.)
 
-### Person Detail
+#### Person Detail
 - Header: avatar, name, current title + company
 - Contact info: email, phone, LinkedIn, social handles
-- Source badges showing which systems contributed
-- Activity timeline (chronological)
-- Linked companies with role history
-- Open opportunities mini-view
+- Source attribution badges
+- **Career timeline**: full employment history (current + past roles with dates)
+- **Interaction timeline**: chronological feed of all activities with this person
+- Linked leads and open opportunities mini-view
+- Deduplication Review Queue entry (if flagged as a potential duplicate)
 
-### Companies List & Detail
-- Peer to Persons — same visual weight in navigation
-- Company detail shows all linked persons with roles, activity history, opportunities
+---
 
-### Activities Feed
+### 🏢 Companies
+
+#### Companies List
+- Search by name or domain
+- Filter by industry, country, size
+- Columns: name, domain, # of known contacts, # of open opportunities
+
+#### Company Detail
+- Header: company name, domain, industry, size, location
+- **Linked Persons**: table of all contacts with role and is_current
+- **Interaction timeline**: activities associated with this company
+- Linked leads and open opportunities
+
+---
+
+### 📋 Activities
+
+#### Activities Feed
 - Global chronological feed across all persons and companies
-- Filter by type, source, date range, person, company
+- Filter by type (meeting, email, message, call, note), source, date range, person, company
+- Click-through to the associated person or company record
 
-### Opportunities Pipeline
-- Kanban view with columns per stage
-- Drag-to-advance
-- Quick-add from any person or company detail page
+---
 
-### Entity Resolution Review Queue
-- Side-by-side comparison of two candidate records
-- Matched signals highlighted
+### 🎯 Leads
+
+#### Leads List
+- Filter by stage (new, contacted, qualified, converted, disqualified), source, owner
+- Columns: person name, company, stage, source, last updated
+- Quick-convert to Opportunity from the list view
+
+#### Lead Detail
+- Linked person and company
+- Stage progression tracker
+- Intent signals and signal strength
+- Activity thread for this lead (calls, notes, messages)
+- Convert to Opportunity / Disqualify actions
+
+---
+
+### 💼 Opportunities
+
+#### Opportunities Pipeline
+- Kanban board with columns per stage (prospect → qualified → proposal → negotiation → closed)
+- Card: person name, company, value, expected close date
+- Drag-to-advance stage
+- Quick-add from any person, company, or lead
+
+#### Opportunity Detail
+- Linked persons and companies (with their roles in this deal)
+- Stage history log
+- Related activities and notes
+
+---
+
+### ⚙️ System
+
+#### Entity Resolution Review Queue
+- Side-by-side comparison of two candidate person records
+- Matched signals highlighted (email, LinkedIn URL, name, company)
 - ML confidence score (Phase 3)
-- Accept Merge / Keep Separate — decision feeds back into ML training
+- Accept Merge / Keep Separate actions — decision feeds back into ML training
+
+#### Settings
+- Connected sources (Notion API key, Gmail OAuth — future)
+- Users and roles (Phase 2+)
+- Data export (full JSON/CSV)
+
 
 ---
 
