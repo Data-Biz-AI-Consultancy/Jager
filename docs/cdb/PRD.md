@@ -115,7 +115,27 @@ At its core, CDB:
 - Get prompted to re-engage when a key contact changes companies (future: notification trigger)
 
 
-### 3.4 Opportunity Pipeline
+### 3.4 Lead Management
+**As a user, I want to track people who have shown interest or who I'm actively qualifying, so I can manage my pipeline before committing them to a formal opportunity.**
+
+A **Lead** is a Person who has a relevant interest signal — an inbound LinkedIn message, a referral, an inbound inquiry — that hasn't yet been qualified into a specific deal. Leads are the qualification layer between a contact and an opportunity.
+
+**Lead lifecycle:**
+```
+New → Contacted → Qualified → Converted (→ Opportunity) / Disqualified
+```
+
+- Create a lead from any Person profile with one click
+- Capture the lead source (LinkedIn message, referral, inbound, event, manual)
+- Record intent signals and signal strength (e.g. actively hiring, open to consulting)
+- Add notes on qualification progress
+- Convert a qualified lead directly into an Opportunity — person and company are carried over
+- Disqualify with a reason (wrong timing, wrong fit, no budget, etc.)
+- View all leads in a list filterable by stage, source, and owner
+
+> **Leads vs. Opportunities**: A Lead is about *qualifying a person's interest*. An Opportunity is about *pursuing a specific, named deal*. One person can have multiple leads over time, and a lead can convert into one or more opportunities.
+
+### 3.5 Opportunity Pipeline
 **As a user, I want to track deals, partnerships, and collaborations through a clear pipeline, so I always know what needs action.**
 
 - Visualise all opportunities in a Kanban board (stages: prospect → qualified → proposal → negotiation → closed)
@@ -123,7 +143,8 @@ At its core, CDB:
 - Add value, probability, and expected close date
 - Advance stages by dragging cards or from person/company detail pages
 - Assign opportunities to team members (multi-user)
-- Manually create opportunities or log them during activity review
+- Create opportunities manually or by converting a qualified Lead
+
 
 ---
 
