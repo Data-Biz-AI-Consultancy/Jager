@@ -11,31 +11,150 @@
 
 ## Entity Relationship Overview
 
-```
-users
-  └── owns → opportunities
+```mermaid
+erDiagram
+    users {
+        uuid id PK
+        varchar email
+        varchar role
+    }
 
-persons ──────────────────────────────── companies
-  │       person_company_relationships      │
-  │            (many-to-many)               │
-  │                                         │
-  ├── activities ───────────────────────────┤
-  │                                         │
-  ├── leads ────────────────────────────────┤
-  │     └── converts to → opportunities    │
-  │                                         │
-  └── opportunities ────────────────────────┘
-        ├── opportunity_persons
-        └── opportunity_companies
+    persons {
+        uuid id PK
+        varchar first_name
+        varchar last_name
+        varchar primary_email
+        varchar linkedin_url
+        text[] sources
+        jsonb source_ids
+        timestamptz deleted_at
+    }
 
-Intake tables (raw source data, pre-Entity Resolution):
-  intake_linkedin_connections
-  intake_linkedin_messages
-  intake_notion_meeting_notes
-  intake_manual
+    companies {
+        uuid id PK
+        varchar name
+        varchar domain
+        varchar industry
+        char country
+        timestamptz deleted_at
+    }
 
-Entity Resolution:
-  er_candidate_pairs  (review queue)
+    person_company_relationships {
+        uuid id PK
+        uuid person_id FK
+        uuid company_id FK
+        varchar title
+        boolean is_current
+        date started_at
+        date ended_at
+    }
+
+    activities {
+        uuid id PK
+        uuid person_id FK
+        uuid company_id FK
+        varchar type
+        varchar source
+        varchar source_id
+        timestamptz occurred_at
+    }
+
+    leads {
+        uuid id PK
+        uuid person_id FK
+        uuid company_id FK
+        uuid owner_id FK
+        varchar stage
+        varchar source
+        uuid converted_opportunity_id FK
+    }
+
+    opportunities {
+        uuid id PK
+        varchar title
+        uuid owner_id FK
+        varchar stage
+        numeric value
+        uuid source_lead_id FK
+    }
+
+    opportunity_persons {
+        uuid opportunity_id FK
+        uuid person_id FK
+        varchar role
+    }
+
+    opportunity_companies {
+        uuid opportunity_id FK
+        uuid company_id FK
+        varchar role
+    }
+
+    intake_linkedin_connections {
+        uuid id PK
+        varchar connection_id
+        varchar status
+        uuid resolved_person_id FK
+    }
+
+    intake_linkedin_messages {
+        uuid id PK
+        varchar conversation_id
+        varchar status
+        uuid resolved_person_id FK
+    }
+
+    intake_notion_meeting_notes {
+        uuid id PK
+        varchar page_id
+        varchar status
+    }
+
+    intake_manual {
+        uuid id PK
+        uuid upload_id
+        varchar entity_type
+        varchar status
+        uuid resolved_id
+    }
+
+    er_candidate_pairs {
+        uuid id PK
+        uuid person_a_id FK
+        uuid person_b_id FK
+        jsonb match_signals
+        numeric ml_score
+        varchar status
+    }
+
+    %% Core relationships
+    users                        ||--o{ opportunities                 : "owns"
+    users                        ||--o{ leads                         : "owns"
+
+    persons                      ||--o{ person_company_relationships  : "has role at"
+    companies                    ||--o{ person_company_relationships  : "employs"
+
+    persons                      ||--o{ activities                    : "has"
+    companies                    ||--o{ activities                    : "has"
+
+    persons                      ||--o{ leads                         : "is subject of"
+    companies                    ||--o{ leads                         : "related to"
+
+    leads                        }o--o| opportunities                 : "converts to"
+
+    opportunities                ||--o{ opportunity_persons           : "involves"
+    opportunities                ||--o{ opportunity_companies         : "involves"
+    persons                      ||--o{ opportunity_persons           : "linked via"
+    companies                    ||--o{ opportunity_companies         : "linked via"
+
+    %% Intake → master resolution
+    intake_linkedin_connections  }o--o| persons                       : "resolves to"
+    intake_linkedin_messages     }o--o| persons                       : "resolves to"
+    intake_manual                }o--o| persons                       : "resolves to"
+
+    %% Entity resolution review queue
+    er_candidate_pairs           }o--|| persons                       : "person_a"
+    er_candidate_pairs           }o--|| persons                       : "person_b"
 ```
 
 ---
