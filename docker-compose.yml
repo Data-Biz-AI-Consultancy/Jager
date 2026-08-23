@@ -121,7 +121,6 @@ services:
   cdb-api:
     image: ghcr.io/data-biz-ai-consultancy/cdb-backend:production
     platform: linux/amd64
-    container_name: cdb-api
     restart: unless-stopped
     profiles:
       - app
@@ -130,49 +129,13 @@ services:
       - "8001:8000"
     environment:
       - ENVIRONMENT=production
-      - DATABASE_URL=postgresql+asyncpg://cdb:cdb@cdb-db:5432/cdb
-      - SYNC_DATABASE_URL=postgresql://cdb:cdb@cdb-db:5432/cdb
-      - REDIS_URL=redis://cdb-redis:6379/0
-      - CELERY_BROKER_URL=redis://cdb-redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://cdb-redis:6379/0
+      - DATABASE_URL=postgresql+asyncpg://jager:jager@db:5432/cdb
+      - SYNC_DATABASE_URL=postgresql://jager:jager@db:5432/cdb
       - SECRET_KEY=${CDB_SECRET_KEY:-production-secret-key-at-least-32-characters-long}
       - CDB_API_KEY=${CDB_API_KEY:-production-api-key}
     depends_on:
-      cdb-db:
+      db:
         condition: service_healthy
-      cdb-redis:
-        condition: service_started
-
-  cdb-db:
-    image: postgres:16-alpine
-    container_name: cdb-db
-    restart: unless-stopped
-    profiles:
-      - app
-      - all
-    environment:
-      POSTGRES_DB: cdb
-      POSTGRES_USER: cdb
-      POSTGRES_PASSWORD: cdb
-    volumes:
-      - cdb_pgdata:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cdb -d cdb"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  cdb-redis:
-    image: redis:7-alpine
-    container_name: cdb-redis
-    restart: unless-stopped
-    profiles:
-      - app
-      - all
-    volumes:
-      - cdb_redis_data:/data
 
 
   caddy:
@@ -221,5 +184,3 @@ volumes:
   caddy_data:
   caddy_config:
   n8n_data:
-  cdb_pgdata:
-  cdb_redis_data:
