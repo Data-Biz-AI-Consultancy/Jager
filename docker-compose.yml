@@ -121,7 +121,7 @@ services:
 
   cdb-api:
     image: ghcr.io/data-biz-ai-consultancy/cdb-backend:production
-    platform: linux/amd64  # TODO: remove once multi-arch release lands
+    platform: linux/amd64
     restart: unless-stopped
     profiles:
       - app
@@ -145,7 +145,7 @@ services:
 
   cdb-frontend:
     image: ghcr.io/data-biz-ai-consultancy/cdb-frontend:production
-    platform: linux/amd64  # TODO: remove once multi-arch release lands
+    platform: linux/amd64
     restart: unless-stopped
     profiles:
       - app
