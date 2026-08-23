@@ -426,6 +426,66 @@ These endpoints are called by Jager's n8n workflows. They require a service-to-s
 X-API-Key: <service_token>
 ```
 
+### `POST /ingest/batch`
+
+Unified batch ingestion endpoint for multi-source sync from Jager or external orchestrators. Idempotently inserts records into corresponding intake tables (`intake_linkedin_connections`, `intake_linkedin_messages`, `intake_notion_meeting_notes`, `intake_manual`) in a single fast transaction and queues background Entity Resolution in Celery.
+
+```json
+// Request
+{
+  "linkedin_connections": [
+    {
+      "connection_id": "ACoAA...",
+      "first_name": "Bob",
+      "last_name": "Jones",
+      "profile_url": "https://linkedin.com/in/bob-jones",
+      "email_address": "bob@example.com",
+      "company": "Acme",
+      "position": "CEO",
+      "connected_at": "2025-06-01T00:00:00Z"
+    }
+  ],
+  "linkedin_messages": [
+    {
+      "conversation_id": "conv-123",
+      "participant_names": "Bob Jones",
+      "message_count": 4,
+      "raw_content": "Bob Jones: Hello..."
+    }
+  ],
+  "notion_meeting_notes": [
+    {
+      "page_id": "page-456",
+      "title": "Intro Call with Bob",
+      "meeting_date": "2026-08-20T10:00:00Z",
+      "attendees": "Bob Jones, Jimmy Pang",
+      "summary": "Discussed partnership opportunities.",
+      "to_dos": ["Follow up next week"]
+    }
+  ],
+  "manual_data": [
+    {
+      "upload_id": "manual-789",
+      "name": "Substack Lead",
+      "raw_content": "Substack subscriber notes...",
+      "url": "https://notion.so/..."
+    }
+  ]
+}
+
+// Response 202
+{
+  "status": "accepted",
+  "counts": {
+    "linkedin_connections": 1,
+    "linkedin_messages": 1,
+    "notion_meeting_notes": 1,
+    "manual_data": 1
+  },
+  "er_job_id": "a4d3f572-881b-4f7e-97f2-1d54e4c9e830"
+}
+```
+
 ### `POST /ingest/linkedin-connections`
 
 Idempotent batch upsert into `intake_linkedin_connections`. Triggers incremental ER run.

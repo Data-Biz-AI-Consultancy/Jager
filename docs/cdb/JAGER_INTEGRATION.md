@@ -50,11 +50,11 @@ The following endpoints are currently called by Jager's n8n workflows against `h
 
 | Old Jager CDP endpoint | New CDB endpoint | Notes |
 |------------------------|-----------------|-------|
-| `POST /process/linkedin_connections` | `POST /api/v1/ingest/linkedin-connections` | Same payload shape; requires `X-API-Key` header |
+| `POST /process/linkedin_connections` | `POST /api/v1/ingest/batch` (or `/api/v1/ingest/linkedin-connections`) | Unified into batch payload; requires `X-API-Key` header |
 | `POST /process/manual_data` | `POST /api/v1/ingest/manual` | Multipart form now; `entity_type` + `column_map` required |
-| `POST /process/linkedin_messages` | `POST /api/v1/ingest/linkedin-messages` | Same payload shape |
-| `POST /process/notion_meeting_notes` | `POST /api/v1/ingest/notion-meeting-notes` | Same payload shape |
-| `POST /process/evaluate_segments` | *(Phase 4 — deferred)* | Segment evaluation stays in Jager until Phase 4 |
+| `POST /process/linkedin_messages` | `POST /api/v1/ingest/batch` (or `/api/v1/ingest/linkedin-messages`) | Unified into batch payload |
+| `POST /process/notion_meeting_notes` | `POST /api/v1/ingest/batch` (or `/api/v1/ingest/notion-meeting-notes`) | Unified into batch payload |
+| `POST /process/evaluate_segments` | *(Deprecated / Removed)* | Entity Resolution triggered automatically upon batch ingestion |
 
 ---
 

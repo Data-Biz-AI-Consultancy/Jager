@@ -317,8 +317,20 @@ def run_ingestion():
 
     info = pipeline.run(resources)
     logger.info(f"Notion Manual Data Ingestion completed successfully: {info}")
+
+    try:
+        from common.utils import get_postgres_engine
+        from sqlalchemy import text
+        engine = get_postgres_engine()
+        with engine.begin() as conn:
+            conn.execute(text("SELECT s_manual.refresh_manual_records_view();"))
+        logger.info("Refreshed s_manual.v_manual_records view.")
+    except Exception as view_err:
+        logger.warning(f"Could not refresh s_manual.v_manual_records: {view_err}")
+
     return info
 
 
 if __name__ == "__main__":
     run_ingestion()
+

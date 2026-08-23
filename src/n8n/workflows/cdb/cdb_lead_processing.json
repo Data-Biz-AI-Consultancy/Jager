@@ -1,0 +1,258 @@
+{
+  "id": "cdb-lead-processing-workflow",
+  "name": "CDB - Lead Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        100
+      ],
+      "id": "1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object(\n  'records', COALESCE(json_agg(r), '[]'::json)\n) AS payload\nFROM (\n  SELECT \n    id::text AS connection_id,\n    NULLIF(TRIM(first_name), '') AS first_name,\n    NULLIF(TRIM(last_name), '') AS last_name,\n    NULLIF(TRIM(profile_url), '') AS profile_url,\n    CASE WHEN email_address LIKE '%@linkedin.user%' THEN NULL ELSE NULLIF(TRIM(email_address), '') END AS email_address,\n    NULLIF(TRIM(company), '') AS company,\n    NULLIF(TRIM(position), '') AS position,\n    to_char(connected_at, 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS connected_at,\n    to_jsonb(t.*) AS raw_payload\n  FROM s_linkedin.connections t\n  WHERE (processed = 0 OR processed IS NULL)\n    AND (COALESCE(TRIM(first_name), '') != '' OR COALESCE(TRIM(last_name), '') != '' OR (COALESCE(TRIM(email_address), '') != '' AND email_address NOT LIKE '%@linkedin.user%') OR COALESCE(TRIM(profile_url), '') != '')\n) r;",
+        "options": {}
+      },
+      "id": "fetch-linkedin-connections",
+      "name": "Fetch LinkedIn Connections",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        260,
+        -100
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CDB_SERVICE_URL || 'http://cdb-api:8000' }}/api/v1/ingest/linkedin-connections",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.CDB_API_KEY || 'production-api-key' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        -100
+      ],
+      "id": "ingest-linkedin-connections",
+      "name": "Ingest LinkedIn Connections"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object(\n  'records', COALESCE(json_agg(r), '[]'::json)\n) AS payload\nFROM (\n  SELECT \n    conversation_id,\n    MODE() WITHIN GROUP (\n      ORDER BY CASE \n        WHEN sender_name IS NOT NULL AND sender_name != 'Jimmy Pang' THEN sender_name\n        WHEN recipient_name IS NOT NULL AND recipient_name != 'Jimmy Pang' THEN recipient_name\n        ELSE COALESCE(sender_name, recipient_name)\n      END\n    ) AS participant_names,\n    COUNT(*)::int AS message_count,\n    string_agg(\n      COALESCE(sender_name, 'Unknown') || ': ' || COALESCE(content, ''), \n      E'\\n' \n      ORDER BY sent_at ASC\n    ) AS raw_content\n  FROM s_linkedin.messages\n  GROUP BY conversation_id\n) r;",
+        "options": {}
+      },
+      "id": "fetch-linkedin-messages",
+      "name": "Fetch LinkedIn Messages",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        260,
+        100
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CDB_SERVICE_URL || 'http://cdb-api:8000' }}/api/v1/ingest/linkedin-messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.CDB_API_KEY || 'production-api-key' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        100
+      ],
+      "id": "ingest-linkedin-messages",
+      "name": "Ingest LinkedIn Messages"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT json_build_object(\n  'records', COALESCE(json_agg(r), '[]'::json)\n) AS payload\nFROM (\n  SELECT \n    id::text AS page_id,\n    database_id AS database_name,\n    title,\n    to_char(COALESCE(meeting_date, created_time), 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS meeting_date,\n    attendees,\n    COALESCE(transcription, summary, '') AS summary,\n    CASE \n      WHEN action_items IS NOT NULL AND action_items != '' THEN to_json(string_to_array(action_items, E'\\n')) \n      ELSE '[]'::json \n    END AS to_dos,\n    url\n  FROM s_notion.meeting_notes\n) r;",
+        "options": {}
+      },
+      "id": "fetch-notion-meeting-notes",
+      "name": "Fetch Notion Meeting Notes",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        260,
+        300
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "postgres-db",
+          "name": "postgres Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CDB_SERVICE_URL || 'http://cdb-api:8000' }}/api/v1/ingest/notion-meeting-notes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.CDB_API_KEY || 'production-api-key' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ],
+      "id": "ingest-notion-meeting-notes",
+      "name": "Ingest Notion Meeting Notes"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch LinkedIn Connections": {
+      "main": [
+        [
+          {
+            "node": "Ingest LinkedIn Connections",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingest LinkedIn Connections": {
+      "main": [
+        [
+          {
+            "node": "Fetch LinkedIn Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch LinkedIn Messages": {
+      "main": [
+        [
+          {
+            "node": "Ingest LinkedIn Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingest LinkedIn Messages": {
+      "main": [
+        [
+          {
+            "node": "Fetch Notion Meeting Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Notion Meeting Notes": {
+      "main": [
+        [
+          {
+            "node": "Ingest Notion Meeting Notes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  }
+}
