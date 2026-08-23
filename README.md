@@ -44,7 +44,7 @@ We use **Docker Compose Profiles** to allow spinning up only the services you ne
 
 Access your local services:
 - **N8N**: [http://localhost](http://localhost) (Production/Internal: `https://jager.n8n.com`)
-- **CDB Frontend**: [http://localhost:3001](http://localhost:3001) (Production/Internal: `https://cdb.n8n.com`)
+- **CDB Frontend**: [http://localhost:3001](http://localhost:3001) (Production/Internal: `https://cdb.com`)
 - **CDB API**: [http://localhost:8001](http://localhost:8001) (OpenAPI Docs: [http://localhost:8001/docs](http://localhost:8001/docs))
 
 ---
