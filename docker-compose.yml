@@ -79,7 +79,7 @@ services:
       - MOTHERDUCK_HOST=${MOTHERDUCK_HOST:-pg.us-east-1-aws.motherduck.com}
       - MOTHERDUCK_USER=${MOTHERDUCK_USER:-postgres}
       - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://dapp:8000}
-      - CDP_SERVICE_URL=${CDP_SERVICE_URL:-http://cdp:8000}
+      - CDP_SERVICE_URL=${CDP_SERVICE_URL:-http://cdb-api:8000}
     depends_on:
       db:
         condition: service_healthy
@@ -118,33 +118,60 @@ services:
         condition: service_started
 
 
-  cdp:
-    build:
-      context: ./
-      dockerfile: src/cdp/Dockerfile
-    restart: always
+  cdb-api:
+    image: ghcr.io/data-biz-ai-consultancy/cdb-backend:production
+    container_name: cdb-api
+    restart: unless-stopped
     profiles:
       - app
       - all
-    deploy:
-      resources:
-        limits:
-          memory: 384m
-          cpus: '0.5'
+    ports:
+      - "8001:8000"
     environment:
-      - PYTHONDONTWRITEBYTECODE=1
-      - DATABASE_URL=postgresql://jager:jager@db:5432/cdp
-      - JAGER_DATABASE_URL=postgresql://jager:jager@db:5432/jager
-      - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
-      - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
-      - NOTION_API_KEY=${NOTION_API_KEY}
-      - NOTION_MANUAL_INGESTION_PAGE_ID=${NOTION_MANUAL_INGESTION_PAGE_ID}
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql+asyncpg://cdb:cdb@cdb-db:5432/cdb
+      - SYNC_DATABASE_URL=postgresql://cdb:cdb@cdb-db:5432/cdb
+      - REDIS_URL=redis://cdb-redis:6379/0
+      - CELERY_BROKER_URL=redis://cdb-redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://cdb-redis:6379/0
+      - SECRET_KEY=${CDB_SECRET_KEY:-production-secret-key-at-least-32-characters-long}
+      - CDB_API_KEY=${CDB_API_KEY:-production-api-key}
     depends_on:
-      db:
+      cdb-db:
+        condition: service_healthy
+      cdb-redis:
         condition: service_started
+
+  cdb-db:
+    image: postgres:16-alpine
+    container_name: cdb-db
+    restart: unless-stopped
+    profiles:
+      - app
+      - all
+    environment:
+      POSTGRES_DB: cdb
+      POSTGRES_USER: cdb
+      POSTGRES_PASSWORD: cdb
     volumes:
-      - ./src/cdp:/app
-      - ./src/shared:/app/src/shared
+      - cdb_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cdb -d cdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cdb-redis:
+    image: redis:7-alpine
+    container_name: cdb-redis
+    restart: unless-stopped
+    profiles:
+      - app
+      - all
+    volumes:
+      - cdb_redis_data:/data
 
 
   caddy:
@@ -193,3 +220,5 @@ volumes:
   caddy_data:
   caddy_config:
   n8n_data:
+  cdb_pgdata:
+  cdb_redis_data:
