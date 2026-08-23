@@ -120,6 +120,7 @@ services:
 
   cdb-api:
     image: ghcr.io/data-biz-ai-consultancy/cdb-backend:production
+    platform: linux/amd64
     container_name: cdb-api
     restart: unless-stopped
     profiles:
