@@ -151,7 +151,7 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8001
+      - NEXT_PUBLIC_API_URL=${CDB_PUBLIC_API_URL:-http://localhost:8001}
     depends_on:
       - cdb-api
 

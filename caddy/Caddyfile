@@ -1,4 +1,4 @@
-http://jager.n8n.com, http://192.168.178.164 {
+http://jager.n8n.com, http://staging.jager.n8n.com, http://cdb.com, http://staging.cdb.com, http://192.168.178.164 {
     # Download the root certificate over plain HTTP to bootstrap trust
     handle /caddy-root.crt {
         root * /data/caddy/pki/authorities/local
@@ -6,9 +6,9 @@ http://jager.n8n.com, http://192.168.178.164 {
         file_server
     }
 
-    # Redirect all other HTTP traffic to HTTPS
+    # Redirect all other HTTP traffic to HTTPS matching request host
     handle {
-        redir https://jager.n8n.com{uri}
+        redir https://{host}{uri}
     }
 }
 
@@ -23,7 +23,7 @@ localhost {
     tls internal
 }
 
-jager.n8n.com {
+jager.n8n.com, staging.jager.n8n.com {
     reverse_proxy n8n:5678
     encode gzip
     tls internal
@@ -32,3 +32,14 @@ jager.n8n.com {
         format json
     }
 }
+
+cdb.com, staging.cdb.com {
+    reverse_proxy cdb-frontend:3000
+    encode gzip
+    tls internal
+    log {
+        output stdout
+        format json
+    }
+}
+

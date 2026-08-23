@@ -42,7 +42,10 @@ We use **Docker Compose Profiles** to allow spinning up only the services you ne
 > [!TIP]
 > You can also set `COMPOSE_PROFILES=app` (or `all`, `data`, `core`) in your `.env` file to default to a specific profile when running `docker-compose up`.
 
-Access your local N8N instance at [http://localhost](http://localhost).
+Access your local services:
+- **N8N**: [http://localhost](http://localhost) (Staging: `https://staging.jager.n8n.com`, Production: `https://jager.n8n.com`)
+- **CDB Frontend**: [http://localhost:3001](http://localhost:3001) (Staging: `https://staging.cdb.com`, Production: `https://cdb.com`)
+- **CDB API**: [http://localhost:8001](http://localhost:8001) (OpenAPI Docs: [http://localhost:8001/docs](http://localhost:8001/docs))
 
 ---
 
