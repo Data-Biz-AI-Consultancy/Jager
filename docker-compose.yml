@@ -80,7 +80,7 @@ services:
       - MOTHERDUCK_USER=${MOTHERDUCK_USER:-postgres}
       - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://dapp:8000}
       - CDP_SERVICE_URL=${CDP_SERVICE_URL:-http://cdb-api:8000}
-      - CDB_SERVICE_URL=${CDB_SERVICE_URL:-https://api.cdb.com}
+      - CDB_SERVICE_URL=${CDB_SERVICE_URL:-http://cdb-api:8000}
       - CDB_API_KEY=${CDB_API_KEY:-production-api-key}
     depends_on:
       db:
