@@ -123,12 +123,14 @@ services:
   cdb-api:
     image: ghcr.io/data-biz-ai-consultancy/cdb-backend:production
     restart: unless-stopped
-    command: sh -c "alembic -c db/alembic.ini upgrade head && uvicorn cdb.main:app --host 0.0.0.0 --port 8000"
+    command: sh -c "alembic -c db/alembic.ini upgrade head && uvicorn cdb.main:app --host 0.0.0.0 --port 8000 --reload"
     profiles:
       - app
       - all
     ports:
       - "8001:8000"
+    volumes:
+      - ../cdb/src/backend/cdb:/app/cdb
     environment:
       - ENVIRONMENT=production
       - DATABASE_URL=postgresql+asyncpg://jager:jager@db:5432/cdb

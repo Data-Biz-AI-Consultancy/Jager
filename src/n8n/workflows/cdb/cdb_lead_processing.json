@@ -17,7 +17,7 @@
       "typeVersion": 1.2,
       "position": [
         0,
-        48
+        100
       ],
       "id": "1",
       "name": "Schedule Trigger"
@@ -33,8 +33,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        224,
-        -48
+        260,
+        -100
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -69,11 +69,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        448,
-        -48
+        500,
+        -100
       ],
-      "id": "2",
-      "name": "Process LinkedIn Connections"
+      "id": "ingest-linkedin-connections",
+      "name": "Ingest LinkedIn Connections"
     },
     {
       "parameters": {
@@ -86,8 +86,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        224,
-        144
+        260,
+        100
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -122,11 +122,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        448,
-        144
+        500,
+        100
       ],
-      "id": "4",
-      "name": "Process LinkedIn Messages"
+      "id": "ingest-linkedin-messages",
+      "name": "Ingest LinkedIn Messages"
     },
     {
       "parameters": {
@@ -139,8 +139,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        672,
-        144
+        260,
+        300
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -175,26 +175,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        896,
-        144
+        500,
+        300
       ],
-      "id": "5",
-      "name": "Process Notion Meeting Notes"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.CDB_SERVICE_URL || 'http://cdb-api:8000' }}/process/evaluate_segments",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1120,
-        48
-      ],
-      "id": "6",
-      "name": "Evaluate Dynamic Segments"
+      "id": "ingest-notion-meeting-notes",
+      "name": "Ingest Notion Meeting Notes"
     }
   ],
   "connections": {
@@ -205,11 +190,6 @@
             "node": "Fetch LinkedIn Connections",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Fetch LinkedIn Messages",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -218,18 +198,18 @@
       "main": [
         [
           {
-            "node": "Process LinkedIn Connections",
+            "node": "Ingest LinkedIn Connections",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Process LinkedIn Connections": {
+    "Ingest LinkedIn Connections": {
       "main": [
         [
           {
-            "node": "Evaluate Dynamic Segments",
+            "node": "Fetch LinkedIn Messages",
             "type": "main",
             "index": 0
           }
@@ -240,14 +220,14 @@
       "main": [
         [
           {
-            "node": "Process LinkedIn Messages",
+            "node": "Ingest LinkedIn Messages",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Process LinkedIn Messages": {
+    "Ingest LinkedIn Messages": {
       "main": [
         [
           {
@@ -262,18 +242,7 @@
       "main": [
         [
           {
-            "node": "Process Notion Meeting Notes",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Process Notion Meeting Notes": {
-      "main": [
-        [
-          {
-            "node": "Evaluate Dynamic Segments",
+            "node": "Ingest Notion Meeting Notes",
             "type": "main",
             "index": 0
           }

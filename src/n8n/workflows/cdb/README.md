@@ -8,12 +8,8 @@ For full architectural details, database schemas, and API documentation of the C
 
 ## 1. CDB Lead Processing
 * **File:** [cdb_lead_processing.json](cdb_lead_processing.json)
-* **Description:** Periodically scheduled workflow (runs every 6 hours) that orchestrates entity resolution and lead intake by calling HTTP endpoints on the CDB FastAPI service (`CDB_SERVICE_URL` with `X-API-Key` auth):
-  * `POST /api/v1/ingest/linkedin-connections` - Ingests LinkedIn connections into CDB.
-  * `POST /api/v1/ingest/manual` - Ingests manual data into CDB.
-  * `POST /api/v1/ingest/linkedin-messages` - Ingests LinkedIn messages into CDB.
-  * `POST /api/v1/ingest/notion-meeting-notes` - Ingests Notion meeting notes into CDB.
-  * `POST /process/evaluate_segments` - Refreshes dynamic person and lead segment assignments (legacy/transitional).
+* **Description:** Periodically scheduled workflow (runs every 6 hours) that fetches unprocessed raw data across all 4 operational sources (**LinkedIn connections**, **LinkedIn messages**, **Notion meeting notes**, and **Notion manual data from `s_manual`**) in parallel from Jager's Postgres database, aggregates them into a single batch payload, and posts to CDB:
+  * `POST /api/v1/ingest/batch` (`CDB_SERVICE_URL` with `X-API-Key` auth) - Ingests all pending sources in a single HTTP request, triggers incremental Entity Resolution, and removes legacy segment evaluation steps.
 
 ---
 
