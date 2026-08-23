@@ -1,4 +1,4 @@
-http://jager.n8n.com, http://cdb.com, http://192.168.178.164 {
+http://jager.n8n.com, http://cdb.com, http://staging.cdb.com, http://192.168.178.164 {
     # Download the root certificate over plain HTTP to bootstrap trust
     handle /caddy-root.crt {
         root * /data/caddy/pki/authorities/local
@@ -33,7 +33,7 @@ jager.n8n.com {
     }
 }
 
-cdb.com {
+cdb.com, staging.cdb.com {
     reverse_proxy cdb-frontend:3000
     encode gzip
     tls internal
