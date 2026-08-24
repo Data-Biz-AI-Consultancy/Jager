@@ -375,14 +375,14 @@ async function cloneDatabase(dbName, prodUrl) {
     console.log("Skipping 'jager' database clone.");
   }
 
-  if (!skipCDP) {
-    if (PROD_CDP_URL) {
-      tasks.push(cloneDatabase('cdp', PROD_CDP_URL));
+  if (!skipCDB) {
+    if (PROD_CDB_URL) {
+      tasks.push(cloneDatabase('cdb', PROD_CDB_URL));
     } else {
-      console.log("Production URL for 'cdp' not available. Skipping.");
+      console.log("Production URL for 'cdb' not available. Skipping.");
     }
   } else {
-    console.log("Skipping 'cdp' database clone.");
+    console.log("Skipping 'cdb' database clone.");
   }
 
   if (!skipN8N) {
@@ -454,44 +454,6 @@ async function cloneDatabase(dbName, prodUrl) {
     }
 
     console.log('n8n database updated. Refresh the n8n browser tab to see the new data.');
-  }
-
-  // ── Seed CDP local data if empty ──────────────────────────────────────────
-  if (!skipCDP) {
-    try {
-      const { stdout: countOut } = await execAsync(
-        `${dockerComposeCmd} exec -T db psql -U jager -d cdp -tAc "SELECT COUNT(*) FROM cdp.leads;"`,
-        { maxBuffer: 1 * 1024 * 1024 }
-      );
-      const leadCount = parseInt(countOut.trim(), 10) || 0;
-      if (leadCount === 0) {
-        console.log('Local CDP database is empty. Ingesting seed data (substack & cdp seeds)...');
-        await execAsync(
-          `${dockerComposeCmd} exec -T dapp python /app/src/dapp/oltp/ingest_seeds.py`,
-          { maxBuffer: 50 * 1024 * 1024 }
-        );
-        console.log('Local CDP database seeded successfully.');
-      } else {
-        console.log(`Local CDP database verified (${leadCount} leads existing).`);
-      }
-    } catch (e) {
-      console.warn('Warning: CDP auto-seed check failed:', e.message);
-    }
-
-    // Mirror cdp schema into jager database so the 'Jager (Dev)' PostgreSQL Explorer
-    // connection (database: jager) can browse cdp.leads, cdp.persons etc without switching connections.
-    // --clean --if-exists: drops & recreates objects inside the schema without touching the schema itself,
-    // so the IDE's connection handle to the cdp schema folder is never severed.
-    console.log('Mirroring cdp schema into jager database for IDE browsing...');
-    try {
-      await execAsync(
-        `${dockerComposeCmd} exec -T db sh -c "pg_dump -U jager -d cdp -n cdp --clean --if-exists | psql -U jager -d jager -q"`,
-        { maxBuffer: 50 * 1024 * 1024 }
-      );
-      console.log('cdp schema mirrored into jager database.');
-    } catch (e) {
-      console.warn('Warning: cdp schema mirror into jager failed:', e.message);
-    }
   }
 
   console.log('Database clone process completed.');
