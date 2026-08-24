@@ -236,31 +236,61 @@ async function cloneDatabase(dbName, prodUrl) {
           `"DO \\$\\$ DECLARE r RECORD; BEGIN FOR r IN SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 's\\_%%' LOOP EXECUTE 'DROP SCHEMA IF EXISTS ' || quote_ident(r.schema_name) || ' CASCADE'; END LOOP; END \\$\\$; DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"`,
         tag
       );
+    } else if (dbName === 'cdb') {
+      let isCdbRunning = false;
+      try {
+        const out = execSync('docker ps --filter "name=cdb-db" --format "{{.Names}}"', { encoding: 'utf8' }).trim();
+        if (out.includes('cdb-db')) isCdbRunning = true;
+      } catch {}
+
+      if (isCdbRunning) {
+        log(`Targeting dedicated cdb-db container for ${dbName}...`);
+        await run(`docker exec -i cdb-db psql -U cdb -d cdb -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"`, tag).catch(() => {});
+        log(`Restoring → dedicated cdb-db container (-j ${numJobs})...`);
+        try {
+          await run(`${dockerComposeCmd} exec -T db pg_restore -Fd -j ${numJobs} --no-owner --no-privileges -h cdb-db -U cdb -d cdb ${tempDir}`, tag);
+        } catch (err) {
+          if (err.stderr && err.stderr.includes('errors ignored on restore')) {
+            console.error(`[${tag}] pg_restore finished with warnings — continuing.`);
+          } else {
+            // Fallback restore to local Jager db instance
+            log(`Falling back to local db container for ${dbName}...`);
+            await run(`${dockerComposeCmd} exec -T db pg_restore -Fd -j ${numJobs} --no-owner --no-privileges -U jager -d ${dbName} ${tempDir}`, tag);
+          }
+        }
+      } else {
+        await run(
+          `${dockerComposeCmd} exec -T db psql -U jager -d ${dbName}` +
+            ` -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"`,
+          tag
+        );
+        log(`Restoring → local ${dbName}  (-j ${numJobs})...`);
+        await run(
+          `${dockerComposeCmd} exec -T db pg_restore -Fd -j ${numJobs}` +
+            ` --no-owner --no-privileges -U jager -d ${dbName} ${tempDir}`,
+          tag
+        );
+      }
     } else {
-      // n8n and cdb databases: drop public schema and recreate
+      // n8n database: drop public schema and recreate
       await run(
         `${dockerComposeCmd} exec -T db psql -U jager -d ${dbName}` +
           ` -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;"`,
         tag
       );
-    }
-
-    // ── Step 4: Restore with pg_restore -Fd -j ───────────────────────────────
-    log(`Restoring → local ${dbName}  (-j ${numJobs})...`);
-    try {
-      await run(
-        `${dockerComposeCmd} exec -T db pg_restore -Fd -j ${numJobs}` +
-          ` --no-owner --no-privileges -U jager -d ${dbName} ${tempDir}`,
-        tag
-      );
-    } catch (err) {
-      // pg_restore exits with code 1 when there are non-fatal warnings, e.g. FK
-      // constraint failures caused by intentionally-excluded tables (credentials_entity).
-      // The data is still fully restored — only the constraint declarations failed.
-      if (err.stderr && err.stderr.includes('errors ignored on restore')) {
-        console.error(`[${tag}] pg_restore finished with warnings (see above) — continuing.`);
-      } else {
-        throw err;
+      log(`Restoring → local ${dbName}  (-j ${numJobs})...`);
+      try {
+        await run(
+          `${dockerComposeCmd} exec -T db pg_restore -Fd -j ${numJobs}` +
+            ` --no-owner --no-privileges -U jager -d ${dbName} ${tempDir}`,
+          tag
+        );
+      } catch (err) {
+        if (err.stderr && err.stderr.includes('errors ignored on restore')) {
+          console.error(`[${tag}] pg_restore finished with warnings (see above) — continuing.`);
+        } else {
+          throw err;
+        }
       }
     }
 
