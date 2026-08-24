@@ -11,7 +11,7 @@ This directory contains utility scripts to manage database migration and product
 
 ## 1. Database Cloning Script (`clone-db.js`)
 
-This script copies production databases to your local development environment. It clones both the `jager` and `n8n` databases **in parallel** by default, using `pg_dump` in directory format (`-Fd`) with multi-threaded dump and restore (`-j N`).
+This script copies production databases to your local development environment. It clones the `jager`, `n8n`, and `cdb` databases **in parallel** by default, using `pg_dump` in directory format (`-Fd`) with multi-threaded dump and restore (`-j N`).
 
 ### Prerequisites
 - Docker and Docker Compose (either `docker compose` or `docker-compose`) must be installed and running.
@@ -28,20 +28,22 @@ node scripts/clone-db.js <PROD_DATABASE_URL> [options]
 | Flag | Description |
 |---|---|
 | `--skip-n8n`, `--jager-only` | Clone only the `jager` database, skip `n8n` |
+| `--skip-cdb` | Skip cloning `cdb` database |
 | `--skip-jager`, `--n8n-only` | Clone only the `n8n` database, skip `jager` |
+| `--cdb-only` | Clone only the `cdb` database |
 | `--include-history` | Include n8n execution log table data (`execution_entity`, `execution_data`, `execution_metadata`). **By default these tables are skipped** as they can be very large. |
 | `--jobs <N>` | Number of parallel pg_dump/pg_restore workers per database. Defaults to `floor(cpu_count / 2)`, min 2, max 8. |
 
 ### Examples
 ```bash
-# Clone both databases in parallel (default — execution logs excluded)
+# Clone all databases in parallel (default — execution logs excluded)
 node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager"
 
 # Clone only the jager database
-node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --skip-n8n
+node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --skip-n8n --skip-cdb
 
-# Clone both, including n8n execution history (slow for large databases)
-node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --include-history --jobs 4
+# Clone both jager and cdb, skipping n8n
+node scripts/clone-db.js "postgres://user:password@prod-host:5432/jager" --skip-n8n
 ```
 
 ### What It Does (Step by Step)
