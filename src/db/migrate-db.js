@@ -56,6 +56,21 @@ async function run() {
   const jagerClient = new Client(jagerConfig);
   await jagerClient.connect();
 
+  // Ensure cdb, cdp, and n8n databases exist in PostgreSQL
+  const requiredDbs = ['cdb', 'cdp', 'n8n'];
+  for (const dbName of requiredDbs) {
+    try {
+      const checkRes = await jagerClient.query('SELECT 1 FROM pg_database WHERE datname = $1', [dbName]);
+      if (checkRes.rowCount === 0) {
+        console.log(`Creating database '${dbName}'...`);
+        await jagerClient.query(`CREATE DATABASE ${dbName}`);
+        console.log(`Database '${dbName}' created successfully.`);
+      }
+    } catch (e) {
+      console.warn(`Warning: Could not check/create database '${dbName}':`, e.message);
+    }
+  }
+
   console.log('Running application database migrations...');
   await jagerClient.query('DROP SCHEMA IF EXISTS cdp CASCADE;');
   try {
