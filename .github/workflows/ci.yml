@@ -68,7 +68,9 @@ jobs:
         run: node tests/integration/test-dockerfile.js
 
       - name: Validate Docker Compose configuration
-        run: docker compose config --quiet
+        run: |
+          docker network create jager_network || true
+          docker compose config --quiet
 
       - name: Cache Docker base images
         id: cache-docker
@@ -82,7 +84,9 @@ jobs:
         run: docker load -i /tmp/docker-images.tar
 
       - name: Start services (Build & Up)
-        run: docker compose --profile app up -d --build db n8n
+        run: |
+          docker network create jager_network || true
+          docker compose --profile app up -d --build db n8n
 
       - name: Save Docker images to cache
         if: steps.cache-docker.outputs.cache-hit != 'true'
