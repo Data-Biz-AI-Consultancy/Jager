@@ -17,7 +17,7 @@
       "typeVersion": 1.2,
       "position": [
         0,
-        100
+        -96
       ],
       "id": "1",
       "name": "Schedule Trigger"
@@ -33,8 +33,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        260,
-        -100
+        224,
+        -96
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -69,8 +69,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        500,
-        -100
+        448,
+        -96
       ],
       "id": "ingest-linkedin-connections",
       "name": "Ingest LinkedIn Connections"
@@ -86,8 +86,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        260,
-        100
+        672,
+        -96
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -122,8 +122,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        500,
-        100
+        896,
+        -96
       ],
       "id": "ingest-linkedin-messages",
       "name": "Ingest LinkedIn Messages"
@@ -139,8 +139,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
       "position": [
-        260,
-        300
+        1120,
+        -96
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -175,8 +175,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        500,
-        300
+        1344,
+        -96
       ],
       "id": "ingest-notion-meeting-notes",
       "name": "Ingest Notion Meeting Notes"
@@ -250,7 +250,7 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"
