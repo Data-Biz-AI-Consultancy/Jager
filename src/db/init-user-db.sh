@@ -9,8 +9,6 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "jager" <<-EOSQL
 	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'n8n')\gexec
 	SELECT 'CREATE DATABASE cdp'
 	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'cdp')\gexec
-	SELECT 'CREATE DATABASE cdb'
-	WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'cdb')\gexec
 EOSQL
 
 

@@ -120,53 +120,6 @@ services:
         condition: service_started
 
 
-  cdb-api:
-    image: ghcr.io/data-biz-ai-consultancy/cdb-backend:production
-    restart: unless-stopped
-    command: sh -c "alembic -c db/alembic.ini upgrade head && uvicorn cdb.main:app --host 0.0.0.0 --port 8000 --reload"
-    profiles:
-      - app
-      - all
-    ports:
-      - "8001:8000"
-    environment:
-      - ENVIRONMENT=production
-      - DATABASE_URL=postgresql+asyncpg://jager:jager@db:5432/cdb
-      - SYNC_DATABASE_URL=postgresql://jager:jager@db:5432/cdb
-      - REDIS_URL=redis://cdb-redis:6379/0
-      - CELERY_BROKER_URL=redis://cdb-redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://cdb-redis:6379/0
-      - SECRET_KEY=${CDB_SECRET_KEY:-production-secret-key-at-least-32-characters-long}
-      - CDB_API_KEY=${CDB_API_KEY:-production-api-key}
-    depends_on:
-      db:
-        condition: service_healthy
-      cdb-redis:
-        condition: service_started
-
-  cdb-frontend:
-    image: ghcr.io/data-biz-ai-consultancy/cdb-frontend:production
-    restart: unless-stopped
-    profiles:
-      - app
-      - all
-    ports:
-      - "3001:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=${CDB_PUBLIC_API_URL:-http://localhost:8001}
-    depends_on:
-      - cdb-api
-
-  cdb-redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    profiles:
-      - app
-      - all
-    volumes:
-      - cdb_redis_data:/data
-
-
   caddy:
     image: caddy:alpine
     restart: unless-stopped
@@ -213,4 +166,7 @@ volumes:
   caddy_data:
   caddy_config:
   n8n_data:
-  cdb_redis_data:
+
+networks:
+  default:
+    name: jager_network
