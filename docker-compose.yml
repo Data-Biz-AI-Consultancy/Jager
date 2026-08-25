@@ -1,4 +1,4 @@
-name: jager-deployment
+name: jager-main
 
 services:
   db:
