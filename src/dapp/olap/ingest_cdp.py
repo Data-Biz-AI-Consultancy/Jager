@@ -5,6 +5,15 @@ import urllib.parse
 import urllib.request
 import dlt
 
+# ==============================================================================
+# Ingest CDB Entities (formerly CDP) into MotherDuck OLAP (`s_cdp` schema)
+# ------------------------------------------------------------------------------
+# NOTE: This script ingests data directly from the standalone CDB REST API
+# (http://cdb-api:8000/api/v1/...) via service authentication.
+# The dataset name and filename are maintained as `cdp` / `s_cdp` to prevent breaking
+# downstream MotherDuck schemas and dbt analytical models.
+# ==============================================================================
+
 # Add parent directory of the script's directory to sys.path to resolve 'olap'
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
