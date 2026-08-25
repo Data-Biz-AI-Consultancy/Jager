@@ -22,7 +22,7 @@ Jager is an AI-native leads generator, simplified to use **N8N** as the primary 
 
 We use **Docker Compose Profiles** to allow spinning up only the services you need, saving RAM, CPU, and battery:
 
-*   **App Stack** (n8n, CDP, Postgres, Caddy, Cloudflare Tunnel):
+*   **App Stack** (n8n, Postgres, Caddy, Cloudflare Tunnel):
     ```bash
     docker-compose --profile app up --build -d
     ```
@@ -51,40 +51,42 @@ Access your local services:
 
 ## Architecture & Microservice Interactions
 
-Jager is structured around three core application components:
+Jager is structured around central workflow orchestration and data applications, integrating with the standalone CDB service:
 
 ```mermaid
 flowchart TD
     N8N["N8N Orchestration (src/n8n/)<br/>Workflow Scheduler & Orchestrator"]
     
+    subgraph DecoupledServices["Standalone Services"]
+        CDB["CDB Service (cdb)<br/>Customer Data Platform / CRM API"]
+    end
+
     subgraph DataServices["Python Microservices & Services"]
-        CDP["CDP App (src/cdp/)<br/>Customer Data Platform Domain Service"]
-        DAPP["DAPP App (src/data_pipelines/ & src/ml/)<br/>Data Pipelines & ML Prediction Service"]
+        DAPP["DAPP App (src/dapp/)<br/>Data Pipelines & ML Prediction Service"]
     end
     
     subgraph Storage["Storage Layer"]
-        PG[("PostgreSQL (db)<br/>OLTP Data & cdp.* Schema")]
+        PG[("PostgreSQL (db)<br/>OLTP Data & Staging Schemas")]
         MD[("MotherDuck<br/>OLAP Data & ds_* Datasets")]
     end
     
-    N8N -->|"HTTP POST /process/*"| CDP
+    N8N -->|"HTTP POST /api/v1/ingest/*"| CDB
     N8N -->|"HTTP POST /run/* & /predict"| DAPP
     
-    CDP -->|"Normalize Persons, Accounts & Relationships"| PG
+    DAPP -->|"REST API Sync"| CDB
     DAPP -->|"Ingest / Transform"| PG
     DAPP -->|"Sync OLAP / ML Predictions"| MD
 ```
 
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
-*   **CDP App ([src/cdp/](src/cdp/README.md))**: A dedicated FastAPI domain microservice responsible for Customer Data Platform logic (managing `cdp.persons`, `cdp.companies`, `cdp.leads`, `cdp.person_company_relationships`, and `cdp.engagements`). N8N triggers CDP processing via HTTP requests (`CDP_SERVICE_URL`).
+*   **CDB Standalone Service**: Customer Data Platform & CRM service managing contacts, companies, and interactions. Ingestion workflows post data to CDB endpoints (`CDB_SERVICE_URL`) using API key authentication (`CDB_API_KEY`).
 *   **DAPP App ([src/dapp/](src/dapp/README.md))**: A consolidated Data App service combining data ingestion (**dlt**), transformations (**dbt**), and machine learning training/predictions (**ml**). N8N triggers pipelines (`DATA_PIPELINE_URL`) and ML inference (`ML_SERVICE_URL`) on this service.
 
 ### Database & Storage Schemas
 
 We organize our databases into clear operational (OLTP) and analytical (OLAP) processing schemas:
-- **OLTP Schema (PostgreSQL)**: Stores operational source data (`s_*` schemas) and core CDP domain entities (`cdp.*` schema). Refer to the [CDP Documentation](src/cdp/README.md) and [OLTP Database Documentation](src/dapp/oltp/README.md) for details.
+- **OLTP Schema (PostgreSQL)**: Stores operational source data (`s_*` schemas) and internal task/content generation tables (`t_*`). Refer to the [OLTP Database Documentation](src/dapp/oltp/README.md) for details.
 - **OLAP Schema (MotherDuck)**: Stores curated presentation data (`t_jager`), features, validation snapshots, and serialized model metrics for ML workflows. Refer to the [OLAP Database Documentation](src/dapp/olap/README.md) for details.
-
 
 ---
 
@@ -99,7 +101,6 @@ jager/
 ├── prompts/                 # Markdown prompt templates (intent detection, lead enrichment)
 ├── scripts/                 # Utility scripts for database cloning, schema migrations, and data import
 ├── src/                     # Core application source code
-│   ├── cdp/                 # Customer Data Platform domain microservice
 │   ├── dapp/                # Data App (Ingestion, dbt transformations, and ML microservice)
 │   ├── db/                  # Database initialization scripts
 │   └── n8n/                 # N8N configuration, workflow files, and sync scripts
@@ -108,7 +109,6 @@ jager/
 
 Refer to the folder-level READMEs for detailed guides:
 - [scripts/README.md](scripts/README.md)
-- [src/cdp/README.md](src/cdp/README.md)
 - [src/db/README.md](src/db/README.md)
 - [src/dapp/README.md](src/dapp/README.md)
 - [src/dapp/oltp/README.md](src/dapp/oltp/README.md)

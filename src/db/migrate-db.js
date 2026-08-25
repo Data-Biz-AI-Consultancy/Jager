@@ -28,25 +28,7 @@ function getJagerConfig() {
   return { host, port, database: 'jager', user, password };
 }
 
-function getCdpConfig() {
-  if (process.env.CDP_DATABASE_URL) {
-    return { connectionString: process.env.CDP_DATABASE_URL };
-  }
-  if (process.env.DATABASE_URL) {
-    let url = process.env.DATABASE_URL;
-    url = url.replace(/\/jager(\?|$)/, '/cdp$1').replace(/\/n8n(\?|$)/, '/cdp$1');
-    return { connectionString: url };
-  }
-  const host = process.env.DB_APPLICATION_HOST || process.env.DB_POSTGRESDB_HOST || 'db';
-  const port = parseInt(process.env.DB_APPLICATION_PORT || process.env.DB_POSTGRESDB_PORT || '5432', 10);
-  const user = process.env.DB_APPLICATION_USER || process.env.DB_POSTGRESDB_USER || 'jager';
-  const password = process.env.DB_APPLICATION_PASSWORD || process.env.DB_POSTGRESDB_PASSWORD || 'jager';
-  return { host, port, database: 'cdp', user, password };
-}
-
 const sqlDir = path.join(__dirname, 'sql');
-const cdpDdl = fs.readFileSync(path.join(sqlDir, 'cdp_schema.sql'), 'utf8');
-const cdpSeedDdl = process.env.CI !== 'true' ? fs.readFileSync(path.join(sqlDir, 'cdp_seeds.sql'), 'utf8') : '';
 const ddl = fs.readFileSync(path.join(sqlDir, 'oltp_schema.sql'), 'utf8');
 const seeds = process.env.CI !== 'true' ? fs.readFileSync(path.join(sqlDir, 'oltp_seeds.sql'), 'utf8') : '';
 
@@ -56,8 +38,8 @@ async function run() {
   const jagerClient = new Client(jagerConfig);
   await jagerClient.connect();
 
-  // Ensure cdb, cdp, and n8n databases exist in PostgreSQL
-  const requiredDbs = ['cdb', 'cdp', 'n8n'];
+  // Ensure n8n database exists in PostgreSQL
+  const requiredDbs = ['n8n'];
   for (const dbName of requiredDbs) {
     try {
       const checkRes = await jagerClient.query('SELECT 1 FROM pg_database WHERE datname = $1', [dbName]);
@@ -194,48 +176,6 @@ async function run() {
 
   console.log('Application database migrations and data transfers completed successfully.');
   await jagerClient.end();
-
-  const cdpConfig = getCdpConfig();
-  const cdpClient = new Client(cdpConfig);
-  try {
-    console.log('Connecting to cdp database for migrations...');
-    await cdpClient.connect();
-  } catch (err) {
-    if (err.code === '3D000') {
-      const adminClient = new Client(getJagerConfig());
-      await adminClient.connect();
-      await adminClient.query('CREATE DATABASE cdp');
-      await adminClient.end();
-      await cdpClient.connect();
-    } else {
-      throw err;
-    }
-  }
-
-  console.log('Cleaning non-CDP schemas and legacy CDP tables from cdp database if present...');
-  await cdpClient.query(`
-    DO $$
-    DECLARE
-        r RECORD;
-    BEGIN
-        FOR r IN (
-            SELECT schema_name 
-            FROM information_schema.schemata 
-            WHERE schema_name NOT IN ('cdp', 'public', 'information_schema', 'pg_catalog', 'pg_toast')
-        ) LOOP
-            EXECUTE 'DROP SCHEMA IF EXISTS ' || quote_ident(r.schema_name) || ' CASCADE';
-        END LOOP;
-    END $$;
-  `);
-
-  console.log('Applying cdp database schema DDL...');
-  await cdpClient.query(cdpDdl);
-  if (cdpSeedDdl) {
-    console.log('Applying cdp seed data (skipped in CI)...');
-    await cdpClient.query(cdpSeedDdl);
-  }
-  console.log('CDP database migrations completed successfully.');
-  await cdpClient.end();
 }
 
 run().catch(err => {
