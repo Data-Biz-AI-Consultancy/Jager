@@ -135,9 +135,14 @@ def run_ingest_nager():
     return run_pipeline_command(["python", "olap/ingest_nager.py"], "ingest_nager")
 
 
+@app.post("/run/ingest_cdb")
+def run_ingest_cdb():
+    return run_pipeline_command(["python", "olap/ingest_cdb.py"], "ingest_cdb")
+
+
 @app.post("/run/ingest_cdp")
 def run_ingest_cdp():
-    return run_pipeline_command(["python", "olap/ingest_cdp.py"], "ingest_cdp")
+    return run_pipeline_command(["python", "olap/ingest_cdb.py"], "ingest_cdb")
 
 
 

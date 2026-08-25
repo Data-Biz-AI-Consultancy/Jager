@@ -80,21 +80,6 @@
         336,
         784
       ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_cdp",
-        "options": {}
-      },
-      "id": "trigger-cdp-ingestion",
-      "name": "Trigger CDP Ingestion",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        336,
-        976
-      ]
     }
   ],
   "connections": {
@@ -118,11 +103,6 @@
           },
           {
             "node": "Trigger Substack Ingestion",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Trigger CDP Ingestion",
             "type": "main",
             "index": 0
           }
