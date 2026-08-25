@@ -50,27 +50,19 @@
 - Whenever `src/db/init-user-db.sh` is changed, the database migration script `src/db/migrate-db.js` must be updated to match the changes and keep schemas/tables in sync.
 - Ensure table names and schemas are kept consistent across `src/db/migrate-db.js`, `src/db/init-user-db.sh`, and within n8n database integration nodes.
 
-## CDP (Customer Data Platform) Conventions
-- **PostgreSQL Database Isolation**: PostgreSQL hosts TWO separate databases:
-  1. `jager` database: Main operational/OLTP database containing raw staging schemas (`s_linkedin`, `s_manual`, `s_slack`, `s_substack`, etc.).
-  2. `cdp` database: Isolated domain database containing the `cdp` schema (`cdp.leads`, `cdp.persons`, `cdp.companies`, `cdp.engagements`, `cdp.person_company_relationships`).
-  - **CRITICAL**: The `cdp` schema resides ONLY in the `cdp` database. It MUST NOT be mirrored, imported via FDW, or created inside the `jager` database.
-- Entity intake tables in CDP use descriptive domain names (e.g. `cdp.leads` instead of generic `raw_leads`).
-- **Seed Data Scope**: Data under `data/` (e.g., `data/seed/`) is strictly **dev-only** local sample data and is gitignored. It MUST NEVER be depended upon, loaded, or expected in production environments or CI test pipelines. Production pipelines must handle incoming data exclusively from real application sources or live integrations.
-
-## CDP Service Conventions
-- The CDP service (`src/cdp/`) handles core Customer Data Platform domain processing and HTTP endpoints.
-- Processors live under `src/cdp/processors/` (e.g. `src/cdp/processors/process_linkedin_connections.py`).
-- The service runs as the `cdp` Docker service on port 8000 and connects to `postgresql://jager:jager@db:5432/cdp`. It is accessed by n8n workflows via `CDP_SERVICE_URL`.
-
-
+## CDB (Customer Data Platform / CRM) Integration Conventions
+- **Standalone Service Architecture**: The Customer Data Platform / CRM has been decoupled into the standalone **CDB** service (`cdb`).
+- **REST API Integration**: Jager interacts with CDB strictly via HTTP REST endpoints (`CDB_SERVICE_URL`, e.g., `/api/v1/ingest/linkedin-connections`, `/api/v1/ingest/linkedin-messages`, `/api/v1/ingest/notion-meeting-notes`).
+- **Authentication**: All requests from Jager to CDB must include the `X-API-Key` header with `CDB_API_KEY`.
+- **OLAP Synchronization**: Analytical sync of CDB entities into MotherDuck OLAP (`s_cdb` schema) is performed by `src/dapp/olap/ingest_cdb.py` consuming CDB REST endpoints.
+- **Database Boundary**: Jager's PostgreSQL instance houses only Jager operational databases (`jager`, `n8n`). It does not host the `cdb` database (which lives on CDB's dedicated PostgreSQL container/instance).
 
 ## Documentation Integrity
 - Always keep project README files (e.g. `README.md` at all levels) up to date when folders, scripts, configurations, or workflow files are added, moved, or deleted.
 - In markdown files (like READMEs), always use relative paths for file links instead of absolute paths (e.g., use `[Scripts](scripts/README.md)` instead of `[Scripts](file:///path/to/scripts/README.md)`).
 
 ## Machine Learning Service Conventions
-- In `src/ml`, organize ML scripts and pipelines inside subfolders based on use case (1 use case, 1 subfolder rule). Avoid placing use-case-specific files directly in the root of `src/ml`.
+- In `src/dapp/ml`, organize ML scripts and pipelines inside subfolders based on use case (1 use case, 1 subfolder rule). Avoid placing use-case-specific files directly in the root of `src/dapp/ml`.
 
 ## Data Source Naming Conventions
 - Always use the specific data source application name to name files, directories, database schemas/datasets, and endpoints representing that data source (e.g., use `nager` instead of generic `holiday`).
@@ -88,11 +80,10 @@
   - `<entity_name>` is the database or subpage name in snake_case.
   - Example: `notion__substack_subscriber_export_2026_07_30_11_46_53_csv`
 
-
 ## Python Testing Conventions
 - All Python scripts in the codebase, including data pipelines, ML components, and core services, must have corresponding automated unit tests.
-- Python tests must be organized into namespaced subdirectories under `tests/` matching their service domain (e.g., `tests/cdp/`, `tests/dapp/`, `tests/shared/`, `tests/integration/`).
-- Tests can be executed as a full suite (`uv run pytest tests/`) or target specific service suites (`uv run pytest tests/cdp/`, `uv run pytest tests/dapp/`).
+- Python tests must be organized into namespaced subdirectories under `tests/` matching their service domain (e.g., `tests/dapp/`, `tests/shared/`, `tests/integration/`).
+- Tests can be executed as a full suite (`uv run pytest tests/`) or target specific service suites (`uv run pytest tests/dapp/`, `uv run pytest tests/shared/`).
 - Ensure tests verify key functionalities like database connections, data transformations, API query formats, and model predictions using mocks/patches where appropriate.
 
 ## dlt Pipeline Conventions

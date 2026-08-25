@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [tool.uv.workspace]
-members = ["src/cdp", "src/dapp"]
+members = ["src/dapp"]
 
 [dependency-groups]
 dev = [
@@ -22,5 +22,5 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "src/cdp", "src/dapp", "src/dapp/ml"]
+pythonpath = ["src", "src/dapp", "src/dapp/ml"]
 

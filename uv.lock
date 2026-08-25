@@ -11,7 +11,6 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "cdp",
     "dapp",
     "jager",
 ]
@@ -93,29 +92,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b3/ca/824b1195773ce6166d388573fc106ce56d4a805bd7427b624e063596ec58/beautifulsoup4-4.12.3.tar.gz", hash = "sha256:74e3d1928edc070d21748185c46e3fb33490f22f52a3addee9aee0f4f7781051", size = 581181, upload-time = "2024-01-17T16:53:17.902Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b1/fe/e8c672695b37eecc5cbf43e1d0638d88d66ba3a44c4d321c796f4e59167f/beautifulsoup4-4.12.3-py3-none-any.whl", hash = "sha256:b80878c9f40111313e55da8ba20bdba06d8fa3969fc68304167741bbf9e082ed", size = 147925, upload-time = "2024-01-17T16:53:12.779Z" },
-]
-
-[[package]]
-name = "cdp"
-version = "0.1.0"
-source = { editable = "src/cdp" }
-dependencies = [
-    { name = "fastapi" },
-    { name = "psycopg2-binary" },
-    { name = "python-dotenv" },
-    { name = "requests" },
-    { name = "sqlalchemy" },
-    { name = "uvicorn" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastapi", specifier = ">=0.100.0" },
-    { name = "psycopg2-binary", specifier = ">=2.9.0" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "requests", specifier = ">=2.28.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.0" },
-    { name = "uvicorn", specifier = ">=0.20.0" },
 ]
 
 [[package]]
