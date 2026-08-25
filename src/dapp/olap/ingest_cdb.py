@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from common.utils import setup_logging, create_motherduck_pipeline
 
 # Set up logging
-logger = setup_logging("ingest-cdp")
+logger = setup_logging("ingest-cdb")
 
 os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"
 
@@ -242,8 +242,8 @@ def run_ingestion():
 
     logger.info("Starting DLT pipeline")
     pipeline = create_motherduck_pipeline(
-        pipeline_name="cdp_ingestion",
-        dataset_name="s_cdp",
+        pipeline_name="cdb_ingestion",
+        dataset_name="s_cdb",
     )
 
     # Run the pipeline

@@ -87,16 +87,16 @@ def test_ingest_substack(mock_dlt_utils):
     mock_dlt_utils['pipeline_inst'].run.assert_called_once()
 
 
-def test_ingest_cdp(mock_dlt_utils):
-    from olap import ingest_cdp
+def test_ingest_cdb(mock_dlt_utils, monkeypatch):
+    from olap import ingest_cdb
 
-    mock_dlt_utils['connection'].execute.return_value = []
+    monkeypatch.setattr(ingest_cdb, "fetch_cdb_api", lambda *args, **kwargs: iter([]))
 
-    ingest_cdp.run_ingestion()
+    ingest_cdb.run_ingestion()
 
     mock_dlt_utils['pipeline'].assert_called_once_with(
-        pipeline_name="cdp_ingestion",
-        dataset_name="s_cdp"
+        pipeline_name="cdb_ingestion",
+        dataset_name="s_cdb"
     )
     mock_dlt_utils['pipeline_inst'].run.assert_called_once()
 
