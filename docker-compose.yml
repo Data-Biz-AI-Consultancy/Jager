@@ -164,13 +164,13 @@ services:
 
 volumes:
   pgdata:
-    name: jager-deployment_pgdata
+    name: jager_pgdata
   caddy_data:
-    name: jager-deployment_caddy_data
+    name: jager_caddy_data
   caddy_config:
-    name: jager-deployment_caddy_config
+    name: jager_caddy_config
   n8n_data:
-    name: jager-deployment_n8n_data
+    name: jager_n8n_data
 
 networks:
   default:
