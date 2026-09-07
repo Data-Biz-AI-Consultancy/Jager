@@ -168,6 +168,28 @@ try {
 // ─── Clone Function ───────────────────────────────────────────────────────────
 
 /**
+ * Returns true if the database at prodUrl actually exists and is reachable.
+ * Silently returns false if the DB doesn't exist or the connection fails.
+ */
+async function probeDatabase(dbName, prodUrl) {
+  try {
+    await execAsync(
+      `${dockerComposeCmd} exec -T db psql "${prodUrl}" -c "SELECT 1" -t -A`,
+      { maxBuffer: 1 * 1024 * 1024 }
+    );
+    return true;
+  } catch (err) {
+    const msg = (err.stderr || err.message || '').toLowerCase();
+    if (msg.includes('does not exist') || msg.includes('connection refused') || msg.includes('fatal')) {
+      console.log(`[${dbName}] Database does not exist on production — skipping.`);
+      return false;
+    }
+    // Unknown error — bubble up
+    throw err;
+  }
+}
+
+/**
  * Clone a single production PostgreSQL database into the local Docker environment.
  *
  * Uses pg_dump -Fd (directory format) with -j parallel workers for the dump,
@@ -393,12 +415,14 @@ async function cloneDatabase(dbName, prodUrl) {
   }
 
   // ── Build list of clone tasks ─────────────────────────────────────────────
+  // Probe each production database first — skip gracefully if it doesn't exist
+  // (e.g. 'cdb'/'cdp' may not be present on all production instances).
   const tasks = [];
 
   if (!skipJager) {
-    if (PROD_JAGER_URL) {
+    if (PROD_JAGER_URL && await probeDatabase('jager', PROD_JAGER_URL)) {
       tasks.push(cloneDatabase('jager', PROD_JAGER_URL));
-    } else {
+    } else if (!PROD_JAGER_URL) {
       console.log("Production URL for 'jager' not available. Skipping.");
     }
   } else {
@@ -406,9 +430,9 @@ async function cloneDatabase(dbName, prodUrl) {
   }
 
   if (!skipCDB) {
-    if (PROD_CDB_URL) {
+    if (PROD_CDB_URL && await probeDatabase('cdb', PROD_CDB_URL)) {
       tasks.push(cloneDatabase('cdb', PROD_CDB_URL));
-    } else {
+    } else if (!PROD_CDB_URL) {
       console.log("Production URL for 'cdb' not available. Skipping.");
     }
   } else {
@@ -416,9 +440,9 @@ async function cloneDatabase(dbName, prodUrl) {
   }
 
   if (!skipN8N) {
-    if (PROD_N8N_URL) {
+    if (PROD_N8N_URL && await probeDatabase('n8n', PROD_N8N_URL)) {
       tasks.push(cloneDatabase('n8n', PROD_N8N_URL));
-    } else {
+    } else if (!PROD_N8N_URL) {
       console.log("Production URL for 'n8n' not available. Skipping.");
     }
   } else {

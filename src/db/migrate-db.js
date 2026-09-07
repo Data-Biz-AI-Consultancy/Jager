@@ -29,16 +29,21 @@ function getJagerConfig() {
 }
 
 const sqlDir = path.join(__dirname, 'sql');
-const ddl = fs.readFileSync(path.join(sqlDir, 'oltp_schema.sql'), 'utf8');
+const schemaDir = path.join(sqlDir, 'schema');
 const seeds = process.env.CI !== 'true' ? fs.readFileSync(path.join(sqlDir, 'oltp_seeds.sql'), 'utf8') : '';
+
+// Schema files are executed in alphabetical order (01_, 02_, ... prefix ensures correct order).
+const schemaFiles = fs.readdirSync(schemaDir)
+  .filter(f => f.endsWith('.sql'))
+  .sort();
 
 async function run() {
   const jagerConfig = getJagerConfig();
-  console.log(`Connecting to jager application database for automated migrations...`);
+  console.log('Connecting to jager application database for automated migrations...');
   const jagerClient = new Client(jagerConfig);
   await jagerClient.connect();
 
-  // Ensure n8n database exists in PostgreSQL
+  // Ensure n8n database exists
   const requiredDbs = ['n8n'];
   for (const dbName of requiredDbs) {
     try {
@@ -46,7 +51,7 @@ async function run() {
       if (checkRes.rowCount === 0) {
         console.log(`Creating database '${dbName}'...`);
         await jagerClient.query(`CREATE DATABASE ${dbName}`);
-        console.log(`Database '${dbName}' created successfully.`);
+        console.log(`Database '${dbName}' created.`);
       }
     } catch (e) {
       console.warn(`Warning: Could not check/create database '${dbName}':`, e.message);
@@ -54,119 +59,23 @@ async function run() {
   }
 
   console.log('Running application database migrations...');
-  await jagerClient.query('DROP SCHEMA IF EXISTS cdp CASCADE;');
+
+  // Guard: drop legacy scheduling columns if still present
   try {
     await jagerClient.query(`
       ALTER TABLE t_content_generation.linkedin_posts DROP COLUMN IF EXISTS publish_at;
       ALTER TABLE t_content_generation.linkedin_posts DROP COLUMN IF EXISTS scheduled_to_publish_at;
     `);
   } catch (err) {
-    console.warn('Warning: Failed to drop duplicate scheduling columns:', err.message);
-  }
-  await jagerClient.query(ddl);
-
-  // Deduplicate and ensure primary key constraints for s_linkedin tables
-  const tablesToFix = [
-    'ugc_posts',
-    'social_action_likes',
-    'social_action_comments',
-    'all_comments',
-    'all_likes',
-    'invitations',
-    'all_invitations',
-    'messages',
-    'all_messages',
-    'connections',
-    'following',
-    'searches',
-    'job_applications',
-    'job_seeker_preferences',
-    'instant_reposts'
-  ];
-  for (const table of tablesToFix) {
-    console.log(`Ensuring primary key on s_linkedin.${table}...`);
-    await jagerClient.query(`
-      DELETE FROM s_linkedin.${table} a
-      USING s_linkedin.${table} b
-      WHERE a.ctid < b.ctid AND a.id = b.id;
-    `);
-    await jagerClient.query(`
-      DO $$
-      BEGIN
-          IF NOT EXISTS (
-              SELECT 1 FROM information_schema.table_constraints 
-              WHERE table_schema = 's_linkedin' 
-              AND table_name = '${table}' 
-              AND constraint_type = 'PRIMARY KEY'
-          ) THEN
-              ALTER TABLE s_linkedin.${table} ADD PRIMARY KEY (id);
-          END IF;
-      END $$;
-    `);
+    console.warn('Warning: Failed to drop legacy scheduling columns:', err.message);
   }
 
-  const migrations = [
-    // Parent Tables (Migrated first to resolve FK dependencies)
-    { oldTable: 'reddit_subreddits_monitored', newTable: 's_reddit.subreddits_monitored', hasSerial: true },
-    { oldTable: 'slack_workspaces_monitored', newTable: 's_slack.workspaces_monitored', hasSerial: true },
-    { oldTable: 'substack_feeds_monitored', newTable: 's_substack.feeds_monitored', hasSerial: true },
-    { oldTable: 'wordpress_feeds_monitored', newTable: 's_wordpress.feeds_monitored', hasSerial: true },
-
-    // Child/Dependent Tables
-    { oldTable: 'reddit_posts', newTable: 's_reddit.posts', hasSerial: false },
-    { oldTable: 'reddit_comments', newTable: 's_reddit.comments', hasSerial: false },
-    { oldTable: 'slack_channels_monitored', newTable: 's_slack.channels_monitored', hasSerial: true },
-    { oldTable: 'slack_messages', newTable: 's_slack.messages', hasSerial: false },
-    { oldTable: 'substack_posts', newTable: 's_substack.posts', hasSerial: false },
-    { oldTable: 'wordpress_posts', newTable: 's_wordpress.posts', hasSerial: false },
-
-    // Eurostat & Yahoo
-    { oldTable: 'eurostat_regional_gdp', newTable: 's_euro_stat.regional_gdp', hasSerial: true },
-    { oldTable: 'eurostat_regional_crime_rates', newTable: 's_euro_stat.regional_crime_rates', hasSerial: true },
-    { oldTable: 'eurostat_inflation', newTable: 's_euro_stat.inflation', hasSerial: true },
-    { oldTable: 'eurostat_quarterly_gdp', newTable: 's_euro_stat.quarterly_gdp', hasSerial: true },
-    { oldTable: 'eurostat_unemployment', newTable: 's_euro_stat.unemployment', hasSerial: true },
-    { oldTable: 'eurostat_house_price_index', newTable: 's_euro_stat.house_price_index', hasSerial: true },
-    { oldTable: 'eurostat_fx_rates', newTable: 's_euro_stat.fx_rates', hasSerial: true },
-    { oldTable: 'yahoo_finance_stock_prices', newTable: 's_yahoo_finance.stock_prices', hasSerial: true },
-  ];
-
-  console.log('Checking for legacy data to migrate from public schema...');
-  for (const m of migrations) {
-    const checkRes = await jagerClient.query(
-      `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1)`,
-      [m.oldTable]
-    );
-    if (checkRes.rows[0].exists) {
-      // Find common columns
-      const [newSchema, newTableName] = m.newTable.split('.');
-      const colsRes = await jagerClient.query(
-        `SELECT column_name FROM information_schema.columns 
-         WHERE table_schema = 'public' AND table_name = $1
-         INTERSECT
-         SELECT column_name FROM information_schema.columns 
-         WHERE table_schema = $2 AND table_name = $3`,
-        [m.oldTable, newSchema, newTableName]
-      );
-      const commonCols = colsRes.rows.map(r => `"${r.column_name}"`).join(', ');
-
-      console.log(`Migrating data from public.${m.oldTable} to ${m.newTable} using columns: ${commonCols}...`);
-
-      // Copy data
-      await jagerClient.query(`INSERT INTO ${m.newTable} (${commonCols}) SELECT ${commonCols} FROM public.${m.oldTable} ON CONFLICT DO NOTHING`);
-
-      // Update serial sequence if needed
-      if (m.hasSerial) {
-        await jagerClient.query(
-          `SELECT setval(pg_get_serial_sequence($1, 'id'), coalesce(max(id), 1)) FROM ${m.newTable}`,
-          [m.newTable]
-        );
-      }
-
-      // Drop old table
-      console.log(`Dropping legacy table public.${m.oldTable}...`);
-      await jagerClient.query(`DROP TABLE public.${m.oldTable} CASCADE`);
-    }
+  // Execute each schema file in order
+  for (const file of schemaFiles) {
+    const filePath = path.join(schemaDir, file);
+    const sql = fs.readFileSync(filePath, 'utf8');
+    console.log(`  Applying ${file}...`);
+    await jagerClient.query(sql);
   }
 
   if (seeds) {
@@ -174,7 +83,7 @@ async function run() {
     await jagerClient.query(seeds);
   }
 
-  console.log('Application database migrations and data transfers completed successfully.');
+  console.log('Application database migrations completed successfully.');
   await jagerClient.end();
 }
 

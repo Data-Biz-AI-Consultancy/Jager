@@ -9,6 +9,6 @@ This directory contains the database setup and initialization scripts for the Ja
 - [init-user-db.sh](init-user-db.sh): PostgreSQL initialization script run automatically on Docker startup.
 - [migrate-db.js](migrate-db.js): Database migration and DDL synchronization script.
 - [sql/](sql/): Directory containing single-source-of-truth SQL DDL and seed files shared across `init-user-db.sh` and `migrate-db.js`.
-  - `sql/oltp_schema.sql`: Jager OLTP database schema DDL (operational and staging schemas).
+  - `sql/schema/`: Modular Jager OLTP database schema DDL files (01_... to 08_...).
   - `sql/oltp_seeds.sql`: Jager OLTP database seed data.
 
