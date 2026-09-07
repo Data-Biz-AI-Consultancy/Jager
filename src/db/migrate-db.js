@@ -38,6 +38,10 @@ async function run() {
   const jagerClient = new Client(jagerConfig);
   await jagerClient.connect();
 
+  // Set a statement timeout so any hung DDL surfaces as an error immediately
+  // rather than blocking silently forever.
+  await jagerClient.query('SET statement_timeout = 60000'); // 60 seconds
+
   // Ensure n8n database exists in PostgreSQL
   const requiredDbs = ['n8n'];
   for (const dbName of requiredDbs) {

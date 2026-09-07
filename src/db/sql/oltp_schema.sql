@@ -782,9 +782,7 @@ CREATE TABLE IF NOT EXISTS m_embeddings.linkedin_posts (
 	source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED
 );
 
-ALTER TABLE m_embeddings.notion_pages ADD COLUMN IF NOT EXISTS source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED;
-ALTER TABLE m_embeddings.substack_posts ADD COLUMN IF NOT EXISTS source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED;
-ALTER TABLE m_embeddings.linkedin_posts ADD COLUMN IF NOT EXISTS source_id VARCHAR(255) GENERATED ALWAYS AS (metadata->>'id') STORED;
+-- source_id is already defined in the CREATE TABLE above; no ALTER TABLE needed.
 
 CREATE OR REPLACE FUNCTION m_staging.delete_old_notion_embeddings()
 RETURNS TRIGGER AS $$
