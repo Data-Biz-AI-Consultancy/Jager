@@ -79,7 +79,7 @@ flowchart TD
 ```
 
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
-*   **CDB Standalone Service**: Customer Data Platform & CRM service managing contacts, companies, and interactions. Direct channel integrations (such as LinkedIn messages and connections) are ingested natively by CDB's background connector service with full timestamp fidelity, while external webhooks and partner tools ingest via CDB API endpoints (`CDB_SERVICE_URL`) using API key authentication (`CDB_API_KEY`).
+*   **CDB Standalone Service**: Customer Data Platform & CRM service managing contacts, companies, and interactions. Direct channel integrations (such as LinkedIn messages and connections, and Notion meeting notes) are ingested natively by CDB's background connector service with full timestamp fidelity, while external webhooks and partner tools ingest via CDB API endpoints (`CDB_SERVICE_URL`) using API key authentication (`CDB_API_KEY`).
 *   **DAPP App ([src/dapp/](src/dapp/README.md))**: A consolidated Data App service combining data ingestion (**dlt**), transformations (**dbt**), and machine learning training/predictions (**ml**). N8N triggers pipelines (`DATA_PIPELINE_URL`) and ML inference (`ML_SERVICE_URL`) on this service.
 
 ### Database & Storage Schemas
