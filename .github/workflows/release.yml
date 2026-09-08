@@ -48,7 +48,7 @@ jobs:
           DEPLOYMENT_PAT: ${{ secrets.DEPLOYMENT_PAT }}
         if: steps.semantic.outputs.new_release_published == 'true' && env.DEPLOYMENT_PAT != ''
         run: |
-          curl -L \
+          curl -L --fail-with-body \
             -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_PAT }}" \
