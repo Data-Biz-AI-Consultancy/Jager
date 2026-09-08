@@ -6,10 +6,9 @@ For full architectural details, database schemas, and API documentation of the C
 
 ---
 
-## 1. CDB Lead Processing
-* **File:** [cdb_lead_processing.json](cdb_lead_processing.json)
-* **Description:** Periodically scheduled workflow (runs every 6 hours) that fetches unprocessed raw data across all 4 operational sources (**LinkedIn connections**, **LinkedIn messages**, **Notion meeting notes**, and **Notion manual data from `s_manual`**) in parallel from Jager's Postgres database, aggregates them into a single batch payload, and posts to CDB:
-  * `POST /api/v1/ingest/batch` (`CDB_SERVICE_URL` with `X-API-Key` auth) - Ingests all pending sources in a single HTTP request, triggers incremental Entity Resolution, and removes legacy segment evaluation steps.
+## 1. CDB Lead Processing (Migrated to CDB Native Connectors)
+* **Status:** Deprecated & Migrated directly into the [CDB repository](../../../../cdb)
+* **Description:** Formerly a periodically scheduled workflow (runs every 6 hours) that pulled LinkedIn data and Notion meeting notes from Postgres and POSTed to CDB. Data ingestion for all direct channels (**LinkedIn messages & connections**, **Notion meeting notes**) has now migrated into CDB's native background connectors (`cdb.services.connectors.linkedin` and `cdb.services.connectors.notion`) with automated Celery Beat scheduling.
 
 ---
 
