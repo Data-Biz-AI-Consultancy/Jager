@@ -73,7 +73,8 @@ services:
       - HUGGING_FACE_TOKEN=${HUGGING_FACE_TOKEN}
       - ML_SERVICE_URL=${ML_SERVICE_URL:-http://dapp:8000}
       - WEBHOOK_URL=${WEBHOOK_URL:-https://jager.n8n.com/}
-      - N8N_PUSH_BACKEND=${N8N_PUSH_BACKEND:-sse}
+      - N8N_EDITOR_BASE_URL=https://jager.n8n.com
+      - N8N_PUSH_BACKEND=websocket
       - N8N_SECURE_COOKIE=true
       - GENERIC_TIMEZONE=Europe/Berlin
       - N8N_PROXY_HOPS=1
