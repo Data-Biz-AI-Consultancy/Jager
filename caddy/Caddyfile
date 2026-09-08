@@ -13,12 +13,16 @@ http://jager.n8n.com, http://staging.jager.n8n.com, http://cdb.com, http://stagi
 }
 
 http://localhost {
-    reverse_proxy n8n:5678
+    reverse_proxy n8n:5678 {
+        flush_interval -1
+    }
     encode gzip
 }
 
 localhost {
-    reverse_proxy n8n:5678
+    reverse_proxy n8n:5678 {
+        flush_interval -1
+    }
     encode gzip
     tls internal
 }
