@@ -13,19 +13,37 @@ http://jager.n8n.com, http://staging.jager.n8n.com, http://cdb.com, http://stagi
 }
 
 http://localhost {
-    reverse_proxy n8n:5678
+    reverse_proxy n8n:5678 {
+        flush_interval -1
+    }
     encode gzip
 }
 
 localhost {
-    reverse_proxy n8n:5678
+    reverse_proxy n8n:5678 {
+        flush_interval -1
+    }
     encode gzip
     tls internal
 }
 
 jager.n8n.com, staging.jager.n8n.com {
-    reverse_proxy n8n:5678
-    encode gzip
+    # n8n push endpoint (SSE) must NOT be gzip-compressed or buffered.
+    # encode gzip would buffer the stream and break live workflow execution feedback.
+    handle /rest/push* {
+        reverse_proxy n8n:5678 {
+            flush_interval -1
+        }
+    }
+
+    # All other n8n traffic - gzip is safe for regular request/response
+    handle {
+        reverse_proxy n8n:5678 {
+            flush_interval -1
+        }
+        encode gzip
+    }
+
     tls internal
     log {
         output stdout
