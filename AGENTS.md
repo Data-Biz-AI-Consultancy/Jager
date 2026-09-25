@@ -1,171 +1,42 @@
-# Agent Rules & Conventions
+# AGENTS.md
 
-## dbt Naming & Coding Conventions
+## Vibe Coding Instructions & Core Rules
 
-### Model Configuration
-- For all dbt models, config blocks must explicitly define the `materialized`, `schema`, and `alias` parameters.
-- The `alias` always uses a shorter prefix matching the layer (`stg_`, `int_`, `fct_`), while the file name uses the full layer prefix (`staging__`, `intermediate__`, `marts__`).
+### 1. Documentation & Skill Integrity (Mandatory)
+- **All documentation and skill runbooks (`SKILL.md`) must always be kept up to date per code change.**
+- Whenever modifying, adding, or removing features, dbt models, pipelines, schemas, configurations, workflows, ML models, or operational workflows:
+  - Inspect relevant documentation under root and colocated `README.md` files (e.g., [Root README](README.md), [Scripts](scripts/README.md), [n8n Workflows](src/n8n/workflows/data_ingestion/README.md), [Tests](tests/README.md)).
+  - Inspect and update all matching **`.agents/skills/<skill_name>/SKILL.md`** files (e.g. updating `jager-dbt-model` when dbt models/layers evolve, `jager-add-pipeline` when dlt pipelines change, `jager-database-ops` when database schemas shift, `jager-n8n-workflow-ops` when workflow tracks/agents change, `jager-ml-pipeline` when ML use cases evolve, `jager-cdb-integration` when cross-service APIs change).
+  - In project markdown files, always use relative paths for file links (e.g., `[Scripts](scripts/README.md)`), never absolute `file:///` URIs.
+  - Synchronize code, documentation, and skill definitions within the same change/PR.
 
+### 2. CI & Code Quality Verification (Mandatory)
+- **Always run and pass all automated tests before finalizing any change.**
+- **Python Verification**:
+  - Run `uv run pytest tests/` (or target specific service suites: `uv run pytest tests/dapp/`).
+  - Pin all dependencies to exact versions in `requirements.txt` / `pyproject.toml` (e.g., `dbt-core==1.11.13`).
+  - Ensure all files end with **exactly one single newline**.
+- Never commit or complete a turn with unformatted code, unused imports, or failing test suites.
 
-### Staging Models
-- For all staging models in the dbt project (located under `dbt/models/staging/`), the SQL file name must always be prefixed with the target schema name followed by a double underscore (e.g., `staging__<source_name>__<table_name>.sql`).
-- References to these models in downstream models (intermediate, marts) must use this fully prefixed name.
-- Staging models are strictly 1:1 atomic models mapped to a single ODS source table. **Never use JOINs in staging models.** Any logic requiring a JOIN must be promoted to an intermediate model.
-- **Staging Model Materialization**: All staging models must always be materialized as `table` (`materialized='table'`) to avoid view permission and binder overhead in MotherDuck.
+### 3. File Length & Modularity Limits (Mandatory)
+- **Code files must not exceed 400–500 lines.**
+- Whenever a file approaches or exceeds this threshold, proactively refactor and decompose into smaller, focused modules, domain utilities, or subcomponents.
 
+### 4. Secrets & Local Environment Discipline (Mandatory)
+- The `.env` file at the workspace root is **strictly for local development only** and must never be committed or deployed to production.
+- In production, environment variables are injected at runtime via the host or secrets manager.
+- Never hardcode sensitive credentials as fallback defaults in code or workflows.
 
-### Intermediate Models
-- For all intermediate models in the dbt project (located under `dbt/models/intermediate/`), the SQL file name must always be prefixed with `intermediate__` followed by the domain and a double underscore (e.g., `intermediate__<domain>__<model_name>.sql`).
-- The `alias` in the config block uses the shorter `int_` prefix (e.g., `alias='int_buffer__linkedin_posts'`), while the file name uses the `intermediate__` prefix.
-- References to these models in downstream models (marts) must use the fully prefixed name (e.g., `ref('intermediate__linkedin__post_engagement')`).
+---
 
-### Marts Models
-- For all marts models in the dbt project (located under `dbt/models/marts/`), the SQL file name must always be prefixed with `marts__` followed by the domain and a double underscore (e.g., `marts__linkedin__company_page_post_engagement.sql`).
-- The `alias` in the config block uses the `fct_` (or `dim_`) prefix for fact/dimension tables (e.g., `alias='fct_linkedin_company_page_post_engagement'`), while the file name uses the `marts__` prefix.
-- **Summary/rollup marts** (aggregate tables that are neither raw facts nor dimensions) must encode the table type in both the file name and the alias:
-  - File name: `marts__sum__<domain>__<name>.sql` (e.g., `marts__sum__content_marketing__daily_performance.sql`)
-  - Alias: `sum_<domain>_<name>` (e.g., `alias='sum_content_marketing_daily_performance'`)
-  - This ensures the file name is always visually "in line" with the alias — a reader can immediately identify a summary mart from its file name alone.
-- Marts models representing core business concepts or shared dimensions should be named in an application-agnostic manner without the application name prefix (e.g., use `marts__countries.sql` with alias `dim_countries` instead of `marts__nager__countries.sql` with alias `dim_nager__countries`).
+## 🧭 Repository Skills Index (`.agents/skills/`)
 
+Operational procedures, runbooks, and deep architectural specs are codified as progressive skills:
 
-
-### SQL Coding Style (Table Aliasing)
-- Do not use table aliases in queries selecting from a single table (queries without JOINs). Refer to columns directly without a table prefix.
-- In queries with JOINs:
-  - Do not use short aliases (e.g., `p.`, `c.`, `a.`, `l.`, `b.`).
-  - Always use full descriptive aliases (e.g., `posts.`, `channels.`, `analytics.`, `likes.`, `comments.`, `buffer_posts.`) for readability.
-
-
-## Database Naming & Schema Conventions
-
-### PostgreSQL Table Naming & Casing
-- Use lowercase snake_case for all table names and column names.
-- Use plural names for entity collections (e.g., `reddit_posts`, `substack_posts`, `slack_messages`, `yahoo_finance_stock_prices`).
-- Tables storing data ingested from external APIs, connectors, or services MUST use the name of the connector or data source in snake_case as a prefix (e.g. `yahoo_finance_`), followed by a suffix representing the specific entity.
-  - Example: Stock/Index price data ingested from Yahoo Finance must be saved in the `yahoo_finance_stock_prices` table.
-  - Example: FX Rates data ingested from Eurostat must be saved in the `eurostat_fx_rates` table.
-
-### Schema consistency & Migrations
-- Whenever `src/db/init-user-db.sh` is changed, the database migration script `src/db/migrate-db.js` must be updated to match the changes and keep schemas/tables in sync.
-- Ensure table names and schemas are kept consistent across `src/db/migrate-db.js`, `src/db/init-user-db.sh`, and within n8n database integration nodes.
-
-## CDB (Customer Data Platform / CRM) Integration Conventions
-- **Standalone Service Architecture**: The Customer Data Platform / CRM has been decoupled into the standalone **CDB** service (`cdb`).
-- **REST API Integration**: Jager interacts with CDB strictly via HTTP REST endpoints (`CDB_SERVICE_URL`, e.g., `/api/v1/ingest/linkedin-connections`, `/api/v1/ingest/linkedin-messages`, `/api/v1/ingest/notion-meeting-notes`).
-- **Authentication**: All requests from Jager to CDB must include the `X-API-Key` header with `CDB_API_KEY`.
-- **OLAP Synchronization**: Analytical sync of CDB entities into MotherDuck OLAP (`s_cdb` schema) is performed by `src/dapp/olap/ingest_cdb.py` consuming CDB REST endpoints.
-- **Database Boundary**: Jager's PostgreSQL instance houses only Jager operational databases (`jager`, `n8n`). It does not host the `cdb` database (which lives on CDB's dedicated PostgreSQL container/instance).
-
-## Documentation Integrity
-- Always keep project README files (e.g. `README.md` at all levels) up to date when folders, scripts, configurations, or workflow files are added, moved, or deleted.
-- In markdown files (like READMEs), always use relative paths for file links instead of absolute paths (e.g., use `[Scripts](scripts/README.md)` instead of `[Scripts](file:///path/to/scripts/README.md)`).
-
-## Machine Learning Service Conventions
-- In `src/dapp/ml`, organize ML scripts and pipelines inside subfolders based on use case (1 use case, 1 subfolder rule). Avoid placing use-case-specific files directly in the root of `src/dapp/ml`.
-
-## Data Source Naming Conventions
-- Always use the specific data source application name to name files, directories, database schemas/datasets, and endpoints representing that data source (e.g., use `nager` instead of generic `holiday`).
-
-## Manual Data Ingestion to Motherduck
-- For manual data ingestion scripts targeting Motherduck (e.g., uploading local spreadsheets), scripts must support both staging and production target databases using an environment flag (like `--prod`).
-- By default, these scripts must target the staging database (`staging`) using `MOTHERDUCK_TOKEN` for safety.
-- When `--prod` is passed, the script must switch to the production credentials/tokens (`MOTHERDUCK_TOKEN_PROD`) and database (`production` or custom variable).
-
-## Manual Ingestion Table Naming Conventions (`s_manual` schema)
-- Tables in the `s_manual` schema are dynamically created by the dlt pipeline — they are NOT pre-declared in `init-user-db.sh` or `migrate-db.js` (because manual data is always dynamic).
-- Table names must follow the pattern: `<tool>__<child_page_prefix>_<entity_name>` using **double underscores** between the tool name and the rest.
-  - `<tool>` is the source application (e.g., `notion`, `google_drive`).
-  - `<child_page_prefix>` is the direct child page under `_manual_data_ingestion` in snake_case (e.g., `substack`).
-  - `<entity_name>` is the database or subpage name in snake_case.
-  - Example: `notion__substack_subscriber_export_2026_07_30_11_46_53_csv`
-
-## Python Testing Conventions
-- All Python scripts in the codebase, including data pipelines, ML components, and core services, must have corresponding automated unit tests.
-- Python tests must be organized into namespaced subdirectories under `tests/` matching their service domain (e.g., `tests/dapp/`, `tests/shared/`, `tests/integration/`).
-- Tests can be executed as a full suite (`uv run pytest tests/`) or target specific service suites (`uv run pytest tests/dapp/`, `uv run pytest tests/shared/`).
-- Ensure tests verify key functionalities like database connections, data transformations, API query formats, and model predictions using mocks/patches where appropriate.
-
-## dlt Pipeline Conventions
-- All data ingestion pipelines use **dlt** (data load tool) to move data from PostgreSQL (ODS) into Motherduck (OLAP) or from Motherduck back into PostgreSQL (Reverse ETL).
-- Always use `create_motherduck_pipeline()` from `src/data_pipelines/common/utils.py` when creating a Motherduck-destination pipeline. Do NOT inline the pipeline creation logic.
-- The `dataset_name` passed to `create_motherduck_pipeline()` must match the source schema name in PostgreSQL (e.g., `s_linkedin`, `s_buffer`). This controls the target schema in Motherduck.
-- Always set `os.environ["SCHEMA__MAX_TABLE_NESTING"] = "0"` before creating any dlt pipeline to prevent nested table generation.
-- Use `write_disposition="merge"` with an explicit `primary_key` for all OLAP ingestion resources. Use `write_disposition="replace"` only for Reverse ETL resources.
-- Each ingestion pipeline script must be self-contained with `if __name__ == "__main__": run_ingestion()` and must import from `common.utils` (not duplicate the utility logic).
-
-## Reverse ETL Conventions
-- The Reverse ETL pipeline (`src/data_pipelines/olap/reverse_etl.py`) reads from the `t_jager` schema in Motherduck and loads data back into PostgreSQL under the `s_motherduck` schema.
-- Always use `dataset_name="s_motherduck"` for the Reverse ETL dlt pipeline destination.
-- The Reverse ETL pipeline must always close the DuckDB connection in a `finally` block after the pipeline run.
-- Reverse ETL resources expose the curated `t_jager` tables (e.g., `fct_linkedin_personal_account_post_engagement`, `timeslot_recommendations`) that n8n workflows consume via PostgreSQL.
-
-## dbt `t_jager` Layer Conventions
-- The `t_jager` layer (`dbt/models/t_jager/`) is a **presentation/application layer** that serves as the single source of truth for the n8n application. It mirrors selected marts and ML prediction tables into one schema.
-- File names in this layer follow the pattern `t_jager__<domain>__<model_name>.sql` (e.g., `t_jager__ds_prediction__timeslot_recommends.sql`).
-- Models in `t_jager` typically use `SELECT * FROM <source_schema>.<table>` — they are thin pass-through views/tables exposing marts or ML output.
-- The `alias` in the config block for `t_jager` models does NOT use a `fct_` or `stg_` prefix; it uses a descriptive name directly (e.g., `alias='timeslot_recommendations'`).
-
-## Data Pipeline FastAPI Service Conventions
-- The data pipeline service (`src/data_pipelines/main.py`) exposes HTTP POST endpoints for triggering pipeline scripts via subprocess.
-- Endpoint naming convention: `/run/<pipeline_name>` for OLAP pipelines (e.g., `/run/ingest_linkedin`) and `/run/oltp/<pipeline_name>` for OLTP pipelines (e.g., `/run/oltp/ingest_wordpress`).
-- Every new ingestion script added under `olap/` or `oltp/` must have a corresponding FastAPI endpoint added to `main.py`.
-- The service is deployed as the `dapp` (Data App) Docker service and accessed by n8n via `DATA_PIPELINE_URL` and `ML_SERVICE_URL`.
-
-## Docker Compose & Environment Conventions
-- The `MOTHERDUCK_DATABASE` environment variable defaults to `staging` in both `docker-compose.yml` and pipeline code. Never hardcode `production` as the default.
-- The `n8n` service must declare all environment variables needed by n8n workflows. When adding a new external API or integration, add its credentials to the `n8n` service's `environment` block in `docker-compose.yml`.
-- The `dapp` service uses `DATABASE_URL`, `MOTHERDUCK_TOKEN`, and `MOTHERDUCK_DATABASE` environment variables. Keep these in sync across all service definitions.
-
-## MotherDuck Authentication Conventions
-- **Never** trigger an interactive browser SSO prompt or wait for manual token input when accessing MotherDuck.
-- Always read `MOTHERDUCK_TOKEN` and `MOTHERDUCK_DATABASE` directly from the project's `.env` file (located at the workspace root).
-- When running `dbt` commands that target MotherDuck, always prefix the command with the token and database exported from `.env`, for example:
-  ```bash
-  motherduck_token=$(grep -E '^MOTHERDUCK_TOKEN=' .env | head -1 | cut -d= -f2-) \
-  MOTHERDUCK_DATABASE=$(grep -E '^MOTHERDUCK_DATABASE=' .env | head -1 | cut -d= -f2-) \
-  .venv/bin/dbt run ...
-  ```
-- When writing Python scripts that connect to MotherDuck, always use `python-dotenv` to load `.env` and read `os.environ['MOTHERDUCK_TOKEN']` and `os.environ['MOTHERDUCK_DATABASE']`.
-
-## n8n Agent Persona Conventions
-- All n8n AI agent persona definitions live in `src/n8n/agents/` as Markdown files (one file per agent).
-- Each agent file must define: `Role`, `LLM` (model used), and a `Personality & Grounding` section.
-- All agents must communicate **entirely in English** — the only Italian allowed is a single greeting word at the start and a single sign-off at the end.
-- All agents must use actual Unicode emojis (e.g., 💡, 📊) rather than text-based emoji codes (e.g., `:sparkles:`).
-- All agents must embed reference URLs as Slack hyperlinks using the `<url|Anchor Text>` format — never as plain-text URLs on separate lines.
-- When adding or modifying agent personas, keep the agent file in `src/n8n/agents/` in sync with the corresponding system prompt used inside the n8n workflow JSON.
-
-## Prompt File Conventions
-- Standalone LLM prompts used by n8n workflows live in `prompts/` as Markdown files, named by their functional purpose (e.g., `intent_detection.md`, `draft_response.md`).
-- Prompts must use `{{VARIABLE_NAME}}` (double curly braces) for all dynamic input placeholders — consistent with n8n's expression syntax.
-- Prompts must specify their output format explicitly (e.g., "Output only the JSON block", "Do not wrap in JSON"). Never leave output format ambiguous.
-
-## dbt Timezone Handling & `t_` Presentation Layer Conventions
-- **Marts Layer (`dbt/models/marts/`)**: Default date and timestamp columns MUST remain in UTC (e.g., `date_utc`, `calculated_at_utc`).
-- **Reporting & Activation Layers (`t_` layers like `t_reporting`, `t_slack`, `t_jager`)**: Models in presentation and activation layers MUST ONLY keep local timezone (**Europe/Berlin**) date and timestamp columns for consumption (e.g., `date_berlin`, `created_at_berlin`, `calculated_at_berlin`), excluding/dropping any UTC-specific columns (`date_utc`, `calculated_at_utc`).
-- Always use **daily granularity** as the standard time dimension for all reporting models.
-
-
-
-
-## dbt YAML Documentation Conventions
-- Always create **1 YAML file per dbt model**, stored inside a dedicated `tests_and_config/` subfolder within each model domain directory (e.g. `dbt/models/staging/cdp/tests_and_config/` or `dbt/models/marts/cdp/tests_and_config/`).
-- The YAML filename must exactly match the model filename, with a `.yml` extension (e.g., `marts__content_marketing__daily_performance.yml` for `marts__content_marketing__daily_performance.sql`).
-- Do NOT use a shared `_models.yml` or `_sources.yml`-style file to document multiple models in a single file. Sources (raw tables) may still use `_sources.yml` in the `tests_and_config/` folder.
-
-## Environment & Secrets Conventions
-- The `.env` file at the workspace root is **strictly for local development only**. It MUST NEVER be deployed to or read from in production environments.
-- In production, all environment variables (API keys, tokens, database URLs, etc.) must be injected at runtime via the host environment or a secrets manager — never via a committed or deployed `.env` file.
-- The `.env` file is gitignored and should remain so. Never add it to version control.
-- When writing Python scripts that load environment variables, always use `python-dotenv` (`load_dotenv()`) for local dev convenience, but the code must work correctly without it — i.e., the script must read from `os.environ` directly and not assume `.env` is present.
-- When an environment variable has a hardcoded fallback default in code (e.g. `os.getenv("VAR") or "default"`), the fallback must be a safe non-sensitive default (e.g. a public page ID or a staging flag). **Never hardcode secrets as fallbacks.**
-- `docker-compose.yml` passes env vars using `${VAR}` substitution from the host environment. In production the host environment provides the values; `.env` is only used locally to populate those host vars via Docker Compose's automatic `.env` file loading.
-
-## Dependency & Requirements Pinning Conventions
-- All Python dependencies declared in `requirements.txt` and `pyproject.toml` files across services MUST be pinned to exact versions (e.g., `dbt-core==1.11.13`, `dbt-duckdb==1.11.0`, `dlt[duckdb,parquet]==1.30.0`).
-- Never use unpinned or minimum-range specifiers like `>=` or `~=` for core framework or adapter packages to prevent version mismatch runtime errors.
-
-
-## File Formatting & Ending Conventions
-- All files across the codebase must end with **exactly one single newline** at the end of the file. Do not leave multiple trailing blank lines at the end of files.
+- **[jager-dbt-model](.agents/skills/jager-dbt-model/SKILL.md)**: Layer conventions (`staging`, `intermediate`, `marts`, `t_jager`), YAML documentation, MotherDuck SSO-free execution, timezone rules.
+- **[jager-add-pipeline](.agents/skills/jager-add-pipeline/SKILL.md)**: dlt ingestion pipelines (OLAP, OLTP, Reverse ETL), FastAPI endpoints in dapp, n8n triggers, manual ingestion.
+- **[jager-database-ops](.agents/skills/jager-database-ops/SKILL.md)**: Parallel database cloning (`clone-db.js`), schema migrations (`migrate-db.js`), MotherDuck XLSX uploads, table naming conventions.
+- **[jager-n8n-workflow-ops](.agents/skills/jager-n8n-workflow-ops/SKILL.md)**: n8n workflow organization, dual-track LinkedIn publishing (individual vs Zernio), AI persona prompts (`{{VARIABLE_NAME}}`, Unicode emojis).
+- **[jager-ml-pipeline](.agents/skills/jager-ml-pipeline/SKILL.md)**: 1 use case 1 subfolder rule, MotherDuck feature extraction, FastAPI inference endpoints, and ML unit tests.
+- **[jager-release-and-deployment](.agents/skills/jager-release-and-deployment/SKILL.md)**: Tri-repo release flow (Jager, CDB, Jager-Deployment), GitOps self-hosted runner, port mapping, and production secrets.
+- **[jager-cdb-integration](.agents/skills/jager-cdb-integration/SKILL.md)**: Architectural boundaries, REST API communication (`X-API-Key`), MotherDuck OLAP sync (`ingest_cdb.py`), and port mappings.
