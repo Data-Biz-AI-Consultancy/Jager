@@ -57,9 +57,22 @@
 - **OLAP Synchronization**: Analytical sync of CDB entities into MotherDuck OLAP (`s_cdb` schema) is performed by `src/dapp/olap/ingest_cdb.py` consuming CDB REST endpoints.
 - **Database Boundary**: Jager's PostgreSQL instance houses only Jager operational databases (`jager`, `n8n`). It does not host the `cdb` database (which lives on CDB's dedicated PostgreSQL container/instance).
 
-## Documentation Integrity
-- Always keep project README files (e.g. `README.md` at all levels) up to date when folders, scripts, configurations, or workflow files are added, moved, or deleted.
+## Documentation & Skill Integrity (Mandatory)
+- Always keep project README files (e.g. `README.md` at all levels) and skill runbooks (`.agents/skills/*/SKILL.md`) up to date when folders, scripts, models, configurations, or workflow files are added, moved, or deleted.
 - In markdown files (like READMEs), always use relative paths for file links instead of absolute paths (e.g., use `[Scripts](scripts/README.md)` instead of `[Scripts](file:///path/to/scripts/README.md)`).
+- Synchronize code, documentation, and skill definitions within the same PR.
+
+---
+
+## 🧭 Repository Skills Index (`.agents/skills/`)
+
+- **[jager-dbt-model](.agents/skills/jager-dbt-model/SKILL.md)**: Layer conventions (`staging`, `intermediate`, `marts`, `t_jager`), YAML documentation, MotherDuck execution, timezone rules.
+- **[jager-add-pipeline](.agents/skills/jager-add-pipeline/SKILL.md)**: dlt ingestion pipelines (OLAP, OLTP, Reverse ETL), FastAPI endpoints in dapp, n8n triggers, manual ingestion.
+- **[jager-database-ops](.agents/skills/jager-database-ops/SKILL.md)**: Parallel database cloning (`clone-db.js`), schema migrations (`migrate-db.js`), MotherDuck XLSX uploads.
+- **[jager-n8n-workflow-ops](.agents/skills/jager-n8n-workflow-ops/SKILL.md)**: n8n workflow organization, dual-track LinkedIn publishing (individual vs Zernio), AI persona prompts.
+- **[jager-ml-pipeline](.agents/skills/jager-ml-pipeline/SKILL.md)**: 1 use case 1 subfolder rule, MotherDuck feature extraction, FastAPI inference endpoints, and ML unit tests.
+
+---
 
 ## Machine Learning Service Conventions
 - In `src/dapp/ml`, organize ML scripts and pipelines inside subfolders based on use case (1 use case, 1 subfolder rule). Avoid placing use-case-specific files directly in the root of `src/dapp/ml`.

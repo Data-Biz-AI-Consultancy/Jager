@@ -127,58 +127,71 @@ Refer to the folder-level READMEs for detailed guides:
 
 ---
 
+## 🧭 Documentation & Skills Index
+
+Operational runbooks and technical guidelines are codified under [`.agents/skills/`](.agents/skills/):
+
+| Area | Skill / Document | Description |
+|------|------------------|-------------|
+| **dbt Modeling** | [`jager-dbt-model`](.agents/skills/jager-dbt-model/SKILL.md) | Layer conventions (`staging`, `intermediate`, `marts`, `t_jager`), YAML docs, MotherDuck auth |
+| **Data Pipelines** | [`jager-add-pipeline`](.agents/skills/jager-add-pipeline/SKILL.md) | dlt ingestion pipelines (OLAP, OLTP, Reverse ETL), FastAPI endpoints in dapp |
+| **Database Ops** | [`jager-database-ops`](.agents/skills/jager-database-ops/SKILL.md) | Parallel database cloning (`clone-db.js`), schema migrations, MotherDuck manual imports |
+| **n8n Workflows** | [`jager-n8n-workflow-ops`](.agents/skills/jager-n8n-workflow-ops/SKILL.md) | LinkedIn scheduling & dual-track publishing (individual vs Zernio), AI persona prompts |
+| **Machine Learning** | [`jager-ml-pipeline`](.agents/skills/jager-ml-pipeline/SKILL.md) | 1 use case 1 subfolder rule, MotherDuck feature queries, prediction endpoints, tests |
+| **Scripts Reference** | [`scripts/README.md`](scripts/README.md) | Overview of local developer scripts |
+| **DAPP Microservice** | [`src/dapp/README.md`](src/dapp/README.md) | Python data ingestion, transformation, and ML service architecture |
+
+---
+
 ## SDLC & Utility Scripts
 
-These utility scripts support the full software development lifecycle (SDLC), keeping your local environment synchronized with production schemas, data, and workflows. For more details on scripts, refer to the [Scripts Documentation](scripts/README.md).
+These utility scripts keep your local environment synchronized with production schemas, data, and workflows:
 
-### 1. Database Cloning & Migrations
+### 1. Database Cloning (`clone-db.js`)
 
-*   **Cloning Production Database**:
-    To clone the production database to your local dev environment, ensure you have `PROD_DATABASE_URL` set in your `.env` file, then run:
-    ```bash
-    node scripts/clone-db.js
-    ```
-    Alternatively, you can pass the connection URL explicitly:
-    ```bash
-    node scripts/clone-db.js "postgresql://YOUR_PROD_USER:YOUR_PROD_PASSWORD@YOUR_PROD_HOST:5432/jager"
-    ```
-    > [!NOTE]
-    > After cloning the database, you should rebuild and restart the Docker containers so that N8N and other services hook onto the new databases properly:
-    > ```bash
-    > docker-compose --profile app up --build -d
-    > ```
+Clones production databases (`jager`, `n8n`) into your local Docker environment in parallel (with credentials automatically excluded for safety):
 
-*   **Running Migrations**:
-    To run database schema creations, legacy migrations, or configuration seeding locally:
-    ```bash
-    node scripts/migrate-db.js
-    ```
+```bash
+# 1. Automatic run using PROD_DATABASE_URL from .env:
+node scripts/clone-db.js
 
-### 2. Workflow Syncing & Management
+# 2. Or pass production connection URL explicitly:
+node scripts/clone-db.js "postgresql://user:password@prod-host:5432/jager"
 
-If you modify workflows in the N8N UI, or if you clone the production database and want to make sure your local JSON files are in sync with the database workflows (while preserving custom prompt integrations like reading markdown files), use:
+# 3. Common options:
+node scripts/clone-db.js --skip-n8n          # Clone only the jager app database
+node scripts/clone-db.js --include-history   # Include large n8n execution history tables
+```
 
-*   **Check for differences between database workflows and local JSON files:**
-    ```bash
-    node scripts/compare-workflows.js
-    ```
-*   **Synchronize database workflows back to local JSON files (merging and preserving custom prompt nodes):**
-    ```bash
-    node scripts/sync-workflows.js
-    ```
+> [!TIP]
+> For more CLI options and parallel worker flags, see the [Database Ops Skill](.agents/skills/jager-database-ops/SKILL.md).
 
-### 3. MotherDuck Manual Data Ingestion
+### 2. Database Migrations & Seeding
 
-To import manual LinkedIn spreadsheet exports (XLSX) from `data/linkedin/` into MotherDuck under the `s_manual` schema:
+```bash
+# Creates schemas (s_*, t_*, m_*), migrates legacy public data, seeds defaults:
+node scripts/migrate-db.js
+```
 
-*   **Staging (Default)**:
-    ```bash
-    .venv/bin/python scripts/import_xlsx_motherduck.py
-    ```
-*   **Production**:
-    ```bash
-    .venv/bin/python scripts/import_xlsx_motherduck.py --prod
-    ```
+### 3. Workflow Syncing & Management
+
+```bash
+# Check for differences between local JSON files and n8n database:
+node scripts/compare-workflows.js
+
+# Synchronize n8n database workflows back to local JSON files:
+node scripts/sync-workflows.js
+```
+
+### 4. MotherDuck Manual Spreadsheet Ingestion
+
+```bash
+# Staging Mode (Default):
+.venv/bin/python scripts/import_xlsx_motherduck.py
+
+# Production Mode:
+.venv/bin/python scripts/import_xlsx_motherduck.py --prod
+```
 
 ---
 
