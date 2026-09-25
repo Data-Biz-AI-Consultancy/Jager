@@ -139,6 +139,7 @@ Operational runbooks and technical guidelines are codified under [`.agents/skill
 | **n8n Workflows** | [`jager-n8n-workflow-ops`](.agents/skills/jager-n8n-workflow-ops/SKILL.md) | LinkedIn scheduling & dual-track publishing (individual vs Zernio), AI persona prompts |
 | **Machine Learning** | [`jager-ml-pipeline`](.agents/skills/jager-ml-pipeline/SKILL.md) | 1 use case 1 subfolder rule, MotherDuck feature queries, prediction endpoints, tests |
 | **Release & GitOps** | [`jager-release-and-deployment`](.agents/skills/jager-release-and-deployment/SKILL.md) | Tri-repo release flow (Jager, CDB, Jager-Deployment), GitOps self-hosted runner, secrets |
+| **CDB Integration** | [`jager-cdb-integration`](.agents/skills/jager-cdb-integration/SKILL.md) | Architectural boundary, REST API authentication, MotherDuck OLAP sync (`ingest_cdb.py`), and port mappings |
 | **Scripts Reference** | [`scripts/README.md`](scripts/README.md) | Overview of local developer scripts |
 | **DAPP Microservice** | [`src/dapp/README.md`](src/dapp/README.md) | Python data ingestion, transformation, and ML service architecture |
 

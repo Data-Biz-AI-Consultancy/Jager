@@ -58,9 +58,12 @@ Manages PostgreSQL schema creation, legacy table migrations from `public`, and c
 node src/db/migrate-db.js
 ```
 
-### Schema Consistency Rules
-- When updating `src/db/init-user-db.sh`, always synchronize table definitions in `src/db/migrate-db.js`.
-- Any legacy table in `public` is automatically migrated to the schema-scoped table with sequences adjusted.
+### Schema Consistency & Naming Conventions
+- **Naming & Casing**: Use lowercase `snake_case` for all table names and column names.
+- **Plural Collections**: Use plural names for entity collections (e.g., `reddit_posts`, `substack_posts`, `slack_messages`).
+- **Connector Prefix**: Tables storing ingested data from external APIs must use the connector name in snake_case as prefix (e.g., `yahoo_finance_stock_prices`, `eurostat_fx_rates`).
+- **Schema Synchronization**: When updating `src/db/init-user-db.sh`, always synchronize table definitions in `src/db/migrate-db.js`.
+- **Legacy Migration**: Any legacy table in `public` is automatically migrated to the schema-scoped table with sequences adjusted.
 
 ---
 
