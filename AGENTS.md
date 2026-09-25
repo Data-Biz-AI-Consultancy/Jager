@@ -71,6 +71,7 @@
 - **[jager-database-ops](.agents/skills/jager-database-ops/SKILL.md)**: Parallel database cloning (`clone-db.js`), schema migrations (`migrate-db.js`), MotherDuck XLSX uploads.
 - **[jager-n8n-workflow-ops](.agents/skills/jager-n8n-workflow-ops/SKILL.md)**: n8n workflow organization, dual-track LinkedIn publishing (individual vs Zernio), AI persona prompts.
 - **[jager-ml-pipeline](.agents/skills/jager-ml-pipeline/SKILL.md)**: 1 use case 1 subfolder rule, MotherDuck feature extraction, FastAPI inference endpoints, and ML unit tests.
+- **[jager-release-and-deployment](.agents/skills/jager-release-and-deployment/SKILL.md)**: Tri-repo release flow (Jager, CDB, Jager-Deployment), GitOps self-hosted runner, port mapping, and secrets.
 
 ---
 
