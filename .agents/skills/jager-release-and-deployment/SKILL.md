@@ -25,7 +25,7 @@ Jager, CDB, and Jager-Deployment operate as an integrated tri-repo ecosystem:
 ┌──────────────────────────────────────────────────────────────┐
 │            Jager-Deployment (Private GitOps Repo)            │
 │  - Runs on Self-Hosted VPS Runner                            │
-│  - Checks out Jager (tagged) + CDB (main)                    │
+│  - Checks out Jager (tagged) + CDB (pinned release tag)                    │
 │  - Deploys on shared `jager_network` bridge                  │
 │  - Injects production secrets (MotherDuck, Cloudflare Tunnel)│
 │  - Auto-executes CDB Alembic migrations                      │
@@ -54,7 +54,7 @@ Jager, CDB, and Jager-Deployment operate as an integrated tri-repo ecosystem:
 The self-hosted runner executes `.github/workflows/deploy.yml`:
 1. **Repository Checkouts**:
    - Checks out `Jager` at the triggered release tag into `./jager`.
-   - Checks out `cdb` at `main` into `./cdb`.
+   - Checks out `cdb` at explicit release tag (`$cdb_tag`, e.g. `v1.44.0`) into `./cdb`.
 2. **Network Setup**:
    - Ensures the shared Docker bridge network `jager_network` exists.
 3. **Port De-confliction**:
