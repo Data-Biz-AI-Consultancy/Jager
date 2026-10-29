@@ -1,0 +1,83 @@
+# External DAPP control plane (GHCR production/staging image).
+# Run alongside the Jager app stack on the shared jager_network bridge.
+#
+# Prerequisites:
+#   docker network create jager_network || true
+#   DAPP_SQL_INIT_PATH must point at DAPP sql/init (sibling checkout default below)
+#
+# Example (local, next to ../DAPP):
+#   export DAPP_API_KEY=... MOTHERDUCK_TOKEN=... POSTGRES_PASSWORD=...
+#   export DAPP_IMAGE_TAG=v1.0.0   # or production / staging
+#   docker compose -f docker-compose.yml -f docker-compose.dapp.yml \
+#     --profile app --profile dapp-external up -d
+#
+# n8n should use:
+#   DATA_PIPELINE_URL=http://dapp-api:8000
+#   ML_SERVICE_URL=http://dapp-api:8000
+#   DAPP_API_KEY=<same as below>
+# OLTP workflows still target the embedded `dapp` service until those routes
+# are ported (set OLTP_PIPELINE_URL=http://dapp:8000).
+
+name: jager-main
+
+services:
+  dapp-db:
+    image: pgvector/pgvector:pg15
+    restart: unless-stopped
+    profiles:
+      - dapp-external
+    environment:
+      POSTGRES_USER: ${DAPP_POSTGRES_USER:-dapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required for dapp-external}
+      POSTGRES_DB: ${DAPP_POSTGRES_DB:-dapp}
+    volumes:
+      - dapp_pgdata:/var/lib/postgresql/data
+      - ${DAPP_SQL_INIT_PATH:-../DAPP/sql/init}:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DAPP_POSTGRES_USER:-dapp} -d ${DAPP_POSTGRES_DB:-dapp}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  dapp-api:
+    image: ghcr.io/data-biz-ai-consultancy/dapp:${DAPP_IMAGE_TAG:-v1.0.0}
+    # GHCR releases are currently linux/amd64 (VPS target). On Apple Silicon,
+    # qemu emulation often segfaults — prefer the sibling DAPP local compose
+    # (`../DAPP` → host :8002) for Mac smoke, and GHCR on linux hosts / Den.
+    platform: ${DAPP_PLATFORM:-linux/amd64}
+    restart: unless-stopped
+    profiles:
+      - dapp-external
+    ports:
+      - "${DAPP_HOST_PORT:-8002}:8000"
+    environment:
+      DAPP_ENV: ${DAPP_ENV:-production}
+      DATABASE_URL: ${DAPP_DATABASE_URL:-postgresql://dapp:${POSTGRES_PASSWORD}@dapp-db:5432/${DAPP_POSTGRES_DB:-dapp}}
+      # Ops Postgres (Jager) for reverse ETL / stock ML — optional for health smoke.
+      SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-postgresql://jager:jager@db:5432/jager}
+      MOTHERDUCK_TOKEN: ${MOTHERDUCK_TOKEN:?MOTHERDUCK_TOKEN is required for dapp-external}
+      MOTHERDUCK_DATABASE: ${MOTHERDUCK_DATABASE:-staging}
+      DAPP_API_KEY: ${DAPP_API_KEY:?DAPP_API_KEY is required for dapp-external}
+      CDB_SERVICE_URL: ${CDB_SERVICE_URL:-http://cdb-api:8000}
+      CDB_API_KEY: ${CDB_API_KEY:-}
+    depends_on:
+      dapp-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+volumes:
+  dapp_pgdata:
+    name: jager_dapp_pgdata

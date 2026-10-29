@@ -24,8 +24,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_buffer",
-        "options": {}
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_buffer",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "trigger-buffer-ingestion",
       "name": "Trigger Buffer Ingestion",
@@ -39,8 +48,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_zernio",
-        "options": {}
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_zernio",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "trigger-zernio-ingestion",
       "name": "Trigger Zernio Ingestion",
@@ -54,8 +72,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_linkedin",
-        "options": {}
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_linkedin",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "trigger-linkedin-ingestion",
       "name": "Trigger LinkedIn Ingestion",
@@ -69,8 +96,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_substack",
-        "options": {}
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_substack",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "trigger-substack-ingestion",
       "name": "Trigger Substack Ingestion",

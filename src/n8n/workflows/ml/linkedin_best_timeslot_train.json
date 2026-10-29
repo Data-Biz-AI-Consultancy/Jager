@@ -24,8 +24,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ML_SERVICE_URL || 'http://dapp:8000' }}/linkedin-timeslot/train-validate",
-        "options": {}
+        "url": "={{ $env.ML_SERVICE_URL || 'http://dapp-api:8000' }}/linkedin-timeslot/train-validate",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "call-linkedin-timeslot-train-validate",
       "name": "Call Train and Validate Pipeline",

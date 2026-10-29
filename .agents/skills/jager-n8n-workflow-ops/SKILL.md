@@ -21,8 +21,16 @@ All workflow JSON files are tracked under [`src/n8n/workflows/`](../../src/n8n/w
 | **Content Publishing** | `ai_retrieval/` | Content scheduling & dual-track publishing to LinkedIn |
 | **AI Memory** | `ai_memory/` | Staging, fact extraction, and episodic memory processing |
 | **Data Ingestion** | `data_ingestion/` | Multi-channel monitoring (Reddit, Substack, Meetup, etc.) |
-| **OLAP & dlt Sync** | `olap/` | Triggers for dlt ingestion pipelines and dbt transformations |
+| **OLAP & dlt Sync** | `olap/` | Triggers for dlt ingestion pipelines and dbt transformations on **external DAPP** (`DATA_PIPELINE_URL` → `http://dapp-api:8000`, header `X-API-Key: $DAPP_API_KEY`) |
+| **ML** | `ml/`, `stock_prediction.json` | Same external DAPP host via `ML_SERVICE_URL` + `DAPP_API_KEY` |
+| **OLTP ingest (legacy)** | `data_ingestion/data_ingestion_{notion,manual,wordpress,yahoo_finance,eurostat_fx}.json` | Still call embedded `dapp` via `OLTP_PIPELINE_URL` (`http://dapp:8000`) until `/run/oltp/*` exists on GHCR DAPP |
 | **CDB Integration** | `cdb/` | REST API webhook sync to CDB (`CDB_SERVICE_URL`) |
+
+### DAPP HTTP contract (n8n → control plane)
+
+- Prefer GHCR stack: [`docker-compose.dapp.yml`](../../docker-compose.dapp.yml) profile `dapp-external` (service DNS `dapp-api`).
+- Auth: every OLAP/ML `httpRequest` node sends `X-API-Key: {{ $env.DAPP_API_KEY }}`.
+- Do not call VectorDB SQL from new workflows — use DAPP `/memory/*` when those stubs are implemented.
 
 ---
 

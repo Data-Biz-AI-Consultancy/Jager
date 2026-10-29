@@ -26,21 +26,31 @@ We use **Docker Compose Profiles** to allow spinning up only the services you ne
     ```bash
     docker-compose --profile app up --build -d
     ```
-*   **Data Stack** (DAPP Data App Service [ETL & ML], Postgres):
+*   **Legacy embedded DAPP** (built from `src/dapp`, OLTP `/run/oltp/*` only during cutover):
     ```bash
-    docker-compose --profile data up --build -d
+    docker compose --profile data up --build -d
+    ```
+*   **External DAPP** (pull GHCR production/staging image + VectorDB):
+    ```bash
+    export DAPP_IMAGE_TAG=v1.0.0   # or production / staging
+    export DAPP_API_KEY=... MOTHERDUCK_TOKEN=... POSTGRES_PASSWORD=...
+    # Sibling checkout of DAPP supplies sql/init (override with DAPP_SQL_INIT_PATH)
+    docker compose -f docker-compose.yml -f docker-compose.dapp.yml \
+      --profile app --profile dapp-external up -d
     ```
 *   **Core Stack** (Postgres DB, Caddy, Tunnel):
     ```bash
-    docker-compose --profile core up --build -d
+    docker compose --profile core up -d
     ```
-*   **All Services**:
+*   **All Services** (still includes legacy embedded `dapp` until OLTP is ported):
     ```bash
-    docker-compose --profile all up --build -d
+    docker compose --profile all up --build -d
     ```
 
 > [!TIP]
-> You can also set `COMPOSE_PROFILES=app` (or `all`, `data`, `core`) in your `.env` file to default to a specific profile when running `docker-compose up`.
+> You can also set `COMPOSE_PROFILES=app` (or `all`, `data`, `core`, `dapp-external`) in your `.env` file to default to a specific profile when running `docker compose up`.
+
+n8n defaults: `DATA_PIPELINE_URL` / `ML_SERVICE_URL` → `http://dapp-api:8000` with `X-API-Key: $DAPP_API_KEY`. OLTP workflows use `OLTP_PIPELINE_URL` → `http://dapp:8000` (embedded) until those routes exist on the external image.
 
 Access your local services:
 - **N8N**: [http://localhost](http://localhost) (Staging: `https://staging.jager.n8n.com`, Production: `https://jager.n8n.com`)
@@ -62,25 +72,30 @@ flowchart TD
     end
 
     subgraph DataServices["Python Microservices & Services"]
-        DAPP["DAPP App (src/dapp/)<br/>Data Pipelines & ML Prediction Service"]
+        DAPPAPI["DAPP (GHCR dapp-api)<br/>MotherDuck OLAP + ML API"]
+        DAPPlegacy["Embedded dapp (src/dapp)<br/>OLTP /run/oltp/* during cutover"]
     end
     
     subgraph Storage["Storage Layer"]
         PG[("PostgreSQL (db)<br/>OLTP Data & Staging Schemas")]
         MD[("MotherDuck<br/>OLAP Data & ds_* Datasets")]
+        VDB[("DAPP VectorDB (dapp-db)<br/>m_* memory schemas")]
     end
     
     N8N -->|"HTTP POST /api/v1/ingest/*"| CDB
-    N8N -->|"HTTP POST /run/* & /predict"| DAPP
+    N8N -->|"HTTP + X-API-Key /run/* & ML"| DAPPAPI
+    N8N -->|"HTTP /run/oltp/*"| DAPPlegacy
     
-    DAPP -->|"REST API Sync"| CDB
-    DAPP -->|"Ingest / Transform"| PG
-    DAPP -->|"Sync OLAP / ML Predictions"| MD
+    DAPPAPI -->|"REST API Sync"| CDB
+    DAPPAPI -->|"SOURCE_DATABASE_URL"| PG
+    DAPPAPI -->|"Sync OLAP / ML"| MD
+    DAPPAPI --> VDB
 ```
 
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
 *   **CDB Standalone Service**: Customer Data Platform & CRM service managing contacts, companies, and interactions. Direct channel integrations (such as LinkedIn messages and connections, and Notion meeting notes) are ingested natively by CDB's background connector service with full timestamp fidelity, while external webhooks and partner tools ingest via CDB API endpoints (`CDB_SERVICE_URL`) using API key authentication (`CDB_API_KEY`).
-*   **DAPP App ([src/dapp/](src/dapp/README.md))**: A consolidated Data App service combining data ingestion (**dlt**), transformations (**dbt**), and machine learning training/predictions (**ml**). N8N triggers pipelines (`DATA_PIPELINE_URL`) and ML inference (`ML_SERVICE_URL`) on this service.
+*   **External DAPP (`dapp-api`)**: Prefer the GHCR image via [`docker-compose.dapp.yml`](docker-compose.dapp.yml) (`DAPP_IMAGE_TAG=v1.0.0` / `production`). N8N triggers MotherDuck pipelines and ML with `DATA_PIPELINE_URL` / `ML_SERVICE_URL` and `DAPP_API_KEY`.
+*   **Embedded DAPP ([src/dapp/](src/dapp/README.md))**: Legacy in-repo build kept for `/run/oltp/*` until those routes are ported to the external DAPP repo.
 
 ### Database & Storage Schemas
 

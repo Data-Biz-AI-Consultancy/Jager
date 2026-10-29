@@ -80,7 +80,8 @@ The self-hosted runner executes `.github/workflows/deploy.yml`:
 | **Caddy Proxy** | Jager | `80`, `443` | `caddy` | Reverse proxy & SSL termination |
 | **N8N** | Jager | `5678` | `http://n8n:5678` | Workflow orchestration UI & API |
 | **Jager Postgres** | Jager | `5432` | `db:5432` | OLTP operational database (`jager`, `n8n`) |
-| **DAPP (ETL/ML)** | Jager | `8000` (internal) | `http://data-pipeline:8000` | dlt, dbt, and ML prediction endpoints |
+| **DAPP API (GHCR)** | DAPP / Jager | `8002` (host) | `http://dapp-api:8000` | Prefer `docker-compose.dapp.yml` / Den pull of `ghcr.io/.../dapp:vX.Y.Z` |
+| **Embedded dapp (legacy)** | Jager | — | `http://dapp:8000` | Built from `src/dapp` for OLTP until removed |
 | **CDB Postgres** | CDB | `5433` | `cdb-db:5432` | Standalone CRM PostgreSQL 16 database |
 | **CDB Redis** | CDB | `6380` | `cdb-redis:6379` | Celery task queue & cache |
 | **CDB API** | CDB | `8001` (or `8000`) | `http://cdb-api:8000` | FastAPI Customer Data Platform endpoints |
@@ -95,7 +96,8 @@ Injected dynamically during deployment from `Jager-Deployment` GitHub Secrets:
 - **Analytics / OLAP**: `MOTHERDUCK_TOKEN`, `MOTHERDUCK_DATABASE=production`.
 - **Integrations**: `NOTION_API_KEY`, `LINKEDIN_ACCESS_TOKEN`, `SLACK_OAUTH_TOKEN`, `BUFFER_API_KEY`.
 - **Networking & Access**: `TUNNEL_TOKEN` (Cloudflare Tunnel).
-- **Service Authentication**: `CDB_API_KEY` (shared between Jager n8n and CDB API), `CDB_SECRET_KEY` (JWT signing).
+- **Service Authentication**: `CDB_API_KEY` (shared between Jager n8n and CDB API), `CDB_SECRET_KEY` (JWT signing), `DAPP_API_KEY` (n8n → external DAPP `X-API-Key`), plus `POSTGRES_PASSWORD` for DAPP VectorDB when using `dapp-external`.
+- **DAPP image**: set `DAPP_IMAGE_TAG` (e.g. `v1.0.0` / `production`) when starting [`docker-compose.dapp.yml`](../../docker-compose.dapp.yml). Den should eventually run DAPP’s own production compose on `jager_network` instead of rebuilding `src/dapp`.
 
 ---
 

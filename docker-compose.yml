@@ -71,7 +71,9 @@ services:
       - NOTION_SUBSTACK_POSTS_GENERATION_API_KEY=${NOTION_SUBSTACK_POSTS_GENERATION_API_KEY}
       - BUFFER_API_KEY=${BUFFER_API_KEY}
       - HUGGING_FACE_TOKEN=${HUGGING_FACE_TOKEN}
-      - ML_SERVICE_URL=${ML_SERVICE_URL:-http://dapp:8000}
+      # External DAPP (GHCR) is the default for OLAP + ML. Start it with:
+      #   docker compose -f docker-compose.yml -f docker-compose.dapp.yml --profile dapp-external up -d
+      - ML_SERVICE_URL=${ML_SERVICE_URL:-http://dapp-api:8000}
       - WEBHOOK_URL=${WEBHOOK_URL:-https://jager.n8n.com/}
       - N8N_EDITOR_BASE_URL=https://jager.n8n.com
       - N8N_PUSH_BACKEND=websocket
@@ -82,7 +84,10 @@ services:
       - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
       - MOTHERDUCK_HOST=${MOTHERDUCK_HOST:-pg.us-east-1-aws.motherduck.com}
       - MOTHERDUCK_USER=${MOTHERDUCK_USER:-postgres}
-      - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://dapp:8000}
+      - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://dapp-api:8000}
+      # Embedded Jager dapp — keep for /run/oltp/* until those routes exist in DAPP.
+      - OLTP_PIPELINE_URL=${OLTP_PIPELINE_URL:-http://dapp:8000}
+      - DAPP_API_KEY=${DAPP_API_KEY:-}
       - CDB_SERVICE_URL=${CDB_SERVICE_URL:-http://cdb-api:8000}
       - CDB_API_KEY=${CDB_API_KEY:-production-api-key}
     depends_on:
@@ -98,6 +103,8 @@ services:
       retries: 60
       start_period: 60s
 
+  # Legacy embedded DAPP (built from src/dapp). Prefer GHCR via docker-compose.dapp.yml
+  # (profile dapp-external → service dapp-api). Keep this for OLTP /run/oltp/* cutover.
   dapp:
     build:
       context: ./
@@ -105,6 +112,7 @@ services:
     restart: always
     profiles:
       - data
+      - data-legacy
       - all
     deploy:
       resources:

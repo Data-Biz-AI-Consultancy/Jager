@@ -25,7 +25,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ML_SERVICE_URL || 'http://dapp:8000' }}/predict",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://dapp-api:8000' }}/predict",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -39,7 +39,16 @@
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "call-python-ml-predict",
       "name": "Call Python ML Predict",
@@ -53,8 +62,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ML_SERVICE_URL || 'http://dapp:8000' }}/evaluate",
-        "options": {}
+        "url": "={{ $env.ML_SERVICE_URL || 'http://dapp-api:8000' }}/evaluate",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "call-python-ml-evaluate",
       "name": "Call Python ML Evaluate",
@@ -68,7 +86,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.ML_SERVICE_URL || 'http://dapp:8000' }}/backtest",
+        "url": "={{ $env.ML_SERVICE_URL || 'http://dapp-api:8000' }}/backtest",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
@@ -90,7 +108,16 @@
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "call-python-ml-backtest",
       "name": "Call Python ML Backtest",

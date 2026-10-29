@@ -87,7 +87,8 @@ Naming convention:
 
 In n8n, add an HTTP Request node:
 - Method: `POST`
-- URL: `{{ $env.DATA_PIPELINE_URL }}/run/ingest_mysource`
+- URL: `{{ $env.DATA_PIPELINE_URL }}/run/ingest_mysource` (default host `http://dapp-api:8000`)
+- Header: `X-API-Key: {{ $env.DAPP_API_KEY }}`
 - No body required for trigger-only pipelines.
 
 Add any new API keys or secrets to the `n8n` service's `environment` block in `docker-compose.yml`.
