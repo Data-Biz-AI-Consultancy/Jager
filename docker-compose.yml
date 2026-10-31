@@ -150,6 +150,8 @@ volumes:
   n8n_data:
     name: jager_n8n_data
 
+# DAPP is not defined here. Start it separately on this same network so n8n can
+# resolve http://dapp-api:8000 (see docker-compose.dapp.yml and the DAPP repo).
 networks:
   default:
     name: jager_network

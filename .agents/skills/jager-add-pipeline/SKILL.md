@@ -11,8 +11,7 @@ description: >-
 
 > **Runtime owner:** New pipelines and FastAPI `/run/*` routes belong in the **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** repo (`src/olap/data_ingestion/`, `src/api/`). Deploy via GHCR + [`docker/docker-compose.production.yml`](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/docker/docker-compose.production.yml). Jager n8n triggers `http://dapp-api:8000` with `X-API-Key: $DAPP_API_KEY`. Steps below describe patterns; implement pipeline code and `/run` routes in **DAPP**, then add an n8n HTTP trigger in Jager.
 
-Historical copies may still exist under retired `src/dapp/` paths in Jager — treat those as reference only. Live MotherDuck OLAP pipelines live in DAPP.
-> **Runtime owner:** New pipelines and FastAPI `/run/*` routes belong in the **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** repo (`src/olap/data_ingestion/`, `src/api/`). Deploy via GHCR + [`docker/docker-compose.production.yml`](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/docker/docker-compose.production.yml). Jager n8n triggers `http://dapp-api:8000` with `X-API-Key: $DAPP_API_KEY`. Steps below describe the historical Jager layout for reference.
+Historical copies may still exist under retired `src/dapp/` paths in Jager — treat those as reference only. Live MotherDuck OLAP pipelines live in DAPP. Local DAPP compose must join external `jager_network` (see DAPP `docker/docker-compose.yml`) so n8n can resolve `dapp-api`.
 
 All ingestion pipelines use **dlt** (data load tool). Legacy copies may live under
 `src/dapp/olap/` (OLAP → MotherDuck) or `src/dapp/oltp/` (OLTP → PostgreSQL).
@@ -100,13 +99,13 @@ In n8n, add an HTTP Request node (typeVersion 4.2):
 
 Ensure `DATA_PIPELINE_URL` and `DAPP_API_KEY` are in the `n8n` service `environment` block in `docker-compose.yml`. Add any new pipeline-specific secrets to the **DAPP** service env, not only n8n.
 
-MotherDuck schedule coverage is a single workflow: [`motherduck_data_ingestion_jager.json`](../../src/n8n/workflows/olap/data_ingestion/motherduck_data_ingestion_jager.json) (add a parallel HTTP Request node there for new MotherDuck ingest routes).
+MotherDuck schedule coverage: [`motherduck_data_ingestion_jager.json`](../../src/n8n/workflows/olap/data_ingestion/motherduck_data_ingestion_jager.json) (add a parallel HTTP Request node there for new MotherDuck ingest routes). Nager stays in the separate legacy file [`motherduck_data_ingestion_nager.json`](../../src/n8n/workflows/olap/data_ingestion/motherduck_data_ingestion_nager.json) (untouched this PR).
 
 ---
 
 ## Step 4 — Reverse ETL (MotherDuck → PostgreSQL)
 
-If the pipeline reads from `t_jager` and writes back to PostgreSQL, implement the resource in **DAPP** reverse ETL (historical reference: `src/dapp/olap/reverse_etl.py`):
+If the pipeline reads from `t_jager` and writes back to PostgreSQL, implement the resource in **DAPP** reverse ETL (historical reference: `src/dapp/olap/reverse_etl.py`) and trigger via DAPP `POST /run/reverse_etl`. There is **no** Jager n8n reverse-ETL workflow under `src/n8n/workflows/olap/`.
 
 ```python
 # Add the new resource to the existing Reverse ETL pipeline
