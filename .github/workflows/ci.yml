@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       python: ${{ steps.filter.outputs.python }}
-      dbt: ${{ steps.filter.outputs.dbt }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,9 +31,6 @@ jobs:
               - 'requirements*.txt'
               - 'uv.lock'
               - 'tests/**'
-            dbt:
-              - 'src/dapp/dbt/**'
-              - 'dbt/**'
 
   test-docker:
     name: Docker Tests
@@ -124,25 +120,3 @@ jobs:
         env:
           PYTHONPATH: src
         run: uv run --with pytest --with scikit-learn --with pandas --with fastapi --with httpx --with numpy --with sqlalchemy --with psycopg2-binary --with dlt --with feedparser --with beautifulsoup4 pytest tests/
-
-
-  dbt-compile:
-    name: dbt Compile
-    needs: changes
-    if: ${{ needs.changes.outputs.dbt == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dbt-duckdb
-        run: pip install dbt-duckdb
-
-      - name: dbt compile (CI target - local DuckDB)
-        working-directory: src/dapp/dbt
-        run: dbt compile --target ci --profiles-dir .

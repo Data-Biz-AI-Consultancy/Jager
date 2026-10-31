@@ -9,7 +9,7 @@ description: >-
 
 # Jager dbt Model Authoring Guide
 
-> **Runtime owner:** All MotherDuck dbt models live in **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** under `src/olap/dbt/models/`. Implement and test there; trigger builds via DAPP `POST /run/dbt_build` (`X-API-Key: DAPP_API_KEY`) or local dbt with the same project paths. Historical mirror under Jager `src/dapp/dbt/` is reference only — do not treat it as canonical.
+> **Runtime owner:** All MotherDuck dbt models live in **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** under `src/olap/dbt/models/`. Implement and test there; trigger builds via DAPP `POST /run/dbt_build` (`X-API-Key: DAPP_API_KEY`) or local dbt with the same project paths. Jager `src/dapp/` was removed — do not add dbt models in this repo.
 
 Each layer has strict naming and config conventions. **Read this skill fully before creating or modifying any dbt model.**
 
@@ -162,5 +162,4 @@ After changing a `t_jager` model, the Reverse ETL pipeline must be re-run (see `
 | [DAPP `src/olap/dbt/models/marts/`](https://github.com/Data-Biz-AI-Consultancy/DAPP/tree/main/src/olap/dbt/models/marts) | Marts & summary models |
 | [DAPP `src/olap/dbt/models/t_jager/`](https://github.com/Data-Biz-AI-Consultancy/DAPP/tree/main/src/olap/dbt/models/t_jager) | Application presentation layer |
 | [DAPP `dapp-motherduck-olap` skill](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/.agents/skills/dapp-motherduck-olap/SKILL.md) | OLAP ingest, dbt API, env contract |
-| [`src/dapp/dbt/`](../../src/dapp/dbt/) | Historical Jager mirror (reference only) |
 | [`AGENTS.md`](../../AGENTS.md) | Jager repo conventions (n8n, docs sync) |

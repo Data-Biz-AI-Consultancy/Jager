@@ -1,84 +1,22 @@
 ---
 name: jager-ml-pipeline
 description: >-
-  Use this skill when developing, training, or deploying Machine Learning models in Jager
-  (e.g., optimal publishing timeslot recommendation, engagement prediction), managing
-  feature pipelines in MotherDuck, exposing inference via the dapp FastAPI service, or writing ML unit tests.
+  Historical note: Jager `src/dapp/ml/` was removed with the DAPP split. ML
+  under DAPP `src/ml/` is also retired — no active use case. Do not re-add
+  without an explicit product decision.
 ---
 
-# Jager Machine Learning & Prediction Pipelines
+# Jager Machine Learning & Prediction Pipelines — retired
 
-Machine learning services live under [`src/dapp/ml/`](../../src/dapp/ml/) and are executed within the `dapp` Docker container.
+**Status:** Jager no longer ships a data-plane tree (`src/dapp/` deleted). Canonical
+FastAPI, MotherDuck features, and any future ML live in **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)**.
+DAPP `src/ml/` is **not** in the tree today (LinkedIn timeslot and stock predict routes removed).
 
----
+If ML returns later:
 
-## 1. Directory Structure & Architecture
+1. Implement under **DAPP** `src/ml/<use_case>/` (1 use case, 1 subfolder) — see [dapp-ml-pipeline](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/.agents/skills/dapp-ml-pipeline/SKILL.md) when restored.
+2. Mount inference with `X-API-Key` on `dapp-api`; n8n in Jager calls `ML_SERVICE_URL` / `DATA_PIPELINE_URL` (`http://dapp-api:8000`).
+3. Add or restore n8n workflows under `src/n8n/workflows/ml/` only after DAPP routes exist.
+4. Run tests in **DAPP** (`uv run pytest`), not in Jager.
 
-Follow the **1 use case, 1 subfolder** rule:
-
-```
-src/dapp/ml/
-├── timeslot_recommendation/   ← Dedicated subfolder per use case
-│   ├── features.py            ← Feature extraction & aggregation from MotherDuck
-│   ├── train.py               ← Model training, validation & serialization
-│   ├── predict.py             ← Inference pipeline
-│   └── evaluate.py            ← Model evaluation metrics & drift checks
-└── common/                    ← Shared ML utilities (scalers, encoders, duckdb helpers)
-```
-
-Never place standalone use-case scripts directly in the root of `src/dapp/ml/`.
-
----
-
-## 2. Feature Extraction from MotherDuck
-
-Features are sourced from curated marts and staging datasets in MotherDuck:
-
-```python
-import os
-import duckdb
-from dotenv import load_dotenv
-
-load_dotenv()
-
-def extract_training_features():
-    token = os.environ["MOTHERDUCK_TOKEN"]
-    db = os.environ.get("MOTHERDUCK_DATABASE", "staging")
-    conn = duckdb.connect(f"md:{db}?motherduck_token={token}")
-    
-    df = conn.execute("""
-        SELECT * FROM marts.fct_linkedin_personal_account_post_engagement
-    """).fetchdf()
-    conn.close()
-    return df
-```
-
----
-
-## 3. Exposing Inference via FastAPI (`src/dapp/main.py`)
-
-Add a POST endpoint to allow n8n or Celery to trigger training or inference:
-
-```python
-@app.post("/predict/timeslot_recommendation")
-async def run_timeslot_prediction():
-    result = subprocess.run(
-        ["python", "-m", "ml.timeslot_recommendation.predict"],
-        capture_output=True, text=True, cwd="/app"
-    )
-    return {"status": "success", "stdout": result.stdout, "stderr": result.stderr}
-```
-
----
-
-## 4. Writing Unit Tests
-
-All ML components must have unit tests with mocked database connections:
-
-```bash
-# Test location
-tests/dapp/ml/test_timeslot_recommendation.py
-
-# Run tests
-uv run pytest tests/dapp/
-```
+Related: [`jager-add-pipeline`](jager-add-pipeline/SKILL.md), [`jager-cdb-integration`](jager-cdb-integration/SKILL.md), [`jager-release-and-deployment`](jager-release-and-deployment/SKILL.md).

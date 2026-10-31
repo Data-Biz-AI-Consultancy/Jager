@@ -66,7 +66,7 @@ The self-hosted runner executes `.github/workflows/deploy.yml`:
 5. **DAPP stack (GHCR)**:
    - DAPP **Release** always dispatches Jager-Deployment with `service: dapp`, `dapp_tag: vX.Y.Z`.
    - Runner checks out DAPP at that tag and runs [`docker/docker-compose.production.yml`](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/docker/docker-compose.production.yml) with pinned `DAPP_IMAGE_TAG` (staging float: `:staging` for pre-prod).
-   - Jager compose **does not** build `src/dapp/Dockerfile`; n8n uses `http://dapp-api:8000` + `DAPP_API_KEY`.
+   - Jager compose **does not** build DAPP; n8n uses `http://dapp-api:8000` + `DAPP_API_KEY` (GHCR image from DAPP releases).
 6. **Stack Deployment**:
    - Starts Jager: `sudo -E docker compose -p jager-main --profile all up -d --build --remove-orphans` (n8n/db/caddy only).
    - Starts CDB: `sudo -E docker compose -p cdb up -d --build --remove-orphans`.

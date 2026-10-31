@@ -11,10 +11,10 @@ description: >-
 
 > **Runtime owner:** New pipelines and FastAPI `/run/*` routes belong in the **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** repo (`src/olap/data_ingestion/`, `src/api/`). Deploy via GHCR + [`docker/docker-compose.production.yml`](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/docker/docker-compose.production.yml). Jager n8n triggers `http://dapp-api:8000` with `X-API-Key: $DAPP_API_KEY`. Steps below describe patterns; implement pipeline code and `/run` routes in **DAPP**, then add an n8n HTTP trigger in Jager.
 
-Historical copies may still exist under retired `src/dapp/` paths in Jager — treat those as reference only. Live MotherDuck OLAP pipelines live in DAPP. Local DAPP compose must join external `jager_network` (see DAPP `docker/docker-compose.yml`) so n8n can resolve `dapp-api`.
+Jager `src/dapp/` was removed — all pipeline code lives in DAPP. Local DAPP compose must join external `jager_network` (see DAPP `docker/docker-compose.yml`) so n8n can resolve `dapp-api`.
 
-All ingestion pipelines use **dlt** (data load tool). Legacy copies may live under
-`src/dapp/olap/` (OLAP → MotherDuck) or `src/dapp/oltp/` (OLTP → PostgreSQL).
+All ingestion pipelines use **dlt** (data load tool) under **DAPP**:
+`src/olap/data_ingestion/` (OLAP → MotherDuck) or `src/oltp/` (OLTP → PostgreSQL).
 
 ---
 
@@ -22,7 +22,7 @@ All ingestion pipelines use **dlt** (data load tool). Legacy copies may live und
 
 ### OLAP pipeline (PostgreSQL → MotherDuck)
 
-Follow the pattern from DAPP `src/olap/data_ingestion/ingest_linkedin.py` (or the historical Jager `src/dapp/olap/ingest_linkedin.py` if still present locally):
+Follow the pattern from DAPP `src/olap/data_ingestion/ingest_linkedin.py`:
 
 ```python
 # DAPP: src/olap/data_ingestion/ingest_mysource.py
@@ -105,7 +105,7 @@ MotherDuck schedule coverage: [`motherduck_data_ingestion_jager.json`](../../src
 
 ## Step 4 — Reverse ETL (MotherDuck → PostgreSQL)
 
-If the pipeline reads from `t_jager` and writes back to PostgreSQL, implement the resource in **DAPP** reverse ETL (historical reference: `src/dapp/olap/reverse_etl.py`) and trigger via DAPP `POST /run/reverse_etl`. There is **no** Jager n8n reverse-ETL workflow under `src/n8n/workflows/olap/`.
+If the pipeline reads from `t_jager` and writes back to PostgreSQL, implement the resource in **DAPP** `src/olap/data_ingestion/reverse_etl.py` and trigger via DAPP `POST /run/reverse_etl`. There is **no** Jager n8n reverse-ETL workflow under `src/n8n/workflows/olap/`.
 
 ```python
 # Add the new resource to the existing Reverse ETL pipeline
@@ -169,7 +169,7 @@ Tests must verify:
 - API endpoint returns correct status codes.
 - Key column mappings are preserved.
 
-In Jager historical suites: `uv run pytest tests/dapp/` (if still present). Prefer DAPP CI for new pipeline tests.
+Run pipeline tests in **DAPP**: `uv run pytest` (see DAPP CI). Jager `tests/dapp/` was removed with `src/dapp/`.
 
 ---
 

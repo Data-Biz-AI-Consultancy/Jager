@@ -52,7 +52,7 @@ Jager workflows in n8n and Python scripts interact with CDB strictly via HTTP RE
 ### 2. Analytical OLAP Synchronization (CDB $\rightarrow$ Jager MotherDuck)
 To enable cross-functional reporting, dbt analytics, and ML feature extraction in MotherDuck:
 
-- **Pipeline Script**: [DAPP `src/olap/data_ingestion/ingest_cdb.py`](https://github.com/Data-Biz-AI-Consultancy/DAPP) (legacy mirror: [`src/dapp/olap/ingest_cdb.py`](../../src/dapp/olap/ingest_cdb.py)).
+- **Pipeline Script**: [DAPP `src/olap/data_ingestion/ingest_cdb.py`](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/src/olap/data_ingestion/ingest_cdb.py).
 - **Mechanism**: Calls CDB REST endpoints (`GET /api/v1/persons`, `GET /api/v1/companies`, `GET /api/v1/activities`, `GET /api/v1/signals/detected`), then writes data into the **`s_cdb`** schema inside MotherDuck using `dlt` merge mode.
 - **Trigger**: `POST /run/ingest_cdb` on **`dapp-api`** (`DATA_PIPELINE_URL`, `X-API-Key: DAPP_API_KEY`). Not part of the MotherDuck n8n schedule.
 - **Trigger**: `POST /run/ingest_cdb` on **`dapp-api`** (`DATA_PIPELINE_URL`, `X-API-Key: DAPP_API_KEY`) and scheduled via n8n.
