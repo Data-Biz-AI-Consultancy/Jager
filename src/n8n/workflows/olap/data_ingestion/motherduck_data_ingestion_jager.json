@@ -1,6 +1,6 @@
 {
   "id": "motherduck-data-ingestion-jager",
-  "name": "MotherDuck Data Ingestion - Jager",
+  "name": "MotherDuck Data Ingestion",
   "nodes": [
     {
       "parameters": {
@@ -18,13 +18,22 @@
       "typeVersion": 1.2,
       "position": [
         112,
-        496
+        640
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_buffer",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_buffer",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "trigger-buffer-ingestion",
@@ -33,13 +42,22 @@
       "typeVersion": 4.2,
       "position": [
         336,
-        208
+        48
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_zernio",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_zernio",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "trigger-zernio-ingestion",
@@ -48,13 +66,22 @@
       "typeVersion": 4.2,
       "position": [
         336,
-        400
+        192
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_linkedin",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_linkedin",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "trigger-linkedin-ingestion",
@@ -63,22 +90,151 @@
       "typeVersion": 4.2,
       "position": [
         336,
-        592
+        336
       ]
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/ingest_substack",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_meetup",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
         "options": {}
       },
-      "id": "trigger-substack-ingestion",
-      "name": "Trigger Substack Ingestion",
+      "id": "trigger-meetup-ingestion",
+      "name": "Trigger Meetup Ingestion",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         336,
-        784
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_reddit",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-reddit-ingestion",
+      "name": "Trigger Reddit Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        336,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_eurostat",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-eurostat-ingestion",
+      "name": "Trigger Eurostat Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        336,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_yahoo_finance_md",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-yahoo-finance-md-ingestion",
+      "name": "Trigger Yahoo Finance MD Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        336,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_manual",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-manual-ingestion",
+      "name": "Trigger Manual Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        336,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_nager",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-nager-ingestion",
+      "name": "Trigger Nager Ingestion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        336,
+        1200
       ]
     }
   ],
@@ -102,7 +258,32 @@
             "index": 0
           },
           {
-            "node": "Trigger Substack Ingestion",
+            "node": "Trigger Meetup Ingestion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Reddit Ingestion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Eurostat Ingestion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Yahoo Finance MD Ingestion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Manual Ingestion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger Nager Ingestion",
             "type": "main",
             "index": 0
           }

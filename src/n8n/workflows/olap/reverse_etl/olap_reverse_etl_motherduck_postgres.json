@@ -24,7 +24,16 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/reverse_etl",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/reverse_etl",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
         "options": {}
       },
       "id": "trigger-reverse-etl",
