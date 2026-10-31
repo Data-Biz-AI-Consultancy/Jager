@@ -64,6 +64,8 @@ services:
       DAPP_API_KEY: ${DAPP_API_KEY:?DAPP_API_KEY is required for dapp-external}
       CDB_SERVICE_URL: ${CDB_SERVICE_URL:-http://cdb-api:8000}
       CDB_API_KEY: ${CDB_API_KEY:-}
+      NOTION_API_KEY: ${NOTION_API_KEY:-}
+      NOTION_MANUAL_INGESTION_PAGE_ID: ${NOTION_MANUAL_INGESTION_PAGE_ID:-}
     depends_on:
       dapp-db:
         condition: service_healthy

@@ -52,7 +52,7 @@ Jager workflows in n8n and Python scripts interact with CDB strictly via HTTP RE
 ### 2. Analytical OLAP Synchronization (CDB $\rightarrow$ Jager MotherDuck)
 To enable cross-functional reporting, dbt analytics, and ML feature extraction in MotherDuck:
 
-- **Pipeline Script**: lives in the DAPP repo (and still mirrored under [`src/dapp/olap/ingest_cdb.py`](../../src/dapp/olap/ingest_cdb.py) until the embedded service is removed).
+- **Pipeline Script**: [`ingest_cdb.py`](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/src/olap/ingest_cdb.py) in the DAPP repo.
 - **Mechanism**: Calls CDB REST endpoints (`GET /api/v1/persons`, `GET /api/v1/companies`, `GET /api/v1/activities`, `GET /api/v1/signals/detected`), then writes data into the **`s_cdb`** schema inside MotherDuck using `dlt` merge mode.
 - **Trigger**: `POST /run/ingest_cdb` on **`dapp-api`** (`DATA_PIPELINE_URL`, `X-API-Key: $DAPP_API_KEY`), scheduled via n8n.
 
@@ -66,7 +66,7 @@ To enable cross-functional reporting, dbt analytics, and ML feature extraction i
 | **N8N** | Jager | `5678` | `5678` | Workflow orchestration UI & webhook runner |
 | **Jager PostgreSQL** | Jager | `5432` | `5432` | Stores `jager` operational tables and `n8n` state |
 | **DAPP API (GHCR)** | DAPP / Jager compose | `8002` (host smoke) | `8000` | External control plane `dapp-api` on `jager_network` |
-| **Embedded dapp (legacy)** | Jager | — | `8000` | In-repo `src/dapp` for `/run/oltp/*` during cutover |
+| **DAPP OLTP** | DAPP | — | `8000` | `/run/oltp/*` on `dapp-api` |
 | **CDB Web UI** | CDB | `3001` | `3000` | Next.js 15 App Router user interface |
 | **CDB API** | CDB | `8001` (or `8000`) | `8000` | FastAPI REST API backend (Swagger: `/docs`) |
 | **CDB PostgreSQL** | CDB | `5433` | `5432` | Dedicated CRM database |

@@ -7,7 +7,7 @@ This directory contains n8n workflows designed to manage and sync data ingestion
 ### 1. [MotherDuck Data Ingestion - Jager](./motherduck_data_ingestion_jager.json)
 *   **Workflow ID**: `motherduck-data-ingestion-jager`
 *   **Trigger**: Runs automatically every day via a `Schedule Trigger`.
-*   **Purpose**: Replicates processed data from PostgreSQL source tables into MotherDuck OLAP tables (cloud-based) using DLT ingestion pipelines (Buffer, CDP, Zernio, LinkedIn, Substack).
+*   **Purpose**: Runs DLT ingestion pipelines (Buffer, Zernio, LinkedIn, Substack) into MotherDuck. **Today** those scripts still read Postgres `s_*` via `SOURCE_DATABASE_URL`; n8n Postgres-direct `data_ingestion_*` writers were removed — next step is API→MotherDuck so ops Postgres is not required as a staging lake.
 
 
 ### 2. [MotherDuck Data Ingestion - Nager](./motherduck_data_ingestion_nager.json)

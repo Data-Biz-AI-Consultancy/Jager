@@ -81,7 +81,7 @@ The self-hosted runner executes `.github/workflows/deploy.yml`:
 | **N8N** | Jager | `5678` | `http://n8n:5678` | Workflow orchestration UI & API |
 | **Jager Postgres** | Jager | `5432` | `db:5432` | OLTP operational database (`jager`, `n8n`) |
 | **DAPP API (GHCR)** | DAPP / Jager | `8002` (host) | `http://dapp-api:8000` | Prefer `docker-compose.dapp.yml` / Den pull of `ghcr.io/.../dapp:vX.Y.Z` |
-| **Embedded dapp (legacy)** | Jager | — | `http://dapp:8000` | Built from `src/dapp` for OLTP until removed |
+| **DAPP (GHCR)** | DAPP | `8002` | `http://dapp-api:8000` | Sole data plane — no Jager `src/dapp` build |
 | **CDB Postgres** | CDB | `5433` | `cdb-db:5432` | Standalone CRM PostgreSQL 16 database |
 | **CDB Redis** | CDB | `6380` | `cdb-redis:6379` | Celery task queue & cache |
 | **CDB API** | CDB | `8001` (or `8000`) | `http://cdb-api:8000` | FastAPI Customer Data Platform endpoints |

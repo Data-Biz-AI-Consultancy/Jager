@@ -9,6 +9,8 @@ description: >-
 
 # Jager dbt Model Authoring Guide
 
+dbt project moved to the **DAPP** repo (`src/dbt/`). Trigger via `POST /run/dbt_transform` on `dapp-api`.
+
 All dbt models live under `src/dapp/dbt/models/`. Each layer has strict naming and
 config conventions. **Read this skill fully before creating or modifying any dbt model.**
 

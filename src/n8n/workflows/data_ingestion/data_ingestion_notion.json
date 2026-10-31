@@ -25,8 +25,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=b5ad53f72b0e45e3b481e25da2703fd8&lookback_days=7",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=b5ad53f72b0e45e3b481e25da2703fd8&lookback_days=7",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-leadership-management",
       "name": "Ingest DB - Leadership & Management",
@@ -40,8 +49,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=1686e98d4ef8806da4e1c28268b7365e&lookback_days=7",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=1686e98d4ef8806da4e1c28268b7365e&lookback_days=7",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-data-science-ais",
       "name": "Ingest DB - Data Science - AIs",
@@ -55,8 +73,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=4cd9498f5b5c48c6864d57bd36f7f82d&lookback_days=7",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=4cd9498f5b5c48c6864d57bd36f7f82d&lookback_days=7",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-data-science",
       "name": "Ingest DB - Data Science",
@@ -70,8 +97,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=32fcdb5f301b4a9c94329dcadeffca15&lookback_days=7",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=32fcdb5f301b4a9c94329dcadeffca15&lookback_days=7",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-data-engineering",
       "name": "Ingest DB - Data Engineering",
@@ -85,8 +121,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=f0501c9ac3bf4f0ea8d06b7ed6e40a31&lookback_days=7",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=f0501c9ac3bf4f0ea8d06b7ed6e40a31&lookback_days=7",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-data-governance",
       "name": "Ingest DB - Data Governance",
@@ -100,8 +145,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=8fc4f5d17d6644eaa6b199f11cb3bf2b&lookback_days=7",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=8fc4f5d17d6644eaa6b199f11cb3bf2b&lookback_days=7",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-data-visualization-reporting",
       "name": "Ingest DB - Data Visualization & Reporting",
@@ -115,8 +169,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=40906fc76abd4951bd4b283c9717d320&lookback_days=7",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=40906fc76abd4951bd4b283c9717d320&lookback_days=7",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-product-management",
       "name": "Ingest DB - Product Management",
@@ -130,8 +193,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=2bdfbb81d5c043d0a5fdd3028ad2504f&lookback_days=7",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=2bdfbb81d5c043d0a5fdd3028ad2504f&lookback_days=7",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-product-analytics",
       "name": "Ingest DB - Product Analytics",
@@ -145,8 +217,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=1d362ecd225241c0ab3c0fe4d0ed3cda&lookback_days=7",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=1d362ecd225241c0ab3c0fe4d0ed3cda&lookback_days=7",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-software-engineering",
       "name": "Ingest DB - Software Engineering",
@@ -160,8 +241,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef8807eab9be1b0b029246c&lookback_days=90",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef8807eab9be1b0b029246c&lookback_days=90",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-interview-meeting-notes",
       "name": "Ingest DB - Interview Meeting notes",
@@ -175,8 +265,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef880a6a61ae99d8912694f&lookback_days=90",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=3876e98d4ef880a6a61ae99d8912694f&lookback_days=90",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-meetups-seminars",
       "name": "Ingest DB - Meetups & Seminars",
@@ -190,8 +289,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion?database_id=3a36e98d4ef88084a1aec60052a3cb80&lookback_days=90",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion?database_id=3a36e98d4ef88084a1aec60052a3cb80&lookback_days=90",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "ingest-fadi-meeting-notes",
       "name": "Ingest DB - FaDi meeting notes",

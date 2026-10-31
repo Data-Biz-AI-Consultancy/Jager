@@ -24,8 +24,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_eurostat_fx",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_eurostat_fx",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "trigger-eurostat-fx-ingestion",
       "name": "Trigger Eurostat FX Ingestion",

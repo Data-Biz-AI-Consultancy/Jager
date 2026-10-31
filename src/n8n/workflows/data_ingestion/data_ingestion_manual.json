@@ -24,8 +24,17 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp:8000' }}/run/oltp/ingest_notion_manual",
-        "options": {}
+        "url": "={{ $env.OLTP_PIPELINE_URL || $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/oltp/ingest_notion_manual",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        }
       },
       "id": "trigger-notion-manual-ingestion",
       "name": "Trigger Notion Manual Ingestion",

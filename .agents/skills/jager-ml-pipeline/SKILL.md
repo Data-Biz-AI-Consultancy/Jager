@@ -8,6 +8,8 @@ description: >-
 
 # Jager Machine Learning & Prediction Pipelines
 
+ML code moved to the **DAPP** repo (`src/ml/`). Jager only calls `ML_SERVICE_URL` with `X-API-Key`.
+
 Machine learning services live under [`src/dapp/ml/`](../../src/dapp/ml/) and are executed within the `dapp` Docker container.
 
 ---

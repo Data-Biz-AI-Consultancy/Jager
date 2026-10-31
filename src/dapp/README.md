@@ -1,41 +1,11 @@
-# Data Pipelines Application
+# DAPP code moved
 
-This is a data pipeline application written in Python. It contains scripts and configurations for orchestrating data ingestion using **dlt** (Data Load Tool) and transformations using **dbt** (Data Build Tool).
+All former contents of this directory (`olap/`, `oltp/`, `dbt/`, `ml/`, FastAPI `main.py`, Dockerfile) now live in the **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** repository.
 
-The service is packaged inside the **`data-pipeline`** container service.
+Jager only orchestrates via n8n → authenticated HTTP:
 
+- Image: `ghcr.io/data-biz-ai-consultancy/dapp` (see [`docker-compose.dapp.yml`](../../docker-compose.dapp.yml))
+- Base URL: `DATA_PIPELINE_URL` / `ML_SERVICE_URL` / `OLTP_PIPELINE_URL` → `http://dapp-api:8000`
+- Auth: `X-API-Key: $DAPP_API_KEY`
 
-## Directory Structure
-
-*   `olap/`: Contains scripts for ingesting data into OLAP target databases (e.g., MotherDuck).
-    *   `ingest_buffer.py`: Syncs `s_buffer.channels` and `s_buffer.posts` from the PostgreSQL OLTP database to the MotherDuck OLAP database staging catalog using DLT's native schema evolution and merge logic.
-    *   `ingest_cdb.py`: Syncs CDB domain data via REST API endpoints from the standalone CDB service to the MotherDuck `s_cdb` schema.
-*   `main.py`: A lightweight FastAPI service that exposes HTTP trigger endpoints (e.g., `POST /run/ingest_buffer`, `POST /run/ingest_cdb`) which execute the ingestion scripts as subprocesses. This provides a secure way for external orchestrators (like **n8n**) to trigger scripts inside this container.
-
-*   `Dockerfile` & `requirements.txt`: Container packaging and Python dependencies (including `dlt[duckdb,parquet]` and `pyarrow`).
-
----
-
-## How to Run
-
-### 1. Trigger via HTTP (Standard Orchestration / n8n)
-Orchestrators can trigger ingestion pipelines securely via HTTP POST requests:
-```bash
-curl -X POST http://data-pipeline:8000/run/ingest_buffer
-```
-Returns a JSON payload with stdout, stderr, and execution status.
-
-### 2. Run via CLI (Manual Execution / Debugging)
-To run an ingestion pipeline manually as a pure CLI script inside the container:
-```bash
-docker compose exec data-pipeline python olap/ingest_buffer.py
-```
-
----
-
-## Configuration & Environment Variables
-
-The container requires the following environment variables (defined in `docker-compose.yml`):
-- `DATABASE_URL`: Connection string for the source PostgreSQL database.
-- `MOTHERDUCK_TOKEN`: Token credential to write to MotherDuck.
-- `MOTHERDUCK_DATABASE`: Target Motherduck database name (defaults to `staging`).
+Do not add pipeline or ML code here — open a PR against DAPP instead.

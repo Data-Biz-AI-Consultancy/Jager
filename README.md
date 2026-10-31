@@ -26,11 +26,7 @@ We use **Docker Compose Profiles** to allow spinning up only the services you ne
     ```bash
     docker-compose --profile app up --build -d
     ```
-*   **Legacy embedded DAPP** (built from `src/dapp`, OLTP `/run/oltp/*` only during cutover):
-    ```bash
-    docker compose --profile data up --build -d
-    ```
-*   **External DAPP** (pull GHCR production/staging image + VectorDB):
+*   **External DAPP** (pull GHCR production/staging image + VectorDB; all pipelines live in the DAPP repo):
     ```bash
     export DAPP_IMAGE_TAG=v1.0.0   # or production / staging
     export DAPP_API_KEY=... MOTHERDUCK_TOKEN=... POSTGRES_PASSWORD=...
@@ -42,13 +38,13 @@ We use **Docker Compose Profiles** to allow spinning up only the services you ne
     ```bash
     docker compose --profile core up -d
     ```
-*   **All Services** (still includes legacy embedded `dapp` until OLTP is ported):
+*   **All Services** (n8n/app only — DAPP via `dapp-external` or sibling DAPP compose):
     ```bash
     docker compose --profile all up --build -d
     ```
 
 > [!TIP]
-> You can also set `COMPOSE_PROFILES=app` (or `all`, `data`, `core`, `dapp-external`) in your `.env` file to default to a specific profile when running `docker compose up`.
+> You can also set `COMPOSE_PROFILES=app` (or `all`, `core`, `dapp-external`) in your `.env` file to default to a specific profile when running `docker compose up`.
 
 n8n defaults: `DATA_PIPELINE_URL` / `ML_SERVICE_URL` → `http://dapp-api:8000` with `X-API-Key: $DAPP_API_KEY`. OLTP workflows use `OLTP_PIPELINE_URL` → `http://dapp:8000` (embedded) until those routes exist on the external image.
 
@@ -73,7 +69,7 @@ flowchart TD
 
     subgraph DataServices["Python Microservices & Services"]
         DAPPAPI["DAPP (GHCR dapp-api)<br/>MotherDuck OLAP + ML API"]
-        DAPPlegacy["Embedded dapp (src/dapp)<br/>OLTP /run/oltp/* during cutover"]
+        DAPPAPI2["DAPP GHCR<br/>OLAP + OLTP + ML"]
     end
     
     subgraph Storage["Storage Layer"]
@@ -84,7 +80,7 @@ flowchart TD
     
     N8N -->|"HTTP POST /api/v1/ingest/*"| CDB
     N8N -->|"HTTP + X-API-Key /run/* & ML"| DAPPAPI
-    N8N -->|"HTTP /run/oltp/*"| DAPPlegacy
+    N8N -->|"HTTP /run/oltp/*"| DAPPAPI
     
     DAPPAPI -->|"REST API Sync"| CDB
     DAPPAPI -->|"SOURCE_DATABASE_URL"| PG
@@ -95,13 +91,13 @@ flowchart TD
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
 *   **CDB Standalone Service**: Customer Data Platform & CRM service managing contacts, companies, and interactions. Direct channel integrations (such as LinkedIn messages and connections, and Notion meeting notes) are ingested natively by CDB's background connector service with full timestamp fidelity, while external webhooks and partner tools ingest via CDB API endpoints (`CDB_SERVICE_URL`) using API key authentication (`CDB_API_KEY`).
 *   **External DAPP (`dapp-api`)**: Prefer the GHCR image via [`docker-compose.dapp.yml`](docker-compose.dapp.yml) (`DAPP_IMAGE_TAG=v1.0.0` / `production`). N8N triggers MotherDuck pipelines and ML with `DATA_PIPELINE_URL` / `ML_SERVICE_URL` and `DAPP_API_KEY`.
-*   **Embedded DAPP ([src/dapp/](src/dapp/README.md))**: Legacy in-repo build kept for `/run/oltp/*` until those routes are ported to the external DAPP repo.
+*   **DAPP code**: moved out of Jager — see [`src/dapp/README.md`](src/dapp/README.md) and the DAPP repo.
 
 ### Database & Storage Schemas
 
 We organize our databases into clear operational (OLTP) and analytical (OLAP) processing schemas:
-- **OLTP Schema (PostgreSQL)**: Stores operational source data (`s_*` schemas) and internal task/content generation tables (`t_*`). Refer to the [OLTP Database Documentation](src/dapp/oltp/README.md) for details.
-- **OLAP Schema (MotherDuck)**: Stores curated presentation data (`t_jager`), features, validation snapshots, and serialized model metrics for ML workflows. Refer to the [OLAP Database Documentation](src/dapp/olap/README.md) for details.
+- **OLTP Schema (PostgreSQL)**: ops `s_*` / `t_*` in Jager Postgres; writers are DAPP `/run/oltp/*`.
+- **OLAP Schema (MotherDuck)**: owned by DAPP (`src/olap`, `src/dbt` in the DAPP repo).
 
 ---
 
@@ -126,9 +122,6 @@ Refer to the folder-level READMEs for detailed guides:
 - [scripts/README.md](scripts/README.md)
 - [src/db/README.md](src/db/README.md)
 - [src/dapp/README.md](src/dapp/README.md)
-- [src/dapp/oltp/README.md](src/dapp/oltp/README.md)
-- [src/dapp/olap/README.md](src/dapp/olap/README.md)
-- [src/dapp/ml/README.md](src/dapp/ml/README.md)
 - [tests/README.md](tests/README.md)
 
 
@@ -156,7 +149,7 @@ Operational runbooks and technical guidelines are codified under [`.agents/skill
 | **Release & GitOps** | [`jager-release-and-deployment`](.agents/skills/jager-release-and-deployment/SKILL.md) | Tri-repo release flow (Jager, CDB, Jager-Deployment), GitOps self-hosted runner, secrets |
 | **CDB Integration** | [`jager-cdb-integration`](.agents/skills/jager-cdb-integration/SKILL.md) | Architectural boundary, REST API authentication, MotherDuck OLAP sync (`ingest_cdb.py`), and port mappings |
 | **Scripts Reference** | [`scripts/README.md`](scripts/README.md) | Overview of local developer scripts |
-| **DAPP Microservice** | [`src/dapp/README.md`](src/dapp/README.md) | Python data ingestion, transformation, and ML service architecture |
+| **DAPP control plane** | [`src/dapp/README.md`](src/dapp/README.md) (pointer) + DAPP repo | Pipelines/ML live in DAPP; Jager n8n calls HTTP |
 
 ---
 
