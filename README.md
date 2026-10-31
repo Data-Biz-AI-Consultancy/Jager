@@ -91,7 +91,7 @@ flowchart TD
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
 *   **CDB Standalone Service**: Customer Data Platform & CRM service managing contacts, companies, and interactions. Direct channel integrations (such as LinkedIn messages and connections, and Notion meeting notes) are ingested natively by CDB's background connector service with full timestamp fidelity, while external webhooks and partner tools ingest via CDB API endpoints (`CDB_SERVICE_URL`) using API key authentication (`CDB_API_KEY`).
 *   **External DAPP (`dapp-api`)**: Prefer the GHCR image via [`docker-compose.dapp.yml`](docker-compose.dapp.yml) (`DAPP_IMAGE_TAG=v1.0.0` / `production`). N8N triggers MotherDuck pipelines and ML with `DATA_PIPELINE_URL` / `ML_SERVICE_URL` and `DAPP_API_KEY`.
-*   **DAPP code**: moved out of Jager — see [`src/dapp/README.md`](src/dapp/README.md) and the DAPP repo.
+*   **DAPP control plane**: lives in the [DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP) repo; Jager n8n calls it over HTTP (`dapp-api`).
 
 ### Database & Storage Schemas
 
@@ -121,7 +121,6 @@ jager/
 Refer to the folder-level READMEs for detailed guides:
 - [scripts/README.md](scripts/README.md)
 - [src/db/README.md](src/db/README.md)
-- [src/dapp/README.md](src/dapp/README.md)
 - [tests/README.md](tests/README.md)
 
 
@@ -149,7 +148,7 @@ Operational runbooks and technical guidelines are codified under [`.agents/skill
 | **Release & GitOps** | [`jager-release-and-deployment`](.agents/skills/jager-release-and-deployment/SKILL.md) | Tri-repo release flow (Jager, CDB, Jager-Deployment), GitOps self-hosted runner, secrets |
 | **CDB Integration** | [`jager-cdb-integration`](.agents/skills/jager-cdb-integration/SKILL.md) | Architectural boundary, REST API authentication, MotherDuck OLAP sync (`ingest_cdb.py`), and port mappings |
 | **Scripts Reference** | [`scripts/README.md`](scripts/README.md) | Overview of local developer scripts |
-| **DAPP control plane** | [`src/dapp/README.md`](src/dapp/README.md) (pointer) + DAPP repo | Pipelines/ML live in DAPP; Jager n8n calls HTTP |
+| **DAPP control plane** | [DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP) | Pipelines/ML live in DAPP; Jager n8n calls HTTP |
 
 ---
 

@@ -9,8 +9,7 @@ description: >-
 
 **Implementation home:** [Data-Biz-AI-Consultancy/DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP) under `src/olap/` (MotherDuck) or `src/oltp/` (ops Postgres).
 
-Do **not** add Python pipelines under Jager `src/dapp/` — that tree is retired ([pointer README](../../src/dapp/README.md)).
-
+Do **not** add Python pipelines under Jager — that tree was removed; implement in DAPP.
 ## In DAPP
 
 1. Add `src/olap/ingest_<name>.py` (or `src/oltp/...`) using helpers from `common.utils` / `utils.db`.
