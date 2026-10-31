@@ -26,10 +26,7 @@ We use **Docker Compose Profiles** to allow spinning up only the services you ne
     ```bash
     docker-compose --profile app up --build -d
     ```
-*   **Data Stack** (DAPP Data App Service [ETL & ML], Postgres):
-    ```bash
-    docker-compose --profile data up --build -d
-    ```
+*   **DAPP data-plane** (GHCR image + VectorDB — **not** built from this repo): see [`docker-compose.dapp.yml`](docker-compose.dapp.yml) and the [DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP) repo (`DAPP_IMAGE_TAG=staging` or `vX.Y.Z` on `jager_network`).
 *   **Core Stack** (Postgres DB, Caddy, Tunnel):
     ```bash
     docker-compose --profile core up --build -d
@@ -62,7 +59,7 @@ flowchart TD
     end
 
     subgraph DataServices["Python Microservices & Services"]
-        DAPP["DAPP App (src/dapp/)<br/>Data Pipelines & ML Prediction Service"]
+        DAPP["DAPP (GHCR dapp-api)<br/>Data Pipelines & API"]
     end
     
     subgraph Storage["Storage Layer"]
@@ -80,7 +77,7 @@ flowchart TD
 
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
 *   **CDB Standalone Service**: Customer Data Platform & CRM service managing contacts, companies, and interactions. Direct channel integrations (such as LinkedIn messages and connections, and Notion meeting notes) are ingested natively by CDB's background connector service with full timestamp fidelity, while external webhooks and partner tools ingest via CDB API endpoints (`CDB_SERVICE_URL`) using API key authentication (`CDB_API_KEY`).
-*   **DAPP App ([src/dapp/](src/dapp/README.md))**: A consolidated Data App service combining data ingestion (**dlt**), transformations (**dbt**), and machine learning training/predictions (**ml**). N8N triggers pipelines (`DATA_PIPELINE_URL`) and ML inference (`ML_SERVICE_URL`) on this service.
+*   **DAPP ([DAPP repo](https://github.com/Data-Biz-AI-Consultancy/DAPP), DNS `dapp-api` on `jager_network`)**: Data-plane FastAPI + VectorDB + MotherDuck OLAP. Jager does not build this image. N8N calls `http://dapp-api:8000` (`DATA_PIPELINE_URL`, `ML_SERVICE_URL`) with `X-API-Key: $DAPP_API_KEY`. See [src/dapp/README.md](src/dapp/README.md) for legacy tree pointers.
 
 ### Database & Storage Schemas
 
@@ -101,7 +98,7 @@ jager/
 ├── prompts/                 # Markdown prompt templates (intent detection, lead enrichment)
 ├── scripts/                 # Utility scripts for database cloning, schema migrations, and data import
 ├── src/                     # Core application source code
-│   ├── dapp/                # Data App (Ingestion, dbt transformations, and ML microservice)
+│   ├── dapp/                # Legacy docs / dbt references — runtime is DAPP GHCR (see README there)
 │   ├── db/                  # Database initialization scripts
 │   └── n8n/                 # N8N configuration, workflow files, and sync scripts
 └── tests/                   # Automated Node.js and Python unit test suites
@@ -119,7 +116,7 @@ Refer to the folder-level READMEs for detailed guides:
 
 ### Important Root Files
 
-*   **`docker-compose.yml`**: Configures and runs all local service containers (`db`, `n8n`, `ml`, `data-pipeline`, `caddy`, and `tunnel`).
+*   **`docker-compose.yml`**: Jager app stack (`db`, `n8n`, `caddy`, `tunnel`) on `jager_network`. DAPP is started separately via DAPP's production compose ([`docker-compose.dapp.yml`](docker-compose.dapp.yml)).
 *   **`AGENTS.md`**: Contains agent rules, naming conventions, coding styles, and project constraints.
 *   **`package.json` / `pnpm-lock.yaml`**: Node dependencies and configuration for utility and synchronization scripts.
 *   **`.releaserc.json`**: Semantic release configuration.
@@ -134,14 +131,14 @@ Operational runbooks and technical guidelines are codified under [`.agents/skill
 | Area | Skill / Document | Description |
 |------|------------------|-------------|
 | **dbt Modeling** | [`jager-dbt-model`](.agents/skills/jager-dbt-model/SKILL.md) | Layer conventions (`staging`, `intermediate`, `marts`, `t_jager`), YAML docs, MotherDuck auth |
-| **Data Pipelines** | [`jager-add-pipeline`](.agents/skills/jager-add-pipeline/SKILL.md) | dlt ingestion pipelines (OLAP, OLTP, Reverse ETL), FastAPI endpoints in dapp |
+| **Data Pipelines** | [`jager-add-pipeline`](.agents/skills/jager-add-pipeline/SKILL.md) | dlt pipelines — canonical code in **DAPP**; n8n triggers `dapp-api` |
 | **Database Ops** | [`jager-database-ops`](.agents/skills/jager-database-ops/SKILL.md) | Parallel database cloning (`clone-db.js`), schema migrations, MotherDuck manual imports |
 | **n8n Workflows** | [`jager-n8n-workflow-ops`](.agents/skills/jager-n8n-workflow-ops/SKILL.md) | LinkedIn scheduling & dual-track publishing (individual vs Zernio), AI persona prompts |
 | **Machine Learning** | [`jager-ml-pipeline`](.agents/skills/jager-ml-pipeline/SKILL.md) | 1 use case 1 subfolder rule, MotherDuck feature queries, prediction endpoints, tests |
 | **Release & GitOps** | [`jager-release-and-deployment`](.agents/skills/jager-release-and-deployment/SKILL.md) | Tri-repo release flow (Jager, CDB, Jager-Deployment), GitOps self-hosted runner, secrets |
 | **CDB Integration** | [`jager-cdb-integration`](.agents/skills/jager-cdb-integration/SKILL.md) | Architectural boundary, REST API authentication, MotherDuck OLAP sync (`ingest_cdb.py`), and port mappings |
 | **Scripts Reference** | [`scripts/README.md`](scripts/README.md) | Overview of local developer scripts |
-| **DAPP Microservice** | [`src/dapp/README.md`](src/dapp/README.md) | Python data ingestion, transformation, and ML service architecture |
+| **DAPP runtime** | [`src/dapp/README.md`](src/dapp/README.md) + [`docker-compose.dapp.yml`](docker-compose.dapp.yml) | GHCR `dapp-api`; legacy folder pointers |
 
 ---
 

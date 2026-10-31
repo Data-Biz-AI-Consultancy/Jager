@@ -1,0 +1,21 @@
+# DAPP runs from the DAPP repo — Jager does not build or own the data-plane image.
+#
+# Prerequisites:
+#   docker network create jager_network || true
+#
+# Staging (floating GHCR tag after merge to DAPP main):
+#   git clone https://github.com/Data-Biz-AI-Consultancy/DAPP && cd DAPP
+#   export DAPP_IMAGE_TAG=staging
+#   export DAPP_API_KEY=... POSTGRES_PASSWORD=... MOTHERDUCK_TOKEN=...
+#   export SOURCE_DATABASE_URL=postgresql://jager:jager@db:5432/jager
+#   docker login ghcr.io   # private package read
+#   docker compose -f docker/docker-compose.production.yml -p dapp pull
+#   docker compose -f docker/docker-compose.production.yml -p dapp up -d
+#
+# Production (pin semver — same compose file, different tag):
+#   export DAPP_IMAGE_TAG=vX.Y.Z
+#
+# n8n in this repo expects http://dapp-api:8000 on jager_network and DAPP_API_KEY.
+# VectorDB (dapp-db) is defined only in DAPP's production compose — do not duplicate here.
+
+name: jager-dapp-pointer

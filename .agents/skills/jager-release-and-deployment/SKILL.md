@@ -16,7 +16,7 @@ Jager, CDB, and Jager-Deployment operate as an integrated tri-repo ecosystem:
 ┌─────────────────────────┐          ┌─────────────────────────┐
 │       Jager (OSS)       │          │        CDB (OSS)        │
 │  - n8n Workflows        │          │  - FastAPI Backend      │
-│  - dapp (dlt/dbt/ml)    │          │  - Next.js 15 Frontend  │
+│  - n8n → dapp-api (GHCR)│          │  - Next.js 15 Frontend  │
 │  - PostgreSQL (5432)    │          │  - PostgreSQL (5433)    │
 └────────────┬────────────┘          └────────────┬────────────┘
              │ Semantic Release                   │ Semantic Release (GHCR Multi-Arch)
@@ -25,7 +25,8 @@ Jager, CDB, and Jager-Deployment operate as an integrated tri-repo ecosystem:
 ┌──────────────────────────────────────────────────────────────┐
 │            Jager-Deployment (Private GitOps Repo)            │
 │  - Runs on Self-Hosted VPS Runner                            │
-│  - Checks out Jager (tagged) + CDB (pinned release tag)                    │
+│  - Checks out Jager (tagged) + CDB (pinned) + DAPP compose at tag          │
+│  - Pulls GHCR `dapp:vX.Y.Z`; `docker compose -p dapp up` (no Jager build)   │
 │  - Deploys on shared `jager_network` bridge                  │
 │  - Injects production secrets (MotherDuck, Cloudflare Tunnel)│
 │  - Auto-executes CDB Alembic migrations                      │
@@ -62,10 +63,14 @@ The self-hosted runner executes `.github/workflows/deploy.yml`:
    - Force-frees ports `80`, `443`, `3001`, `5432`, `5433`, `6380`, `8000`, `8001`.
 4. **Volume Migration**:
    - Ensures legacy volumes (`jager-deployment_*`) are migrated to `jager_*`.
-5. **Stack Deployment**:
-   - Starts Jager: `sudo -E docker compose -p jager-main --profile all up -d --build --remove-orphans`.
+5. **DAPP stack (GHCR)**:
+   - DAPP **Release** always dispatches Jager-Deployment with `service: dapp`, `dapp_tag: vX.Y.Z`.
+   - Runner checks out DAPP at that tag and runs [`docker/docker-compose.production.yml`](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/docker/docker-compose.production.yml) with pinned `DAPP_IMAGE_TAG` (staging float: `:staging` for pre-prod).
+   - Jager compose **does not** build `src/dapp/Dockerfile`; n8n uses `http://dapp-api:8000` + `DAPP_API_KEY`.
+6. **Stack Deployment**:
+   - Starts Jager: `sudo -E docker compose -p jager-main --profile all up -d --build --remove-orphans` (n8n/db/caddy only).
    - Starts CDB: `sudo -E docker compose -p cdb up -d --build --remove-orphans`.
-6. **Database Migrations**:
+7. **Database Migrations**:
    - Automatically executes CDB Alembic migrations:
      ```bash
      sudo docker compose -p cdb exec -T cdb-api alembic -c db/alembic.ini upgrade head
@@ -80,7 +85,7 @@ The self-hosted runner executes `.github/workflows/deploy.yml`:
 | **Caddy Proxy** | Jager | `80`, `443` | `caddy` | Reverse proxy & SSL termination |
 | **N8N** | Jager | `5678` | `http://n8n:5678` | Workflow orchestration UI & API |
 | **Jager Postgres** | Jager | `5432` | `db:5432` | OLTP operational database (`jager`, `n8n`) |
-| **DAPP (ETL/ML)** | Jager | `8000` (internal) | `http://data-pipeline:8000` | dlt, dbt, and ML prediction endpoints |
+| **DAPP API** | DAPP (GHCR) | `8002` (host) | `http://dapp-api:8000` | dlt/dbt `/run/*`; separate compose project `-p dapp` |
 | **CDB Postgres** | CDB | `5433` | `cdb-db:5432` | Standalone CRM PostgreSQL 16 database |
 | **CDB Redis** | CDB | `6380` | `cdb-redis:6379` | Celery task queue & cache |
 | **CDB API** | CDB | `8001` (or `8000`) | `http://cdb-api:8000` | FastAPI Customer Data Platform endpoints |
@@ -95,7 +100,8 @@ Injected dynamically during deployment from `Jager-Deployment` GitHub Secrets:
 - **Analytics / OLAP**: `MOTHERDUCK_TOKEN`, `MOTHERDUCK_DATABASE=production`.
 - **Integrations**: `NOTION_API_KEY`, `LINKEDIN_ACCESS_TOKEN`, `SLACK_OAUTH_TOKEN`, `BUFFER_API_KEY`.
 - **Networking & Access**: `TUNNEL_TOKEN` (Cloudflare Tunnel).
-- **Service Authentication**: `CDB_API_KEY` (shared between Jager n8n and CDB API), `CDB_SECRET_KEY` (JWT signing).
+- **Service Authentication**: `CDB_API_KEY` (shared between Jager n8n and CDB API), `CDB_SECRET_KEY` (JWT signing), `DAPP_API_KEY` (n8n → `dapp-api`).
+- **DAPP VectorDB**: `POSTGRES_PASSWORD` for `dapp-db` (Jager-Deployment secret); pin `DAPP_IMAGE_TAG` GitHub Variable for rollbacks.
 
 ---
 
