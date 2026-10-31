@@ -212,30 +212,6 @@
         336,
         1056
       ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/dbt_transform",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "X-API-Key",
-              "value": "={{ $env.DAPP_API_KEY }}"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "trigger-dbt-transform",
-      "name": "Trigger dbt Transform",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        336,
-        1200
-      ]
     }
   ],
   "connections": {
@@ -279,11 +255,6 @@
           },
           {
             "node": "Trigger Nager Ingestion",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Trigger dbt Transform",
             "type": "main",
             "index": 0
           }

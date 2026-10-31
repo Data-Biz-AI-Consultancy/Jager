@@ -13,11 +13,13 @@ HTTP Request nodes use:
 
 ### 1. [Data Ingestion](./data_ingestion/README.md)
 
-* [MotherDuck Data Ingestion](./data_ingestion/motherduck_data_ingestion_jager.json) — single daily schedule fans out in parallel to DAPP `/run/ingest_*` (`buffer`, `zernio`, `linkedin`, `meetup`, `reddit`, `eurostat`, `yahoo_finance_md`, `nager`) plus `/run/dbt_transform`
+* [MotherDuck Data Ingestion](./data_ingestion/motherduck_data_ingestion_jager.json) — daily schedule fans out in parallel to DAPP `/run/ingest_*` only (`buffer`, `zernio`, `linkedin`, `meetup`, `reddit`, `eurostat`, `yahoo_finance_md`, `nager`)
 
-Standalone dbt and per-source MotherDuck schedules were folded into this workflow.
+### 2. [Data Transformation](./data_transformation/README.md)
 
-### 2. MotherDuck Operations
+* [OLAP Data Transformation - dbt](./data_transformation/olap_data_transformation_dbt_motherduck.json) — separate schedule for `POST /run/dbt_transform` (not part of the ingest DAG)
+
+### 3. MotherDuck Operations
 
 * [MotherDuck Operations](./motherduck_ops.json): Periodic configuration and sharing operations on MotherDuck (e.g. creating shares). Not an HTTP ingest trigger.
 

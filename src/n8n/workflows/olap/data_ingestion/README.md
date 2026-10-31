@@ -1,6 +1,6 @@
 # MotherDuck Data Ingestion Workflows
 
-n8n workflows that trigger DAPP MotherDuck OLAP dlt ingest pipelines and dbt over HTTP.
+n8n workflows that trigger DAPP MotherDuck OLAP dlt ingest pipelines over HTTP (dbt is a separate workflow under [`../data_transformation/`](../data_transformation/)).
 
 ## Auth & base URL
 
@@ -37,7 +37,7 @@ Keep the workflow default `http://dapp-api:8000` for Docker. Only override `DATA
 ### [MotherDuck Data Ingestion](./motherduck_data_ingestion_jager.json)
 
 * **Workflow ID**: `motherduck-data-ingestion-jager`
-* **Trigger**: Daily `Schedule Trigger` (03:00), fans out in parallel to MotherDuck ingest + dbt
+* **Trigger**: Daily `Schedule Trigger` (03:00), fans out in parallel to MotherDuck ingest only
 * **Endpoints**:
   * `POST /run/ingest_buffer`
   * `POST /run/ingest_zernio`
@@ -47,12 +47,12 @@ Keep the workflow default `http://dapp-api:8000` for Docker. Only override `DATA
   * `POST /run/ingest_eurostat`
   * `POST /run/ingest_yahoo_finance_md`
   * `POST /run/ingest_nager`
-  * `POST /run/dbt_transform`
 
 Omitted from this schedule: `ingest_manual`, `ingest_cdb` (not on the daily MotherDuck cron).
 
-## Not MotherDuck (do not add here)
+## Not in this DAG
 
+* `/run/dbt_transform` — separate workflow: [`../data_transformation/olap_data_transformation_dbt_motherduck.json`](../data_transformation/olap_data_transformation_dbt_motherduck.json)
 * `/run/connectors/substack` and `/run/connectors/notion` — VectorDB connectors; see [`../../ai_memory/dapp_connectors_notion_substack.json`](../../ai_memory/dapp_connectors_notion_substack.json)
 * `/run/reverse_etl` — DAPP-only; no n8n trigger under this tree
 
