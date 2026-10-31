@@ -12,6 +12,10 @@ description: >-
 > **Runtime owner:** New pipelines and FastAPI `/run/*` routes belong in the **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** repo (`src/olap/data_ingestion/`, `src/api/`). Deploy via GHCR + [`docker/docker-compose.production.yml`](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/docker/docker-compose.production.yml). Jager n8n triggers `http://dapp-api:8000` with `X-API-Key: $DAPP_API_KEY`. Steps below describe patterns; implement pipeline code and `/run` routes in **DAPP**, then add an n8n HTTP trigger in Jager.
 
 Historical copies may still exist under retired `src/dapp/` paths in Jager — treat those as reference only. Live MotherDuck OLAP pipelines live in DAPP.
+> **Runtime owner:** New pipelines and FastAPI `/run/*` routes belong in the **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** repo (`src/olap/data_ingestion/`, `src/api/`). Deploy via GHCR + [`docker/docker-compose.production.yml`](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/docker/docker-compose.production.yml). Jager n8n triggers `http://dapp-api:8000` with `X-API-Key: $DAPP_API_KEY`. Steps below describe the historical Jager layout for reference.
+
+All ingestion pipelines use **dlt** (data load tool). Legacy copies may live under
+`src/dapp/olap/` (OLAP → MotherDuck) or `src/dapp/oltp/` (OLTP → PostgreSQL).
 
 ---
 
