@@ -22,7 +22,7 @@ This guide defines the architectural boundary and communication protocols betwee
 │  (Automation, Ingestion & ML Engine)   │  `X-API-Key: CDB_API_KEY` │   (Golden Records, CRM & Signals)      │
 │                                        │ ◄──────────────────────── │                                        │
 │  - n8n Workflow Orchestrator (5678)    │   OLAP Sync (ingest_cdb)  │  - FastAPI Backend (8000 / 8001)       │
-│  - DAPP Service (dlt, dbt, ml)         │                           │  - Next.js 15 Web UI (3001)            │
+│  - DAPP GHCR (`dapp-api`, dlt/dbt)     │                           │  - Next.js 15 Web UI (3001)            │
 │  - Operational PostgreSQL (5432)       │                           │  - Dedicated PostgreSQL 16 (5433)      │
 │  - MotherDuck Analytics OLAP           │                           │  - Celery Worker & Redis (6380)        │
 └────────────────────────────────────────┘                           └────────────────────────────────────────┘
@@ -52,9 +52,9 @@ Jager workflows in n8n and Python scripts interact with CDB strictly via HTTP RE
 ### 2. Analytical OLAP Synchronization (CDB $\rightarrow$ Jager MotherDuck)
 To enable cross-functional reporting, dbt analytics, and ML feature extraction in MotherDuck:
 
-- **Pipeline Script**: [`src/dapp/olap/ingest_cdb.py`](../../src/dapp/olap/ingest_cdb.py) in Jager.
+- **Pipeline Script**: [DAPP `src/olap/data_ingestion/ingest_cdb.py`](https://github.com/Data-Biz-AI-Consultancy/DAPP) (legacy mirror: [`src/dapp/olap/ingest_cdb.py`](../../src/dapp/olap/ingest_cdb.py)).
 - **Mechanism**: Calls CDB REST endpoints (`GET /api/v1/persons`, `GET /api/v1/companies`, `GET /api/v1/activities`, `GET /api/v1/signals/detected`), then writes data into the **`s_cdb`** schema inside MotherDuck using `dlt` merge mode.
-- **Trigger**: Exposed as `POST /run/ingest_cdb` on the `dapp` service and scheduled via n8n.
+- **Trigger**: `POST /run/ingest_cdb` on **`dapp-api`** (`DATA_PIPELINE_URL`, `X-API-Key: DAPP_API_KEY`) and scheduled via n8n.
 
 ---
 
@@ -65,7 +65,7 @@ To enable cross-functional reporting, dbt analytics, and ML feature extraction i
 | **Caddy Proxy** | Jager | `80`, `443` | `80`, `443` | SSL termination & reverse proxy |
 | **N8N** | Jager | `5678` | `5678` | Workflow orchestration UI & webhook runner |
 | **Jager PostgreSQL** | Jager | `5432` | `5432` | Stores `jager` operational tables and `n8n` state |
-| **DAPP Service** | Jager | `8000` (internal) | `8000` | FastAPI service for `dlt` and ML inference |
+| **DAPP API** | DAPP (GHCR) | `8002` (host smoke) | `8000` | `dapp-api` on `jager_network` — not built from Jager compose |
 | **CDB Web UI** | CDB | `3001` | `3000` | Next.js 15 App Router user interface |
 | **CDB API** | CDB | `8001` (or `8000`) | `8000` | FastAPI REST API backend (Swagger: `/docs`) |
 | **CDB PostgreSQL** | CDB | `5433` | `5432` | Dedicated CRM database |

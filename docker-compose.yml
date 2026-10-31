@@ -71,7 +71,7 @@ services:
       - NOTION_SUBSTACK_POSTS_GENERATION_API_KEY=${NOTION_SUBSTACK_POSTS_GENERATION_API_KEY}
       - BUFFER_API_KEY=${BUFFER_API_KEY}
       - HUGGING_FACE_TOKEN=${HUGGING_FACE_TOKEN}
-      - ML_SERVICE_URL=${ML_SERVICE_URL:-http://dapp:8000}
+      - ML_SERVICE_URL=${ML_SERVICE_URL:-http://dapp-api:8000}
       - WEBHOOK_URL=${WEBHOOK_URL:-https://jager.n8n.com/}
       - N8N_EDITOR_BASE_URL=https://jager.n8n.com
       - N8N_PUSH_BACKEND=websocket
@@ -82,7 +82,8 @@ services:
       - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
       - MOTHERDUCK_HOST=${MOTHERDUCK_HOST:-pg.us-east-1-aws.motherduck.com}
       - MOTHERDUCK_USER=${MOTHERDUCK_USER:-postgres}
-      - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://dapp:8000}
+      - DATA_PIPELINE_URL=${DATA_PIPELINE_URL:-http://dapp-api:8000}
+      - DAPP_API_KEY=${DAPP_API_KEY}
       - CDB_SERVICE_URL=${CDB_SERVICE_URL:-http://cdb-api:8000}
       - CDB_API_KEY=${CDB_API_KEY:-production-api-key}
     depends_on:
@@ -97,31 +98,6 @@ services:
       timeout: 5s
       retries: 60
       start_period: 60s
-
-  dapp:
-    build:
-      context: ./
-      dockerfile: src/dapp/Dockerfile
-    restart: always
-    profiles:
-      - data
-      - all
-    deploy:
-      resources:
-        limits:
-          memory: 1g
-          cpus: '1.5'
-    environment:
-      - PYTHONDONTWRITEBYTECODE=1
-      - DATABASE_URL=postgresql://jager:jager@db:5432/jager
-      - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
-      - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
-      - NOTION_API_KEY=${NOTION_API_KEY}
-      - NOTION_MANUAL_INGESTION_PAGE_ID=${NOTION_MANUAL_INGESTION_PAGE_ID}
-    depends_on:
-      db:
-        condition: service_started
-
 
   caddy:
     image: caddy:alpine
