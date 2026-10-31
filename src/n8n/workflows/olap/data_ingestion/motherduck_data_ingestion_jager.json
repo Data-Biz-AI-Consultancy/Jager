@@ -192,7 +192,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_manual",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_nager",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -204,13 +204,37 @@
         },
         "options": {}
       },
-      "id": "trigger-manual-ingestion",
-      "name": "Trigger Manual Ingestion",
+      "id": "trigger-nager-ingestion",
+      "name": "Trigger Nager Ingestion",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         336,
         1056
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/dbt_transform",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.DAPP_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "trigger-dbt-transform",
+      "name": "Trigger dbt Transform",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        336,
+        1200
       ]
     }
   ],
@@ -254,7 +278,12 @@
             "index": 0
           },
           {
-            "node": "Trigger Manual Ingestion",
+            "node": "Trigger Nager Ingestion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger dbt Transform",
             "type": "main",
             "index": 0
           }

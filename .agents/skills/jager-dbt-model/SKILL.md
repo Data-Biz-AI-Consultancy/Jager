@@ -1,16 +1,17 @@
 ---
 name: jager-dbt-model
 description: >-
-  Use this skill when the user wants to add, modify, or debug a dbt model in
-  the Jager repo — including staging, intermediate, marts, t_jager, t_reporting,
-  or t_slack layers — or when managing YAML documentation files, tests, or
-  MotherDuck execution conventions.
+  Use this skill when the user wants to add, modify, or debug a MotherDuck dbt
+  model (canonical tree in DAPP `src/olap/dbt/models/`) — including staging,
+  intermediate, marts, t_jager, t_reporting, or t_slack layers — or when
+  managing YAML documentation files, tests, or MotherDuck execution conventions.
 ---
 
 # Jager dbt Model Authoring Guide
 
-All dbt models live under `src/dapp/dbt/models/`. Each layer has strict naming and
-config conventions. **Read this skill fully before creating or modifying any dbt model.**
+> **Runtime owner:** All MotherDuck dbt models live in **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** under `src/olap/dbt/models/`. Implement and test there; trigger builds via DAPP `POST /run/dbt_build` (`X-API-Key: DAPP_API_KEY`) or local dbt with the same project paths. Historical mirror under Jager `src/dapp/dbt/` is reference only — do not treat it as canonical.
+
+Each layer has strict naming and config conventions. **Read this skill fully before creating or modifying any dbt model.**
 
 ---
 
@@ -93,23 +94,26 @@ Always use **daily granularity** as the standard time dimension for reporting mo
 
 ## Step 4 — Run the Model Against MotherDuck
 
-**Never** trigger an interactive SSO prompt. Always export tokens from `.env`:
+Run from the **DAPP** repo root. **Never** trigger an interactive SSO prompt. Always export tokens from DAPP `.env`:
 
 ```bash
+cd /path/to/DAPP
 motherduck_token=$(grep -E '^MOTHERDUCK_TOKEN=' .env | head -1 | cut -d= -f2-) \
 MOTHERDUCK_DATABASE=$(grep -E '^MOTHERDUCK_DATABASE=' .env | head -1 | cut -d= -f2-) \
-.venv/bin/dbt run --select staging__linkedin__posts
+.venv/bin/dbt run --project-dir src/olap/dbt --profiles-dir src/olap/dbt --select staging__linkedin__posts
 ```
 
 To run a full domain:
 ```bash
-... .venv/bin/dbt run --select staging/linkedin
+... .venv/bin/dbt run --project-dir src/olap/dbt --profiles-dir src/olap/dbt --select staging/linkedin
 ```
 
 To test:
 ```bash
-... .venv/bin/dbt test --select staging__linkedin__posts
+... .venv/bin/dbt test --project-dir src/olap/dbt --profiles-dir src/olap/dbt --select staging__linkedin__posts
 ```
+
+Or trigger remotely: `POST /run/dbt_build` on `dapp-api` (see `jager-add-pipeline` / DAPP [`dapp-motherduck-olap`](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/.agents/skills/dapp-motherduck-olap/SKILL.md)).
 
 Default `MOTHERDUCK_DATABASE` is `staging`. Pass `MOTHERDUCK_DATABASE=production` only when explicitly promoting.
 
@@ -153,8 +157,10 @@ After changing a `t_jager` model, the Reverse ETL pipeline must be re-run (see `
 
 | File | Purpose |
 |------|---------|
-| [`src/dapp/dbt/`](../../src/dapp/dbt/) | dbt project root |
-| [`src/dapp/dbt/models/staging/`](../../src/dapp/dbt/models/staging/) | Staging models |
-| [`src/dapp/dbt/models/marts/`](../../src/dapp/dbt/models/marts/) | Marts & summary models |
-| [`src/dapp/dbt/models/t_jager/`](../../src/dapp/dbt/models/t_jager/) | Application presentation layer |
-| [`AGENTS.md`](../../AGENTS.md) | Full Jager coding conventions |
+| [DAPP `src/olap/dbt/`](https://github.com/Data-Biz-AI-Consultancy/DAPP/tree/main/src/olap/dbt) | Canonical dbt project root |
+| [DAPP `src/olap/dbt/models/staging/`](https://github.com/Data-Biz-AI-Consultancy/DAPP/tree/main/src/olap/dbt/models/staging) | Staging models |
+| [DAPP `src/olap/dbt/models/marts/`](https://github.com/Data-Biz-AI-Consultancy/DAPP/tree/main/src/olap/dbt/models/marts) | Marts & summary models |
+| [DAPP `src/olap/dbt/models/t_jager/`](https://github.com/Data-Biz-AI-Consultancy/DAPP/tree/main/src/olap/dbt/models/t_jager) | Application presentation layer |
+| [DAPP `dapp-motherduck-olap` skill](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/.agents/skills/dapp-motherduck-olap/SKILL.md) | OLAP ingest, dbt API, env contract |
+| [`src/dapp/dbt/`](../../src/dapp/dbt/) | Historical Jager mirror (reference only) |
+| [`AGENTS.md`](../../AGENTS.md) | Jager repo conventions (n8n, docs sync) |

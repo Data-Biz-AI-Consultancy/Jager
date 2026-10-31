@@ -19,10 +19,11 @@ All workflow JSON files are tracked under [`src/n8n/workflows/`](../../src/n8n/w
 | Domain | Directory | Purpose |
 |--------|-----------|---------|
 | **Content Publishing** | `ai_retrieval/` | Content scheduling & dual-track publishing to LinkedIn |
-| **AI Memory** | `ai_memory/` | Staging, fact extraction, and episodic memory processing |
-| **Data Ingestion** | `data_ingestion/` | Multi-channel monitoring (Reddit, Substack, Meetup, etc.) |
-| **OLAP & dlt Sync** | `olap/` | Triggers for dlt ingestion pipelines and dbt transformations |
+| **AI Memory** | `ai_memory/` | Staging, fact extraction, episodic memory, and thin DAPP VectorDB connectors |
+| **OLAP & dlt Sync** | `olap/` | Consolidated MotherDuck ingest±dbt schedule + MotherDuck ops |
 | **CDB Integration** | `cdb/` | REST API webhook sync to CDB (`CDB_SERVICE_URL`) |
+
+Obsolete `data_ingestion/` (apps→Postgres collectors) and `ml/` workflow trees were removed; ingestion lives in DAPP and is triggered via thin HTTP schedules under `olap/` / `ai_memory/`.
 
 ---
 
@@ -78,7 +79,7 @@ Workflows under [`src/n8n/workflows/olap/data_ingestion/`](../../src/n8n/workflo
 
 - **Base URL**: `{{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}`
 - **Auth**: every HTTP Request node in the Jager schedule sends `X-API-Key: {{ $env.DAPP_API_KEY }}`
-- **Coverage**: [`motherduck_data_ingestion_jager.json`](../../src/n8n/workflows/olap/data_ingestion/motherduck_data_ingestion_jager.json) fans out in parallel to DAPP `POST /run/ingest_*` MotherDuck endpoints (`buffer`, `zernio`, `linkedin`, `meetup`, `reddit`, `eurostat`, `yahoo_finance_md`, `manual`)
-- **Nager (legacy / untouched this PR)**: separate workflow [`motherduck_data_ingestion_nager.json`](../../src/n8n/workflows/olap/data_ingestion/motherduck_data_ingestion_nager.json) — left as on `origin/main` (legacy `http://dapp:8000`, no `X-API-Key`); not merged into the Jager schedule
-- **Reverse ETL**: DAPP still exposes `POST /run/reverse_etl`; there is no n8n reverse-ETL trigger workflow under `src/n8n/workflows/olap/`
-- **Not MotherDuck**: `/run/connectors/substack` and `/run/connectors/notion` are VectorDB connectors — do not put them in MotherDuck workflows
+- **Coverage**: [`motherduck_data_ingestion_jager.json`](../../src/n8n/workflows/olap/data_ingestion/motherduck_data_ingestion_jager.json) fans out in parallel to DAPP `POST /run/ingest_*` (`buffer`, `zernio`, `linkedin`, `meetup`, `reddit`, `eurostat`, `yahoo_finance_md`, `nager`) plus `POST /run/dbt_transform`. Omits `ingest_manual` / `ingest_cdb` from the daily schedule.
+- **Ops**: keep [`motherduck_ops.json`](../../src/n8n/workflows/olap/motherduck_ops.json) for share/DDL; not an ingest trigger.
+- **Reverse ETL**: DAPP still exposes `POST /run/reverse_etl`; there is no n8n reverse-ETL trigger under `src/n8n/workflows/olap/`
+- **VectorDB connectors**: [`dapp_connectors_notion_substack.json`](../../src/n8n/workflows/ai_memory/dapp_connectors_notion_substack.json) POSTs `/run/connectors/notion?mode=vectordb` and `/run/connectors/substack` with the same DAPP auth — do not put these in MotherDuck workflows

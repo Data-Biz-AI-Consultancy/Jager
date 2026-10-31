@@ -1,10 +1,10 @@
 # AI Memory & Entity-Centric Learning (ECL)
 
-This directory contains workflows driving Jager's AI memory capabilities using the **Distillion Pattern**.
+This directory contains workflows driving Jager's AI memory capabilities using the **Distillion Pattern**, plus thin DAPP VectorDB connector schedules.
 
 ---
 
-## 🏛️ Four-Layer Memory Architecture
+## Four-Layer Memory Architecture
 
 ```mermaid
 graph TD
@@ -20,6 +20,19 @@ graph TD
 
 ---
 
-## 📋 Implementation
+## Memory workflows
 
-- **Workflow File**: [`ai_memory_ecl.json`](ai_memory_ecl.json) (runs daily with 1-day sliding window and polymorphic tracing).
+- [`ai_memory_distillion_staging.json`](ai_memory_distillion_staging.json)
+- [`ai_memory_distillion_facts_episodic.json`](ai_memory_distillion_facts_episodic.json)
+- [`ai_memory_embeddings.json`](ai_memory_embeddings.json)
+
+---
+
+## DAPP VectorDB connectors
+
+[`dapp_connectors_notion_substack.json`](dapp_connectors_notion_substack.json) — daily schedule that POSTs to DAPP with `X-API-Key`:
+
+* `POST /run/connectors/notion?mode=vectordb`
+* `POST /run/connectors/substack`
+
+Base URL: `{{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}`. These are **not** MotherDuck ingest paths.
