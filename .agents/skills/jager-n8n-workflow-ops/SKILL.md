@@ -69,3 +69,16 @@ Publisher (every 15m) ──► Query Due (scheduled_at <= NOW()) ┴───�
 
 - In local development, environment variables are loaded via `.env` and `docker-compose.yml`.
 - Never commit secrets to workflow JSON files. Always reference n8n expressions `{{ $env.VARIABLE_NAME }}` or credentials entities.
+
+---
+
+## 5. MotherDuck OLAP Triggers → DAPP
+
+Workflows under [`src/n8n/workflows/olap/data_ingestion/`](../../src/n8n/workflows/olap/data_ingestion/) trigger **DAPP** MotherDuck dlt pipelines (not an in-repo `dapp` service):
+
+- **Base URL**: `{{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}`
+- **Auth**: every HTTP Request node in the Jager schedule sends `X-API-Key: {{ $env.DAPP_API_KEY }}`
+- **Coverage**: [`motherduck_data_ingestion_jager.json`](../../src/n8n/workflows/olap/data_ingestion/motherduck_data_ingestion_jager.json) fans out in parallel to DAPP `POST /run/ingest_*` MotherDuck endpoints (`buffer`, `zernio`, `linkedin`, `meetup`, `reddit`, `eurostat`, `yahoo_finance_md`, `manual`)
+- **Nager (legacy / untouched this PR)**: separate workflow [`motherduck_data_ingestion_nager.json`](../../src/n8n/workflows/olap/data_ingestion/motherduck_data_ingestion_nager.json) — left as on `origin/main` (legacy `http://dapp:8000`, no `X-API-Key`); not merged into the Jager schedule
+- **Reverse ETL**: DAPP still exposes `POST /run/reverse_etl`; there is no n8n reverse-ETL trigger workflow under `src/n8n/workflows/olap/`
+- **Not MotherDuck**: `/run/connectors/substack` and `/run/connectors/notion` are VectorDB connectors — do not put them in MotherDuck workflows
