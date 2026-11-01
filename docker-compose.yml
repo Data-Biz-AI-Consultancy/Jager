@@ -78,9 +78,11 @@ services:
       - N8N_HOST=jager.n8n.com
       - N8N_PROTOCOL=https
       - N8N_PORT=5678
-      # SSE EventSource often omits Origin → "Invalid origin!" / Lost connection.
-      # WebSocket always sends Origin; Caddy injects matching Host/Origin on /rest/push*.
-      - N8N_PUSH_BACKEND=websocket
+      # Use SSE (not websocket): Caddy reverse_proxy was delivering /rest/push as a
+      # plain GET without req.ws → n8n res.status(401).send('Unauthorized') and the
+      # editor toast "Lost connection to the server". SSE needs no Upgrade; Caddy
+      # injects Origin (EventSource omits it) — see caddy/Caddyfile.
+      - N8N_PUSH_BACKEND=sse
       - N8N_SECURE_COOKIE=true
       - GENERIC_TIMEZONE=Europe/Berlin
       - N8N_PROXY_HOPS=1

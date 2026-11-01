@@ -1,23 +1,36 @@
-# Prefer HTTP/1.1 + HTTP/2.
 {
 	servers {
 		protocols h1 h2
 	}
 }
 
-# IMPORTANT: Do NOT set header_up Connection/Upgrade — that breaks Caddy's
-# native WebSocket dial to n8n. n8n then sees a plain GET /rest/push without
-# req.ws and returns exactly: res.status(401).send('Unauthorized')
-# → browser "Lost connection to the server".
+# n8n via Caddy (LAN TLS + Cloudflare Tunnel HTTP origin).
+# Push uses SSE (N8N_PUSH_BACKEND=sse). EventSource does not send Origin;
+# n8n 2.x requires it — inject Origin/X-Forwarded-* here.
+# Do NOT set Connection/Upgrade (breaks websocket if ever re-enabled).
+# Do NOT gzip /rest/push (buffers the SSE stream).
 
-# Cloudflare Tunnel origin (http://caddy:80)
 http://jager.n8n.com, http://staging.jager.n8n.com {
-	reverse_proxy n8n:5678 {
-		flush_interval -1
-		header_up Host {host}
-		header_up Origin "https://{host}"
-		header_up X-Forwarded-Host {host}
-		header_up X-Forwarded-Proto https
+	handle /rest/push* {
+		reverse_proxy n8n:5678 {
+			flush_interval -1
+			header_up Host {host}
+			header_up Origin "https://{host}"
+			header_up X-Forwarded-Host {host}
+			header_up X-Forwarded-Proto https
+			transport http {
+				read_timeout 0
+				write_timeout 0
+			}
+		}
+	}
+	handle {
+		reverse_proxy n8n:5678 {
+			flush_interval -1
+			header_up Host {host}
+			header_up X-Forwarded-Host {host}
+			header_up X-Forwarded-Proto https
+		}
 	}
 }
 
@@ -45,14 +58,28 @@ localhost {
 	tls internal
 }
 
-# LAN / direct TLS (internal CA) — used from 192.168.x clients
 jager.n8n.com, staging.jager.n8n.com {
-	reverse_proxy n8n:5678 {
-		flush_interval -1
-		header_up Host {host}
-		header_up Origin "https://{host}"
-		header_up X-Forwarded-Host {host}
-		header_up X-Forwarded-Proto https
+	handle /rest/push* {
+		reverse_proxy n8n:5678 {
+			flush_interval -1
+			header_up Host {host}
+			header_up Origin "https://{host}"
+			header_up X-Forwarded-Host {host}
+			header_up X-Forwarded-Proto https
+			transport http {
+				read_timeout 0
+				write_timeout 0
+			}
+		}
+	}
+	handle {
+		reverse_proxy n8n:5678 {
+			flush_interval -1
+			header_up Host {host}
+			header_up X-Forwarded-Host {host}
+			header_up X-Forwarded-Proto https
+		}
+		encode gzip
 	}
 	tls internal
 	log {
