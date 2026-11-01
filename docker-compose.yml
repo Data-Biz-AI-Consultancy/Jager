@@ -74,10 +74,13 @@ services:
       - ML_SERVICE_URL=${ML_SERVICE_URL:-http://dapp-api:8000}
       - WEBHOOK_URL=${WEBHOOK_URL:-https://jager.n8n.com/}
       - N8N_EDITOR_BASE_URL=https://jager.n8n.com
-      - N8N_PUSH_BACKEND=websocket
+      # SSE matches caddy/Caddyfile /rest/push* (no gzip) and survives Cloudflare Tunnel
+      # better than websocket — "Lost connection to the server" after deploys.
+      - N8N_PUSH_BACKEND=sse
       - N8N_SECURE_COOKIE=true
       - GENERIC_TIMEZONE=Europe/Berlin
-      - N8N_PROXY_HOPS=1
+      # Browser → Cloudflare Tunnel → Caddy → n8n
+      - N8N_PROXY_HOPS=2
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
       - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
       - MOTHERDUCK_HOST=${MOTHERDUCK_HOST:-pg.us-east-1-aws.motherduck.com}
