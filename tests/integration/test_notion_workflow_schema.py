@@ -1,38 +1,47 @@
-import os
 import json
+import os
 
 
-def test_notion_workflow_json_structure():
+def test_dapp_connectors_notion_substack_workflow_structure():
+    """Notion/Substack VectorDB refresh is scheduled via DAPP connectors, not data_ingestion."""
     workflow_path = os.path.join(
-        os.path.dirname(__file__), "../../src/n8n/workflows/data_ingestion/data_ingestion_notion.json"
+        os.path.dirname(__file__),
+        "../../src/n8n/workflows/ai_memory/dapp_connectors_notion_substack.json",
     )
     assert os.path.exists(workflow_path), f"Workflow file does not exist: {workflow_path}"
 
-    with open(workflow_path, "r") as f:
+    with open(workflow_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    assert data.get("id") == "notion-ingestion-workflow"
-    assert data.get("name") == "Data Ingestion - Notion"
+    assert data.get("id") == "dapp-connectors-notion-substack"
+    assert data.get("name") == "DAPP Connectors - Notion & Substack"
 
     node_names = [n.get("name") for n in data.get("nodes", [])]
     assert "Schedule Trigger" in node_names
-    assert "Ingest DB - Leadership & Management" in node_names
-    assert "Ingest DB - FaDi meeting notes" in node_names
-    assert len(data.get("nodes", [])) == 13
+    assert "Trigger Notion Connector" in node_names
+    assert "Trigger Substack Connector" in node_names
+    assert len(data.get("nodes", [])) == 3
 
-    db_node = next(n for n in data.get("nodes", []) if n.get("name") == "Ingest DB - Leadership & Management")
-    assert db_node["type"] == "n8n-nodes-base.httpRequest"
-    assert "/run/oltp/ingest_notion" in db_node["parameters"]["url"]
+    notion = next(n for n in data["nodes"] if n["name"] == "Trigger Notion Connector")
+    assert notion["type"] == "n8n-nodes-base.httpRequest"
+    assert "/run/connectors/notion?mode=vectordb" in notion["parameters"]["url"]
+    assert notion["parameters"].get("sendHeaders") is True
+    headers = notion["parameters"]["headerParameters"]["parameters"]
+    assert any(h.get("name") == "X-API-Key" for h in headers)
+
+    substack = next(n for n in data["nodes"] if n["name"] == "Trigger Substack Connector")
+    assert "/run/connectors/substack" in substack["parameters"]["url"]
+    assert "dapp-api:8000" in substack["parameters"]["url"]
 
 
 def test_notion_monitored_databases_seeds():
     oltp_seeds_path = os.path.join(os.path.dirname(__file__), "../../src/db/sql/oltp_seeds.sql")
     migrate_js_path = os.path.join(os.path.dirname(__file__), "../../src/db/migrate-db.js")
 
-    with open(oltp_seeds_path, "r") as f:
+    with open(oltp_seeds_path, "r", encoding="utf-8") as f:
         oltp_seeds = f.read()
 
-    with open(migrate_js_path, "r") as f:
+    with open(migrate_js_path, "r", encoding="utf-8") as f:
         migrate_js = f.read()
 
     target_dbs = [
@@ -43,4 +52,4 @@ def test_notion_monitored_databases_seeds():
 
     for db_id in target_dbs:
         assert db_id in oltp_seeds, f"Database ID {db_id} missing from oltp_seeds.sql"
-        assert "oltp_seeds.sql" in migrate_js, f"migrate-db.js does not load oltp_seeds.sql"
+        assert "oltp_seeds.sql" in migrate_js, "migrate-db.js does not load oltp_seeds.sql"

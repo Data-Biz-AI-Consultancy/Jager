@@ -9,7 +9,7 @@ For test execution conventions, see the [Agent Conventions Guide](../AGENTS.md).
 ## 📁 Directory Structure
 
 - **`shared/`**: Unit tests for the shared core library ([`test_shared.py`](shared/test_shared.py)).
-- **`integration/`**: Integration tests, n8n workflow schema checks, and Docker build verifications ([`test-dockerfile.js`](integration/test-dockerfile.js), [`test_notion_workflow_schema.py`](integration/test_notion_workflow_schema.py)).
+- **`integration/`**: Integration tests, n8n workflow schema checks, and Docker build verifications ([`test-dockerfile.js`](integration/test-dockerfile.js), [`test_notion_workflow_schema.py`](integration/test_notion_workflow_schema.py) — DAPP Notion/Substack connectors workflow).
 - **`fixtures/`**: Shared test fixtures and seeds.
 
 ---
