@@ -1,42 +1,24 @@
-# Prefer HTTP/1.1 + HTTP/2 (HTTP/3 has broken long-lived /rest/push for some clients).
+# Prefer HTTP/1.1 + HTTP/2.
 {
 	servers {
 		protocols h1 h2
 	}
 }
 
-# Shared snippet: n8n reverse proxy with push-safe headers.
-# n8n 2.x validates Origin on /rest/push; EventSource/SSE often omits it, and some
-# proxies mangle Host/Origin. Force canonical values so websocket push succeeds.
-(n8n_proxy) {
-	handle /rest/push* {
-		reverse_proxy n8n:5678 {
-			flush_interval -1
-			header_up Host {host}
-			header_up Origin "https://{host}"
-			header_up X-Forwarded-Host {host}
-			header_up X-Forwarded-Proto https
-			header_up Connection {>Connection}
-			header_up Upgrade {>Upgrade}
-			transport http {
-				read_timeout 0
-				write_timeout 0
-			}
-		}
-	}
-	handle {
-		reverse_proxy n8n:5678 {
-			flush_interval -1
-			header_up Host {host}
-			header_up X-Forwarded-Host {host}
-			header_up X-Forwarded-Proto https
-		}
-	}
-}
+# IMPORTANT: Do NOT set header_up Connection/Upgrade — that breaks Caddy's
+# native WebSocket dial to n8n. n8n then sees a plain GET /rest/push without
+# req.ws and returns exactly: res.status(401).send('Unauthorized')
+# → browser "Lost connection to the server".
 
-# Cloudflare Tunnel typically origins to http://caddy:80 — serve n8n here (no HTTPS redirect).
+# Cloudflare Tunnel origin (http://caddy:80)
 http://jager.n8n.com, http://staging.jager.n8n.com {
-	import n8n_proxy
+	reverse_proxy n8n:5678 {
+		flush_interval -1
+		header_up Host {host}
+		header_up Origin "https://{host}"
+		header_up X-Forwarded-Host {host}
+		header_up X-Forwarded-Proto https
+	}
 }
 
 http://cdb.com, http://staging.cdb.com, http://api.cdb.com, http://192.168.178.164 {
@@ -54,42 +36,23 @@ http://localhost {
 	reverse_proxy n8n:5678 {
 		flush_interval -1
 	}
-	encode gzip
 }
 
 localhost {
 	reverse_proxy n8n:5678 {
 		flush_interval -1
 	}
-	encode gzip
 	tls internal
 }
 
-# LAN / direct TLS (internal CA) — same push header fix.
+# LAN / direct TLS (internal CA) — used from 192.168.x clients
 jager.n8n.com, staging.jager.n8n.com {
-	handle /rest/push* {
-		reverse_proxy n8n:5678 {
-			flush_interval -1
-			header_up Host {host}
-			header_up Origin "https://{host}"
-			header_up X-Forwarded-Host {host}
-			header_up X-Forwarded-Proto https
-			header_up Connection {>Connection}
-			header_up Upgrade {>Upgrade}
-			transport http {
-				read_timeout 0
-				write_timeout 0
-			}
-		}
-	}
-	handle {
-		reverse_proxy n8n:5678 {
-			flush_interval -1
-			header_up Host {host}
-			header_up X-Forwarded-Host {host}
-			header_up X-Forwarded-Proto https
-		}
-		encode gzip
+	reverse_proxy n8n:5678 {
+		flush_interval -1
+		header_up Host {host}
+		header_up Origin "https://{host}"
+		header_up X-Forwarded-Host {host}
+		header_up X-Forwarded-Proto https
 	}
 	tls internal
 	log {
@@ -105,7 +68,6 @@ cdb.com, staging.cdb.com {
 	handle {
 		reverse_proxy cdb-frontend:3000
 	}
-	encode gzip
 	tls internal
 	log {
 		output stdout
@@ -115,7 +77,6 @@ cdb.com, staging.cdb.com {
 
 api.cdb.com {
 	reverse_proxy cdb-api:8000
-	encode gzip
 	tls internal
 	log {
 		output stdout
