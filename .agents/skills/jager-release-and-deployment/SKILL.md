@@ -37,10 +37,17 @@ Jager, CDB, and Jager-Deployment operate as an integrated tri-repo ecosystem:
 
 ## 1. Release Flow Step-by-Step
 
+### Step 0: Staging image on merge to `main`
+1. Merge (or push) to `main` runs [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml).
+2. After `test-docker` succeeds, job **Publish GHCR (staging)** builds [`src/n8n/Dockerfile`](../../src/n8n/Dockerfile) for `linux/amd64` and pushes to GHCR:
+   - `ghcr.io/data-biz-ai-consultancy/jager:staging` (floating)
+   - `ghcr.io/data-biz-ai-consultancy/jager:sha-<short>` / `sha-<full>`
+3. Staging publish does **not** deploy production. Production still requires a manual Semantic Release (Step 1).
+
 ### Step 1: Cutting a Jager Release
-1. Push or merge Conventional Commits to `main` in `Jager`.
-2. Trigger the release workflow in `Jager/.github/workflows/release.yml` (via `workflow_dispatch` or push):
-   - Builds custom n8n Docker image.
+1. Push or merge Conventional Commits to `main` in `Jager` (staging image already updated via Step 0).
+2. Manually trigger [`.github/workflows/release.yml`](../../.github/workflows/release.yml) (`workflow_dispatch` only):
+   - Builds custom n8n Docker image (local CI smoke; `push: false` today).
    - Runs `semantic-release` to create a new Git tag (`vX.Y.Z`) and GitHub Release.
    - Sends a `repository_dispatch` webhook to `Data-Biz-AI-Consultancy/Jager-Deployment` with `event_type: deploy-release`, passing the new release `version`, `tag`, and `token`.
 

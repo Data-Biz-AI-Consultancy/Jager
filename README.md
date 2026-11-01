@@ -193,14 +193,21 @@ node scripts/sync-workflows.js
 
 ## Release Pipeline
 
-We have established a manual trigger release CI pipeline via GitHub Actions.
+### Staging image (automatic on merge to `main`)
 
-### Triggering a Release
+After CI `test-docker` succeeds on a push to `main`, GitHub Actions publishes the custom n8n image to GHCR (`linux/amd64`):
+
+- `ghcr.io/data-biz-ai-consultancy/jager:staging`
+- `ghcr.io/data-biz-ai-consultancy/jager:sha-<commit>`
+
+This does **not** deploy production.
+
+### Production release (manual)
 
 1. Navigate to the **Actions** tab in your GitHub repository.
-2. Select the **Manual Release** workflow.
-3. Click **Run workflow**, specify the version tag (e.g. `v1.0.0`), write release notes, and trigger the run.
+2. Select the **Semantic Release** workflow.
+3. Click **Run workflow** and trigger the run.
 4. The workflow will:
-   - Validate that `src/n8n/workflows/workflow.json` is a valid JSON file.
-   - Build the custom N8N Docker image to ensure compile-time correctness.
-   - Create a GitHub Release with the specified tag and upload `workflow.json` as a release asset.
+   - Build the custom N8N Docker image (compile smoke; local tag only today).
+   - Run semantic-release to create a Git tag / GitHub Release.
+   - Dispatch `deploy-release` to **Jager-Deployment** for the VPS.

@@ -120,3 +120,61 @@ jobs:
         env:
           PYTHONPATH: src
         run: uv run --with pytest --with scikit-learn --with pandas --with fastapi --with httpx --with numpy --with sqlalchemy --with psycopg2-binary --with dlt --with feedparser --with beautifulsoup4 pytest tests/
+
+  # On merge to main (push): publish custom n8n image to GHCR as :staging
+  publish-ghcr:
+    name: Publish GHCR (staging)
+    needs: [test-docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Image name
+        id: repo
+        run: |
+          echo "IMAGE=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.repo.outputs.IMAGE }}
+          tags: |
+            type=raw,value=staging
+            type=sha,prefix=sha-,format=short
+            type=raw,value=sha-${{ github.sha }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/n8n/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Print pull hints
+        run: |
+          IMAGE="${{ steps.repo.outputs.IMAGE }}"
+          echo "==> Staging n8n image:"
+          echo "    docker pull ${IMAGE}:staging"
+          echo "    docker pull ${IMAGE}:sha-${GITHUB_SHA}"
+
