@@ -74,13 +74,15 @@ services:
       - ML_SERVICE_URL=${ML_SERVICE_URL:-http://dapp-api:8000}
       - WEBHOOK_URL=${WEBHOOK_URL:-https://jager.n8n.com/}
       - N8N_EDITOR_BASE_URL=https://jager.n8n.com
-      # SSE + ungzip'd /rest/push* in Caddy (HTTP and HTTPS). WebSocket push
-      # through Cloudflare Tunnel routinely yields "Lost connection to the server".
-      - N8N_PUSH_BACKEND=sse
+      # Required for /rest/push origin checks (n8n >= 1.87 / 2.x).
+      - N8N_HOST=jager.n8n.com
+      - N8N_PROTOCOL=https
+      - N8N_PORT=5678
+      # SSE EventSource often omits Origin → "Invalid origin!" / Lost connection.
+      # WebSocket always sends Origin; Caddy injects matching Host/Origin on /rest/push*.
+      - N8N_PUSH_BACKEND=websocket
       - N8N_SECURE_COOKIE=true
       - GENERIC_TIMEZONE=Europe/Berlin
-      # cloudflared → caddy is one trusted hop from n8n's perspective when Caddy
-      # is the configured tunnel origin (see caddy/Caddyfile http://jager.n8n.com).
       - N8N_PROXY_HOPS=1
       - MOTHERDUCK_TOKEN=${MOTHERDUCK_TOKEN}
       - MOTHERDUCK_DATABASE=${MOTHERDUCK_DATABASE:-staging}
