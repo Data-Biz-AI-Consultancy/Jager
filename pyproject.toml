@@ -10,9 +10,6 @@ dependencies = [
     "python-dotenv>=1.0.0",
 ]
 
-[tool.uv.workspace]
-members = ["src/dapp"]
-
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",
@@ -22,5 +19,5 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "src/dapp", "src/dapp/ml"]
+pythonpath = ["src"]
 

@@ -192,7 +192,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_manual",
+        "url": "={{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}/run/ingest_nager",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -204,8 +204,8 @@
         },
         "options": {}
       },
-      "id": "trigger-manual-ingestion",
-      "name": "Trigger Manual Ingestion",
+      "id": "trigger-nager-ingestion",
+      "name": "Trigger Nager Ingestion",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -254,7 +254,7 @@
             "index": 0
           },
           {
-            "node": "Trigger Manual Ingestion",
+            "node": "Trigger Nager Ingestion",
             "type": "main",
             "index": 0
           }

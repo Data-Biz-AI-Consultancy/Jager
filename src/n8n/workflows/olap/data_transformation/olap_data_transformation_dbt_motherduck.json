@@ -7,7 +7,7 @@
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 7
+              "triggerAtHour": 5
             }
           ]
         }
@@ -18,7 +18,7 @@
       "typeVersion": 1.2,
       "position": [
         112,
-        304
+        300
       ]
     },
     {
@@ -42,7 +42,7 @@
       "typeVersion": 4.2,
       "position": [
         336,
-        304
+        300
       ]
     }
   ],
@@ -59,7 +59,7 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate"

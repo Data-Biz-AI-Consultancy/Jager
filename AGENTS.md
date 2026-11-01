@@ -13,7 +13,7 @@
 ### 2. CI & Code Quality Verification (Mandatory)
 - **Always run and pass all automated tests before finalizing any change.**
 - **Python Verification**:
-  - Run `uv run pytest tests/` (or target specific service suites: `uv run pytest tests/dapp/`).
+  - Run `uv run pytest tests/` in Jager (n8n/shared/integration). Data-plane tests run in **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** (`uv run pytest`).
   - Pin all dependencies to exact versions in `requirements.txt` / `pyproject.toml` (e.g., `dbt-core==1.11.13`).
   - Ensure all files end with **exactly one single newline**.
 - Never commit or complete a turn with unformatted code, unused imports, or failing test suites.
@@ -34,9 +34,9 @@
 Operational procedures, runbooks, and deep architectural specs are codified as progressive skills:
 
 - **[jager-dbt-model](.agents/skills/jager-dbt-model/SKILL.md)**: Layer conventions (`staging`, `intermediate`, `marts`, `t_jager`), YAML documentation, MotherDuck SSO-free execution, timezone rules.
-- **[jager-add-pipeline](.agents/skills/jager-add-pipeline/SKILL.md)**: dlt ingestion pipelines (OLAP, OLTP, Reverse ETL), FastAPI endpoints in dapp, n8n triggers, manual ingestion.
+- **[jager-add-pipeline](.agents/skills/jager-add-pipeline/SKILL.md)**: dlt pipelines in **DAPP**; n8n HTTP triggers to `dapp-api` from Jager.
 - **[jager-database-ops](.agents/skills/jager-database-ops/SKILL.md)**: Parallel database cloning (`clone-db.js`), schema migrations (`migrate-db.js`), MotherDuck XLSX uploads, table naming conventions.
 - **[jager-n8n-workflow-ops](.agents/skills/jager-n8n-workflow-ops/SKILL.md)**: n8n workflow organization, dual-track LinkedIn publishing (individual vs Zernio), AI persona prompts (`{{VARIABLE_NAME}}`, Unicode emojis).
-- **[jager-ml-pipeline](.agents/skills/jager-ml-pipeline/SKILL.md)**: 1 use case 1 subfolder rule, MotherDuck feature extraction, FastAPI inference endpoints, and ML unit tests.
+- **[jager-ml-pipeline](.agents/skills/jager-ml-pipeline/SKILL.md)**: Historical — ML retired; see skill before re-adding in DAPP.
 - **[jager-release-and-deployment](.agents/skills/jager-release-and-deployment/SKILL.md)**: Tri-repo release flow (Jager, CDB, Jager-Deployment), GitOps self-hosted runner, port mapping, and production secrets.
 - **[jager-cdb-integration](.agents/skills/jager-cdb-integration/SKILL.md)**: Architectural boundaries, REST API communication (`X-API-Key`), MotherDuck OLAP sync (`ingest_cdb.py`), and port mappings.

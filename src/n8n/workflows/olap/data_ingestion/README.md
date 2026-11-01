@@ -1,10 +1,10 @@
 # MotherDuck Data Ingestion Workflows
 
-n8n workflows that trigger DAPP MotherDuck OLAP dlt ingest pipelines over HTTP.
+n8n workflows that trigger DAPP MotherDuck OLAP dlt ingest pipelines over HTTP (dbt is a separate workflow under [`../data_transformation/`](../data_transformation/)).
 
-## Auth & base URL (Jager schedule)
+## Auth & base URL
 
-HTTP Request nodes in the Jager schedule call DAPP with:
+HTTP Request nodes call DAPP with:
 
 - **Base URL**: `{{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}`
 - **Header**: `X-API-Key: {{ $env.DAPP_API_KEY }}`
@@ -22,11 +22,8 @@ docker network create jager_network || true
 # 2) Jager app stack (n8n on jager_network) — from Jager repo
 #    set DAPP_API_KEY in Jager .env to the SAME value as DAPP .env, then:
 docker compose --profile app up -d
-#    If you added DAPP_API_KEY after n8n was already up:
-#    docker compose --profile app up -d --force-recreate n8n
 
 # 3) DAPP stack — from DAPP repo root (joins jager_network; service name dapp-api)
-#    set SOURCE_DATABASE_URL=postgresql://jager:jager@db:5432/jager for OLAP extract
 docker compose up -d --build
 
 # 4) Verify DNS from inside n8n
@@ -40,7 +37,7 @@ Keep the workflow default `http://dapp-api:8000` for Docker. Only override `DATA
 ### [MotherDuck Data Ingestion](./motherduck_data_ingestion_jager.json)
 
 * **Workflow ID**: `motherduck-data-ingestion-jager`
-* **Trigger**: Daily `Schedule Trigger` (03:00), fans out in parallel to MotherDuck ingest endpoints
+* **Trigger**: Daily `Schedule Trigger` (03:00), fans out in parallel to MotherDuck ingest only
 * **Endpoints**:
   * `POST /run/ingest_buffer`
   * `POST /run/ingest_zernio`
@@ -49,19 +46,15 @@ Keep the workflow default `http://dapp-api:8000` for Docker. Only override `DATA
   * `POST /run/ingest_reddit`
   * `POST /run/ingest_eurostat`
   * `POST /run/ingest_yahoo_finance_md`
-  * `POST /run/ingest_manual`
+  * `POST /run/ingest_nager`
 
-### [MotherDuck Data Ingestion - Nager](./motherduck_data_ingestion_nager.json) (legacy / untouched this PR)
+Omitted from this schedule: `ingest_manual`, `ingest_cdb` (not on the daily MotherDuck cron).
 
-* **Workflow ID**: `motherduck-data-ingestion-nager`
-* Kept as a **separate** workflow file, restored from `origin/main` and left unchanged for this PR (legacy URL/auth: `http://dapp:8000`, no `X-API-Key`)
-* **Endpoint**: `POST /run/ingest_nager`
+## Not in this DAG
 
-## Not MotherDuck (do not add here)
-
-* `/run/connectors/substack` and `/run/connectors/notion` — VectorDB connectors in DAPP, not MotherDuck dlt
-* `/run/oltp/*` — OLTP → PostgreSQL pipelines
-* Source→OLTP collectors under [`../../data_ingestion/`](../../data_ingestion/) (e.g. Buffer/Meetup collectors) are separate from these MotherDuck triggers
+* `/run/dbt_transform` — separate workflow: [`../data_transformation/olap_data_transformation_dbt_motherduck.json`](../data_transformation/olap_data_transformation_dbt_motherduck.json)
+* `/run/connectors/substack` and `/run/connectors/notion` — VectorDB connectors; see [`../../ai_memory/dapp_connectors_notion_substack.json`](../../ai_memory/dapp_connectors_notion_substack.json)
+* `/run/reverse_etl` — DAPP-only; no n8n trigger under this tree
 
 ## Local Import & Setup
 

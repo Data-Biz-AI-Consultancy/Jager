@@ -77,13 +77,13 @@ flowchart TD
 
 *   **N8N Orchestration (`src/n8n/`)**: Serves as the central job orchestrator (operating like an AI-native Airflow) to schedule, trigger, and coordinate automated workflows via HTTP endpoints.
 *   **CDB Standalone Service**: Customer Data Platform & CRM service managing contacts, companies, and interactions. Direct channel integrations (such as LinkedIn messages and connections, and Notion meeting notes) are ingested natively by CDB's background connector service with full timestamp fidelity, while external webhooks and partner tools ingest via CDB API endpoints (`CDB_SERVICE_URL`) using API key authentication (`CDB_API_KEY`).
-*   **DAPP ([DAPP repo](https://github.com/Data-Biz-AI-Consultancy/DAPP), DNS `dapp-api` on `jager_network`)**: Data-plane FastAPI + VectorDB + MotherDuck OLAP. Jager does not build this image. N8N calls `http://dapp-api:8000` (`DATA_PIPELINE_URL`, `ML_SERVICE_URL`) with `X-API-Key: $DAPP_API_KEY`. See [src/dapp/README.md](src/dapp/README.md) for legacy tree pointers.
+*   **DAPP ([DAPP repo](https://github.com/Data-Biz-AI-Consultancy/DAPP), DNS `dapp-api` on `jager_network`)**: Data-plane FastAPI + VectorDB + MotherDuck OLAP. Jager does not build this image. N8N calls `http://dapp-api:8000` (`DATA_PIPELINE_URL`, `ML_SERVICE_URL`) with `X-API-Key: $DAPP_API_KEY`. See the [DAPP README](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/README.md) and [`docker-compose.dapp.yml`](docker-compose.dapp.yml) for local/staging runbooks.
 
 ### Database & Storage Schemas
 
-We organize our databases into clear operational (OLTP) and analytical (OLAP) processing schemas:
-- **OLTP Schema (PostgreSQL)**: Stores operational source data (`s_*` schemas) and internal task/content generation tables (`t_*`). Refer to the [OLTP Database Documentation](src/dapp/oltp/README.md) for details.
-- **OLAP Schema (MotherDuck)**: Stores curated presentation data (`t_jager`), features, validation snapshots, and serialized model metrics for ML workflows. Refer to the [OLAP Database Documentation](src/dapp/olap/README.md) for details.
+We organize our databases into clear operational (OLTP) and analytical (OLAP) processing schemas (owned and documented in **DAPP**):
+- **OLTP Schema (PostgreSQL)**: Stores operational source data (`s_*` schemas) and internal task/content generation tables (`t_*`). See [DAPP OLTP documentation](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/src/oltp/README.md).
+- **OLAP Schema (MotherDuck)**: Stores curated presentation data (`t_jager`), features, and validation snapshots. See [DAPP OLAP documentation](https://github.com/Data-Biz-AI-Consultancy/DAPP/blob/main/src/olap/README.md).
 
 ---
 
@@ -98,7 +98,6 @@ jager/
 ├── prompts/                 # Markdown prompt templates (intent detection, lead enrichment)
 ├── scripts/                 # Utility scripts for database cloning, schema migrations, and data import
 ├── src/                     # Core application source code
-│   ├── dapp/                # Legacy docs / dbt references — runtime is DAPP GHCR (see README there)
 │   ├── db/                  # Database initialization scripts
 │   └── n8n/                 # N8N configuration, workflow files, and sync scripts
 └── tests/                   # Automated Node.js and Python unit test suites
@@ -107,11 +106,9 @@ jager/
 Refer to the folder-level READMEs for detailed guides:
 - [scripts/README.md](scripts/README.md)
 - [src/db/README.md](src/db/README.md)
-- [src/dapp/README.md](src/dapp/README.md)
-- [src/dapp/oltp/README.md](src/dapp/oltp/README.md)
-- [src/dapp/olap/README.md](src/dapp/olap/README.md)
-- [src/dapp/ml/README.md](src/dapp/ml/README.md)
 - [tests/README.md](tests/README.md)
+
+Data-plane pipelines, dbt, and OLTP/OLAP docs live in the **[DAPP](https://github.com/Data-Biz-AI-Consultancy/DAPP)** repository (not in this tree).
 
 
 ### Important Root Files
@@ -134,11 +131,11 @@ Operational runbooks and technical guidelines are codified under [`.agents/skill
 | **Data Pipelines** | [`jager-add-pipeline`](.agents/skills/jager-add-pipeline/SKILL.md) | dlt pipelines — canonical code in **DAPP**; n8n triggers `dapp-api` |
 | **Database Ops** | [`jager-database-ops`](.agents/skills/jager-database-ops/SKILL.md) | Parallel database cloning (`clone-db.js`), schema migrations, MotherDuck manual imports |
 | **n8n Workflows** | [`jager-n8n-workflow-ops`](.agents/skills/jager-n8n-workflow-ops/SKILL.md) | LinkedIn scheduling & dual-track publishing (individual vs Zernio), AI persona prompts |
-| **Machine Learning** | [`jager-ml-pipeline`](.agents/skills/jager-ml-pipeline/SKILL.md) | 1 use case 1 subfolder rule, MotherDuck feature queries, prediction endpoints, tests |
+| **Machine Learning** | [`jager-ml-pipeline`](.agents/skills/jager-ml-pipeline/SKILL.md) | Historical — ML runtime retired in DAPP; see skill before re-adding |
 | **Release & GitOps** | [`jager-release-and-deployment`](.agents/skills/jager-release-and-deployment/SKILL.md) | Tri-repo release flow (Jager, CDB, Jager-Deployment), GitOps self-hosted runner, secrets |
 | **CDB Integration** | [`jager-cdb-integration`](.agents/skills/jager-cdb-integration/SKILL.md) | Architectural boundary, REST API authentication, MotherDuck OLAP sync (`ingest_cdb.py`), and port mappings |
 | **Scripts Reference** | [`scripts/README.md`](scripts/README.md) | Overview of local developer scripts |
-| **DAPP runtime** | [`src/dapp/README.md`](src/dapp/README.md) + [`docker-compose.dapp.yml`](docker-compose.dapp.yml) | GHCR `dapp-api`; legacy folder pointers |
+| **DAPP runtime** | [DAPP repo](https://github.com/Data-Biz-AI-Consultancy/DAPP) + [`docker-compose.dapp.yml`](docker-compose.dapp.yml) | GHCR `dapp-api`; compose pointer only in Jager |
 
 ---
 
@@ -196,14 +193,21 @@ node scripts/sync-workflows.js
 
 ## Release Pipeline
 
-We have established a manual trigger release CI pipeline via GitHub Actions.
+### Staging image (automatic on merge to `main`)
 
-### Triggering a Release
+After CI `test-docker` succeeds on a push to `main`, GitHub Actions publishes the custom n8n image to GHCR (`linux/amd64`):
+
+- `ghcr.io/data-biz-ai-consultancy/jager:staging`
+- `ghcr.io/data-biz-ai-consultancy/jager:sha-<commit>`
+
+This does **not** deploy production.
+
+### Production release (manual)
 
 1. Navigate to the **Actions** tab in your GitHub repository.
-2. Select the **Manual Release** workflow.
-3. Click **Run workflow**, specify the version tag (e.g. `v1.0.0`), write release notes, and trigger the run.
+2. Select the **Semantic Release** workflow.
+3. Click **Run workflow** and trigger the run.
 4. The workflow will:
-   - Validate that `src/n8n/workflows/workflow.json` is a valid JSON file.
-   - Build the custom N8N Docker image to ensure compile-time correctness.
-   - Create a GitHub Release with the specified tag and upload `workflow.json` as a release asset.
+   - Build the custom N8N Docker image (compile smoke; local tag only today).
+   - Run semantic-release to create a Git tag / GitHub Release.
+   - Dispatch `deploy-release` to **Jager-Deployment** for the VPS.

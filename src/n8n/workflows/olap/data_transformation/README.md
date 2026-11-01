@@ -1,19 +1,24 @@
-# OLAP Data Transformation Workflows
+# OLAP Data Transformation (dbt)
 
-This directory contains n8n workflows designed to perform data transformations (modeling/marts calculations) within Motherduck.
+Separate from MotherDuck **ingest**. This workflow only triggers DAPP dbt against MotherDuck.
 
-## Workflows
+## Auth & base URL
 
-### 1. [OLAP Data Transformation - dbt Core Motherduck](./olap_data_transformation_dbt_motherduck.json)
-*   **Workflow ID**: `olap-dbt-transform-motherduck`
-*   **Trigger**: Runs automatically every day via a `Schedule Trigger`.
-*   **Purpose**: Triggers the `dbt build` run on the `data-pipeline` service to compile staging, intermediate, and marts models inside Motherduck.
+- **Base URL**: `{{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}`
+- **Header**: `X-API-Key: {{ $env.DAPP_API_KEY }}`
 
-## Local Import & Setup
-These workflows are automatically imported into the local n8n instance upon running `docker compose up --build`.
+## Workflow
 
-To manually trigger workflow imports from the workspace JSON files, ensure the containers are running and use:
+### [OLAP Data Transformation - dbt Core Motherduck](./olap_data_transformation_dbt_motherduck.json)
+
+* **Workflow ID**: `olap-dbt-transform-motherduck`
+* **Trigger**: Daily schedule (05:00 by default; inactive until enabled)
+* **Endpoint**: `POST /run/dbt_transform` (alias of `/run/dbt_build`)
+
+Run **after** ingest has loaded fresh MotherDuck data (see [MotherDuck Data Ingestion](../data_ingestion/motherduck_data_ingestion_jager.json)).
+
+## Local import
+
 ```bash
 docker compose exec n8n n8n import:workflow --input /etc/n8n/workflows/olap/data_transformation/olap_data_transformation_dbt_motherduck.json
 ```
-

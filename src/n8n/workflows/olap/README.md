@@ -4,7 +4,7 @@ n8n workflows that trigger DAPP MotherDuck ingestion and dbt transforms.
 
 ## Caller contract
 
-HTTP Request nodes in the modernized workflows use:
+HTTP Request nodes use:
 
 * **Base URL**: `{{ $env.DATA_PIPELINE_URL || 'http://dapp-api:8000' }}`
 * **Auth**: `X-API-Key: {{ $env.DAPP_API_KEY }}`
@@ -13,20 +13,19 @@ HTTP Request nodes in the modernized workflows use:
 
 ### 1. [Data Ingestion](./data_ingestion/README.md)
 
-* [MotherDuck Data Ingestion](./data_ingestion/motherduck_data_ingestion_jager.json) — schedule fans out to DAPP `/run/ingest_*` (`buffer`, `zernio`, `linkedin`, `meetup`, `reddit`, `eurostat`, `yahoo_finance_md`, `manual`)
-* [MotherDuck Data Ingestion - Nager](./data_ingestion/motherduck_data_ingestion_nager.json) — separate legacy/untouched workflow for this PR (`ingest_nager`)
+* [MotherDuck Data Ingestion](./data_ingestion/motherduck_data_ingestion_jager.json) — daily schedule fans out in parallel to DAPP `/run/ingest_*` only (`buffer`, `zernio`, `linkedin`, `meetup`, `reddit`, `eurostat`, `yahoo_finance_md`, `nager`)
 
 ### 2. [Data Transformation](./data_transformation/README.md)
 
-Contains workflows that perform transformations in MotherDuck using dbt Core:
-
-* [OLAP Data Transformation - dbt Core Motherduck](./data_transformation/olap_data_transformation_dbt_motherduck.json)
+* [OLAP Data Transformation - dbt](./data_transformation/olap_data_transformation_dbt_motherduck.json) — separate schedule for `POST /run/dbt_transform` (not part of the ingest DAG)
 
 ### 3. MotherDuck Operations
 
-* [MotherDuck Operations](./motherduck_ops.json): Performs periodic configuration and sharing operations on MotherDuck (e.g. creating shares). Not an HTTP ingest trigger.
+* [MotherDuck Operations](./motherduck_ops.json): Periodic configuration and sharing operations on MotherDuck (e.g. creating shares). Not an HTTP ingest trigger.
 
-Reverse ETL is exposed as DAPP `POST /run/reverse_etl` only; there is no n8n trigger workflow under this tree.
+Reverse ETL is exposed as DAPP `POST /run/reverse_etl` only; there is no n8n reverse-ETL trigger workflow under this tree.
+
+VectorDB connectors (Notion / Substack) live under [`../ai_memory/dapp_connectors_notion_substack.json`](../ai_memory/dapp_connectors_notion_substack.json), not here.
 
 ## Local Import & Setup
 
