@@ -49,7 +49,7 @@ Jager, CDB, and Jager-Deployment operate as an integrated tri-repo ecosystem:
 2. Manually trigger [`.github/workflows/release.yml`](../../.github/workflows/release.yml) (`workflow_dispatch` only):
    - Builds custom n8n Docker image (local CI smoke; `push: false` today).
    - Runs `semantic-release` to create a new Git tag (`vX.Y.Z`) and GitHub Release.
-   - Sends a `repository_dispatch` webhook to `Data-Biz-AI-Consultancy/Jager-Deployment` with `event_type: deploy-release`, passing the new release `version`, `tag`, and `token`.
+   - Sends a `repository_dispatch` webhook to `Data-Biz-AI-Consultancy/Jager-Deployment` with `event_type: deploy-release`, passing `version`, `tag`, **`dapp_tag: production`** (refresh GHCR `dapp-api` on the same deploy), and `token`.
 
 ### Step 2: Cutting a CDB Release
 1. Push or merge Conventional Commits to `main` in `cdb`.
